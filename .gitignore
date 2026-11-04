@@ -1,0 +1,12 @@
+# Configuration personnelle : contient le jeton d'acces Home Assistant -> ne JAMAIS publier
+config.json
+config.json.tmp
+
+# Python
+__pycache__/
+*.pyc
+
+# Construction (build.ps1) : le programme d'installation est publie dans les Releases GitHub
+build/
+dist/
+*.spec

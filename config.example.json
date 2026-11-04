@@ -1,0 +1,41 @@
+{
+  "ha_url": "http://homeassistant.local:8123",
+  "token": "",
+  "verify_ssl": true,
+  "poll_interval": 5,
+  "anchor": "left",
+  "offset": 60,
+  "layout": "stacked",
+  "font": "Segoe UI",
+  "font_size": 9,
+  "opacity": 1.0,
+  "transparent_bg": true,
+  "hide_on_fullscreen": true,
+  "show_icons": true,
+  "theme_mode": "system",
+  "colors": {
+    "bg": "#202020",
+    "fg": "#ffffff",
+    "dim": "#9a9a9a",
+    "on": "#ffc83d",
+    "hover": "#2f2f2f",
+    "error": "#ff6b6b"
+  },
+  "colors_light": {
+    "bg": "#eeeeee",
+    "fg": "#000000",
+    "dim": "#5f5f5f",
+    "on": "#b86e00",
+    "hover": "#dcdcdc",
+    "error": "#c42b1c"
+  },
+  "card_theme": "barre",
+  "card_mode": "bar",
+  "items": [
+    { "entity_id": "light.salon", "label": "Salon" },
+    { "entity_id": "switch.prise_bureau", "label": "Bureau", "icon": "power" },
+    { "entity_id": "sensor.temperature_salon", "label": "Temp.", "decimals": 1 },
+    { "entity_id": "climate.thermostat", "label": "Chauffage", "attribute": "current_temperature", "unit": "°C" },
+    { "entity_id": "scene.cinema", "label": "Ciné" }
+  ]
+}
