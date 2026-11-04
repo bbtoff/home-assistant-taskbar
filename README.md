@@ -140,6 +140,8 @@ Toutes les cartes, sauf celles des scènes, scripts et boutons, affichent l'**hi
 
 Les curseurs n'envoient la commande qu'au relâchement de la souris, pour ne pas inonder Home Assistant de requêtes. La consigne du thermostat est envoyée 0,7 s après le dernier clic sur − / +.
 
+Le **titre** de la carte se change avec le crayon **✎** à côté (ou un double-clic dessus). **Entrée** enregistre et **Échap** annule. Un titre vide remet le nom de l'entité dans Home Assistant. Le titre est enregistré dans ta config (`card_title`) et se modifie aussi dans l'onglet Éléments des réglages. Il ne change rien dans Home Assistant.
+
 La carte se ferme avec **Échap**, ou par un clic n'importe où en dehors.
 
 #### Thèmes de la carte
@@ -212,6 +214,7 @@ Une clé absente reprend la valeur du thème par défaut. Après avoir enregistr
   - **Unité** et **Décimales**
   - **Action au clic** : automatique, aucune, ou n'importe quel service (ex. `light.turn_on`)
   - **Données (JSON)** : paramètres envoyés au service (ex. `{"entity_id": "light.salon", "brightness_pct": 30}`)
+  - **Titre de la carte** : titre affiché sur la carte d'appui long. Vide = nom de l'entité dans Home Assistant.
 
 Le bouton **Changer…** à côté de l'icône ouvre le choix parmi 45 icônes Windows 11 :
 
@@ -261,6 +264,7 @@ Format d'un élément :
 {
   "entity_id": "climate.thermostat",
   "label": "Chauffage",
+  "card_title": "Chauffage du salon",
   "icon": "flame",
   "attribute": "current_temperature",
   "unit": "°C",

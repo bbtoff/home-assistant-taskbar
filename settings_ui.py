@@ -477,11 +477,19 @@ class SettingsWindow:
         self.data_info = self.hint(right, "Optionnel. Vide = {\"entity_id\": \"<l'entité>\"}",
                                    row=10, column=1, sticky="w")
 
-        for v in (self.v_eid, self.v_label, self.v_attr, self.v_unit, self.v_dec, self.v_service, self.v_icon):
+        row(11, "Titre de la carte")
+        self.v_ctitle = tk.StringVar()
+        self.e_ctitle = ttk.Entry(right, textvariable=self.v_ctitle)
+        self.e_ctitle.grid(row=11, column=1, sticky="ew", pady=(4, 0))
+        self.hint(right, "Vide = nom de l'entité dans Home Assistant. Aussi modifiable avec le crayon ✎ "
+                         "de la carte (appui long).", wrap=360, row=12, column=1, sticky="w")
+
+        for v in (self.v_eid, self.v_label, self.v_attr, self.v_unit, self.v_dec, self.v_service, self.v_icon,
+                  self.v_ctitle):
             v.trace_add("write", self.on_item_field)
         self.t_data.bind("<KeyRelease>", self.on_item_field)
         self.item_widgets = [self.cb_eid, self.e_label, self.cb_attr, self.e_unit, self.cb_dec,
-                             self.cb_service, self.t_data, self.b_icon]
+                             self.cb_service, self.t_data, self.b_icon, self.e_ctitle]
 
         self.refresh_tree()
         if self.cfg["items"]:
@@ -561,6 +569,7 @@ class SettingsWindow:
         self.loading = True
         self.v_eid.set(it.get("entity_id", ""))
         self.v_label.set(it.get("label", ""))
+        self.v_ctitle.set(it.get("card_title", ""))
         self.v_icon.set(it.get("icon") or "auto")
         self.v_attr.set(it.get("attribute") or STATE_ATTR)
         self.v_unit.set(it.get("unit", ""))
@@ -627,6 +636,11 @@ class SettingsWindow:
         eid = self.v_eid.get().strip()
         it["entity_id"] = eid
         it["label"] = self.v_label.get()
+        ctitle = self.v_ctitle.get().strip()
+        if ctitle:
+            it["card_title"] = ctitle
+        else:
+            it.pop("card_title", None)
         icon = self.v_icon.get()
         if icon in ("", "auto"):
             it.pop("icon", None)

@@ -12,8 +12,8 @@ import tkinter as tk
 from ctypes import wintypes
 from tkinter import font as tkfont
 
-from ha_core import (ACTIVE_STATES, STATE_TEXT, card_light, card_palette, parse_time, resolve_icon,
-                     resolve_service)
+from ha_core import (ACTIVE_STATES, STATE_TEXT, card_light, card_palette, load_config, parse_time, resolve_icon,
+                     resolve_service, save_config)
 
 user32 = ctypes.windll.user32
 user32.GetAncestor.restype = wintypes.HWND
@@ -34,6 +34,7 @@ HWND_TOPMOST, SWP_NOACTIVATE = -1, 0x10
 G_PLUS, G_MINUS = "", ""
 G_PLAY, G_PAUSE, G_PREV, G_NEXT, G_STOP = "", "", "", "", ""
 G_UP, G_DOWN = "", ""
+G_EDIT, G_CHECK = "", ""
 
 TOGGLE_DOMAINS = {"light", "switch", "input_boolean", "fan", "automation", "siren", "humidifier"}
 ACTION_DOMAINS = {"scene", "script", "button", "input_button"}
@@ -500,6 +501,7 @@ class Card:
 
     def __init__(self, app, item_cfg, cx, bottom, xmin, xmax):
         self.app, self.cfg = app, dict(item_cfg)
+        self.item_ref = item_cfg          # l'element de la config (pour enregistrer le titre)
         self.eid = self.cfg.get("entity_id", "")
         self.domain = self.eid.split(".", 1)[0]
         self.root = app.root
@@ -593,15 +595,28 @@ class Card:
     def _build(self, st):
         c, s = self.c, self.s
         a = (st or {}).get("attributes", {})
-        name = a.get("friendly_name") or self.cfg.get("label") or self.eid
+        self.default_name = a.get("friendly_name") or self.cfg.get("label") or self.eid
+        name = self.cfg.get("card_title") or self.default_name
 
         hdr = tk.Frame(self.body, bg=c["bg"])
         hdr.pack(fill="x")
         hdr.grid_columnconfigure(1, weight=1)
         self.h_icon = tk.Label(hdr, text="", bg=c["bg"], fg=c["fg"], font=(self.ifont, 20))
         self.h_icon.grid(row=0, column=0, rowspan=2, padx=(0, s(12)))
-        tk.Label(hdr, text=name, bg=c["bg"], fg=c["fg"], font=self.f_title, anchor="w", justify="left",
-                 wraplength=self.iw - s(110)).grid(row=0, column=1, sticky="w")
+        # titre + crayon pour le renommer
+        self.h_title = tk.Frame(hdr, bg=c["bg"])
+        self.h_title.grid(row=0, column=1, sticky="w")
+        self.h_name = tk.Label(self.h_title, text=name, bg=c["bg"], fg=c["fg"], font=self.f_title, anchor="w",
+                               justify="left", wraplength=self.iw - s(140))
+        self.h_name.pack(side="left")
+        self.h_edit = tk.Label(self.h_title, text=G_EDIT, bg=c["bg"], fg=c["dim"], font=(self.ifont, 10),
+                               cursor="hand2")
+        self.h_edit.pack(side="left", padx=(s(8), 0))
+        self.h_edit.bind("<Enter>", lambda e: self.h_edit.configure(fg=c["fg"]))
+        self.h_edit.bind("<Leave>", lambda e: self.h_edit.configure(fg=c["dim"]))
+        self.h_edit.bind("<Button-1>", lambda e: self.edit_title())
+        self.h_name.bind("<Double-Button-1>", lambda e: self.edit_title())
+        self.editing = None
         self.h_sub = tk.Label(hdr, text="", bg=c["bg"], fg=c["dim"], font=self.f_text, anchor="w")
         self.h_sub.grid(row=1, column=1, sticky="w")
         self.tog = None
@@ -979,6 +994,84 @@ class Card:
                 pass
         self.f_ago.configure(text="Modifié " + ago(st.get("last_changed")) if st.get("last_changed") else "")
 
+    # ---------------- titre modifiable
+    def edit_title(self):
+        if self.editing is not None:
+            return
+        c, s = self.c, self.s
+        self.h_name.pack_forget()
+        self.h_edit.pack_forget()
+        var = tk.StringVar(value=self.h_name.cget("text"))
+        e = tk.Entry(self.h_title, textvariable=var, font=self.f_title, width=17, relief="flat",
+                     bg=c["surface"], fg=c["fg"], insertbackground=c["fg"], selectbackground=c["accent"],
+                     selectforeground=c["accent_fg"], highlightthickness=1, highlightbackground=c["border"],
+                     highlightcolor=c["accent"])
+        e.pack(side="left")
+        ok = tk.Label(self.h_title, text=G_CHECK, bg=c["bg"], fg=c["accent"], font=(self.ifont, 11), cursor="hand2")
+        ok.pack(side="left", padx=(s(6), 0))
+        self.editing = (e, ok, var)
+        e.bind("<Return>", lambda ev: self._end_edit(True))
+        e.bind("<KP_Enter>", lambda ev: self._end_edit(True))
+        e.bind("<Escape>", lambda ev: (self._end_edit(False), "break")[1])   # Echap annule sans fermer la carte
+        ok.bind("<Button-1>", lambda ev: self._end_edit(True))
+        user32.SetForegroundWindow(self.hwnd)
+        e.focus_force()
+        e.select_range(0, "end")
+        e.icursor("end")
+
+    def _end_edit(self, save):
+        if self.editing is None:
+            return
+        e, ok, var = self.editing
+        self.editing = None
+        text = var.get().strip()
+        if save:
+            title = text if text and text != self.default_name else None
+            self.save_title(title)
+        try:
+            e.destroy()
+            ok.destroy()
+            self.h_name.configure(text=self.cfg.get("card_title") or self.default_name)
+            self.h_name.pack(side="left")
+            self.h_edit.pack(side="left", padx=(self.s(8), 0))
+        except tk.TclError:
+            pass
+
+    def save_title(self, title):
+        """Enregistre le titre (None = nom de Home Assistant) dans l'element de la config, sur disque aussi."""
+        def put(it):
+            if title:
+                it["card_title"] = title
+            else:
+                it.pop("card_title", None)
+        put(self.cfg)
+        put(self.item_ref)
+        idx = next((i for i, it in enumerate(self.app.cfg.get("items", [])) if it is self.item_ref), None)
+
+        def find(items):
+            if idx is not None and idx < len(items) and items[idx].get("entity_id") == self.eid:
+                return items[idx]
+            return next((it for it in items if it.get("entity_id") == self.eid), None)
+        try:
+            disk = load_config()
+            target = find(disk.get("items", []))
+            if target is not None:
+                put(target)
+                save_config(disk)
+        except Exception:
+            pass
+        sw = getattr(self.app, "settings_win", None)     # reglages ouverts : on les tient a jour
+        if sw is not None:
+            try:
+                for conf in (sw.cfg, sw.saved):
+                    target = find(conf.get("items", []))
+                    if target is not None:
+                        put(target)
+                if sw.cur is not None:
+                    sw.load_item_fields()
+            except Exception:
+                pass
+
     # ---------------- historique
     def _fetch_history(self, ha):
         attr = self.cfg.get("attribute") or ("current_temperature" if self.domain in ("climate", "water_heater")
@@ -1055,6 +1148,8 @@ class Card:
         self.app.close_card()
 
     def destroy(self):
+        if self.editing is not None:      # fermee pendant la saisie : on garde ce qui a ete tape
+            self._end_edit(True)
         self.alive = False
         try:
             self.win.destroy()
