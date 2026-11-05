@@ -1,4 +1,5 @@
 """Fenetre de reglages de HA Taskbar (ouverte par clic droit -> Reglages...)."""
+import base64
 import copy
 import json
 import os
@@ -6,12 +7,14 @@ import queue
 import re
 import subprocess
 import threading
+import time
 import tkinter as tk
 import urllib.error
 from tkinter import colorchooser, messagebox, ttk
 from tkinter import font as tkfont
 
-from ha_core import (__version__, CARD_THEMES, CARD_THEMES_PATH, DARK_COLORS, ICON_FONTS, ICONS, LIGHT_COLORS,
+import anim_icons
+from ha_core import (__version__, ANIM_ICONS, CARD_THEMES, CARD_THEMES_PATH, DARK_COLORS, ICON_FONTS, ICONS, LIGHT_COLORS,
                      PLACEHOLDER_TOKEN, HomeAssistant, auto_icon, bar_colors, bar_light, card_light, card_palette,
                      card_themes, default_service, get_startup, resolve_icon, resolve_service, save_config,
                      set_startup, system_light, item_zone)
@@ -42,7 +45,7 @@ def domain_label(d, n):
 
 class IconPicker:
     """Petite fenetre de choix d'icone pour l'element selectionne."""
-    COLS = 9
+    COLS = 12
 
     def __init__(self, sw):
         self.sw = sw
@@ -66,6 +69,7 @@ class IconPicker:
 
         self.name = ttk.Label(f, text="Icône actuelle : %s" % (
             "automatique" if current == "auto" else "aucune" if current == "none"
+            else ANIM_ICONS[current][1] if current in ANIM_ICONS
             else ICONS.get(current, ("", current))[1]), style="Hint.TLabel")
         for i, (key, (glyph, label)) in enumerate(ICONS.items()):
             r, c = divmod(i, self.COLS)
@@ -78,9 +82,38 @@ class IconPicker:
                                                               w.configure(bg="#e5f1fb")))
             cell.bind("<Leave>", lambda e, w=cell, s=sel: w.configure(bg="#cce4f7" if s else "white"))
         rows = (len(ICONS) + self.COLS - 1) // self.COLS
-        self.name.grid(row=rows + 1, column=0, columnspan=self.COLS, sticky="w", pady=(10, 0))
+
+        # Icones animees : apercu "allume" qui bouge, comme sur la barre
+        ttk.Label(f, text="Icônes animées : immobiles quand l'élément est éteint, elles bougent doucement "
+                          "quand il est allumé (un thermostat : seulement quand il chauffe).",
+                  style="Hint.TLabel", wraplength=sw.px(440), justify="left").grid(
+            row=rows + 1, column=0, columnspan=self.COLS, sticky="w", pady=(10, 4))
+        px = max(16, tkfont.Font(top, family=font[0], size=font[1]).measure(ICONS["flame"][0]))
+        self.anim_cells = []
+        for i, (key, (_fb, label, _n)) in enumerate(ANIM_ICONS.items()):
+            sel = key == current
+            imgs = [tk.PhotoImage(master=top, data=base64.b64encode(png), format="png")
+                    for png in anim_icons.frames_png(key, px, True, "#d08000", "#1a1a1a")]
+            cell = tk.Label(f, image=imgs[0], cursor="hand2", width=px + 8, height=px + 4,
+                            bg="#cce4f7" if sel else "white", relief="solid", borderwidth=1)
+            cell.grid(row=rows + 2, column=i, padx=2, pady=2, ipadx=4, ipady=2)
+            cell.bind("<Button-1>", lambda e, k=key: self.choose(k))
+            cell.bind("<Enter>", lambda e, l=label, w=cell: (self.name.configure(text=l),
+                                                              w.configure(bg="#e5f1fb")))
+            cell.bind("<Leave>", lambda e, w=cell, s=sel: w.configure(bg="#cce4f7" if s else "white"))
+            self.anim_cells.append((cell, imgs))
+        self.name.grid(row=rows + 3, column=0, columnspan=self.COLS, sticky="w", pady=(10, 0))
+        self.animate()
         top.grab_set()
         top.focus_force()
+
+    def animate(self):
+        if not self.top.winfo_exists():
+            return
+        n = int(time.monotonic() * 1000) // anim_icons.FRAME_MS
+        for cell, imgs in self.anim_cells:
+            cell.configure(image=imgs[n % len(imgs)])
+        self.top.after(anim_icons.FRAME_MS, self.animate)
 
     def choose(self, key):
         self.sw.v_icon.set(key)
@@ -851,6 +884,9 @@ class SettingsWindow:
         self.v_icons = self.track(tk.BooleanVar(value=self.cfg.get("show_icons", True)), self.key("show_icons"))
         ttk.Checkbutton(look, text="Afficher les icônes", variable=self.v_icons).grid(
             row=6, column=0, columnspan=2, sticky="w")
+        self.v_anim = self.track(tk.BooleanVar(value=self.cfg.get("anim_icons", True)), self.key("anim_icons"))
+        ttk.Checkbutton(look, text="Animer les icônes animées (mouvement lent et discret)",
+                        variable=self.v_anim).grid(row=7, column=0, columnspan=2, sticky="w")
 
         # --- theme et couleurs de la barre
         col = ttk.LabelFrame(f, text="Thème et couleurs de la barre", padding=10)

@@ -8,6 +8,7 @@ Aucune dependance externe : Python 3.8+ (tkinter + ctypes + urllib).
 Lancement sans console :  pythonw ha_taskbar.py
 Reglages : clic droit sur la barre -> "Reglages..."
 """
+import base64
 import copy
 import ctypes
 import os
@@ -20,9 +21,10 @@ import urllib.error
 from ctypes import wintypes
 from tkinter import font as tkfont
 
-from ha_core import (ACTIVE_STATES, CONFIG_PATH, DEFAULT_CONFIG, ICON_FONTS, ICON_PATH, STATE_TEXT, HomeAssistant,
-                     bar_colors, bar_light, system_light, item_zone, load_config, needs_setup,
-                     resolve_icon, resolve_service, save_config)
+import anim_icons
+from ha_core import (ACTIVE_STATES, ANIM_ICONS, CONFIG_PATH, DEFAULT_CONFIG, ICON_FONTS, ICON_PATH, ICONS, STATE_TEXT,
+                     HomeAssistant, anim_active, bar_colors, bar_light, icon_key, system_light, item_zone, load_config,
+                     needs_setup, resolve_icon, resolve_service, save_config)
 
 # --------------------------------------------------------------------------- Win32
 # DPI : on travaille en pixels physiques pour coller exactement a la barre des taches
@@ -110,6 +112,11 @@ def foreground_is_fullscreen(own_hwnds):
 LONG_PRESS_MS = 450      # appui long -> carte de controle
 
 
+def anim_now():
+    """Numero d'image courant des icones animees (commun a toute la barre)."""
+    return int(time.monotonic() * 1000) // anim_icons.FRAME_MS
+
+
 # --------------------------------------------------------------------------- UI
 class Item:
     def __init__(self, app, parent, cfg):
@@ -134,9 +141,12 @@ class Item:
         self.frame.grid_rowconfigure(0, weight=1)      # contenu centre verticalement dans le rectangle
         self.zone = item_zone(cfg)
         self.icon = None
+        self.anim_frames = None      # images de l'icone animee en cours (None = icone de police)
+        self.anim_idx = -1
         if app.cfg.get("show_icons", True) and cfg.get("icon") != "none" and app.icon_font:
-            self.icon = tk.Label(self.frame, text="", bg=c["bg"], fg=c["fg"], cursor=cursor,
-                                 font=(app.icon_font, fs + (7 if stacked else 3)))
+            ifont = tkfont.Font(self.frame, family=app.icon_font, size=fs + (7 if stacked else 3))
+            self.icon_px = max(12, ifont.measure(ICONS["flame"][0]))   # taille des icones animees
+            self.icon = tk.Label(self.frame, text="", bg=c["bg"], fg=c["fg"], cursor=cursor, font=ifont)
             self.icon.grid(row=0, column=0, padx=(0, 6))
         self.txt = tk.Frame(self.frame, bg=c["bg"], cursor=cursor)
         self.txt.grid(row=0, column=1, sticky="w")
@@ -203,8 +213,10 @@ class Item:
 
     def update(self, st):
         c = self.app.colors
+        key = icon_key(self.cfg, st)
+        anim = key if key in ANIM_ICONS else None
         if st is None:
-            self.show(resolve_icon(self.cfg, None), "?", c["error"], c["dim"])
+            self.show(resolve_icon(self.cfg, None), "?", c["error"], c["dim"], anim and (anim, False))
             return
         attrs = st.get("attributes", {})
         attr = self.cfg.get("attribute")
@@ -244,17 +256,33 @@ class Item:
             icon_fg = c["on"]
         else:
             fg = icon_fg = c["fg"]
-        self.show(resolve_icon(self.cfg, st), text, fg, icon_fg)
+        self.show(resolve_icon(self.cfg, st), text, fg, icon_fg, anim and (anim, anim_active(self.cfg, st)))
 
-    def show(self, glyph, text, fg, icon_fg):
-        new = (glyph, text, fg, icon_fg)
+    def show(self, glyph, text, fg, icon_fg, anim=None):
+        new = (glyph, text, fg, icon_fg, anim)
         if new == self.shown:          # rien n'a change : on ne touche a rien (evite le scintillement)
             return
         self.shown = new
         self.value.configure(text=text, fg=fg)
         if self.icon is not None:
-            self.icon.configure(text=glyph or "", fg=icon_fg)
+            if anim:
+                key, on = anim
+                self.anim_frames = self.app.anim_images(key, self.icon_px, on, icon_fg)
+                self.anim_idx = -1
+                self.icon.configure(text="")
+                self.anim_tick(anim_now())
+            else:
+                self.anim_frames = None
+                self.icon.configure(image="", text=glyph or "", fg=icon_fg)
         self.grow()
+
+    def anim_tick(self, n):
+        fr = self.anim_frames
+        if fr:
+            i = n % len(fr)
+            if i != self.anim_idx:
+                self.anim_idx = i
+                self.icon.configure(image=fr[i])
 
 
 class Zone:
@@ -383,6 +411,7 @@ class App:
         self.settings_win = None
         self.hovered = None
         self.card = None         # carte de controle ouverte (appui long)
+        self.anim_photos = {}    # images Tk des icones animees, par (icone, taille, etat, couleurs)
         self._press_item = None
         self._press_job = None
 
@@ -418,6 +447,7 @@ class App:
         threading.Thread(target=self.poll_loop, daemon=True).start()
         self.tick()
         self.hover_loop()
+        self.anim_loop()
         if needs_setup(self.cfg) or not os.path.exists(CONFIG_PATH):
             self.root.after(300, self.open_settings)
 
@@ -543,6 +573,30 @@ class App:
         except tk.TclError:
             pass
         self.root.after(50, self.hover_loop)
+
+    # ---------------- icones animees
+    def anim_images(self, key, size, on, fg):
+        """Images Tk d'une icone animee ; une seule (immobile) si eteinte ou animations desactivees."""
+        moving = on and bool(self.cfg.get("anim_icons", True))
+        ck = (key, size, on, moving, self.colors["on"], fg)
+        if ck not in self.anim_photos:
+            pngs = anim_icons.frames_png(key, size, on, self.colors["on"], fg)
+            if not moving:
+                pngs = pngs[:1]
+            self.anim_photos[ck] = [tk.PhotoImage(master=self.root, data=base64.b64encode(p), format="png")
+                                    for p in pngs]
+        return self.anim_photos[ck]
+
+    def anim_loop(self):
+        if not self.hidden:
+            n = anim_now()
+            for it in self.items:
+                if it.anim_frames is not None and len(it.anim_frames) > 1:
+                    try:
+                        it.anim_tick(n)
+                    except tk.TclError:
+                        pass
+        self.root.after(anim_icons.FRAME_MS, self.anim_loop)
 
     # ---------------- reseau (thread)
     def poll_loop(self):

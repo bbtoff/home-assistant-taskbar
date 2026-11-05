@@ -8,7 +8,9 @@ import sys
 import urllib.parse
 import urllib.request
 
-__version__ = "1.1.0"
+from anim_icons import ANIM_ICONS
+
+__version__ = "1.2.0"
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 # Version installee (exe PyInstaller) : la config va dans %APPDATA%\HATaskbar,
@@ -43,6 +45,7 @@ DEFAULT_CONFIG = {
     "transparent_bg": True,
     "hide_on_fullscreen": True,
     "show_icons": True,
+    "anim_icons": True,              # icones animees (flamme, ventilateur...) quand l'element est actif
     "theme_mode": "system",          # barre : "system" (suit Windows), "dark" ou "light"
     "colors": dict(DARK_COLORS),     # couleurs de la barre en mode sombre
     "colors_light": dict(LIGHT_COLORS),   # ... et en mode clair
@@ -287,6 +290,51 @@ ICONS = {
     "flag": ("", "Drapeau"),
     "location": ("", "Position"),
     "refresh": ("", "Actualiser"),
+    "game": ("", "Console / jeux"),
+    "laptop": ("", "Ordinateur portable"),
+    "desktop": ("", "Ordinateur"),
+    "phone": ("", "Téléphone"),
+    "headphones": ("", "Casque audio"),
+    "mic": ("", "Micro"),
+    "mute": ("", "Son coupé"),
+    "stop": ("", "Stop"),
+    "prev": ("", "Précédent"),
+    "next": ("", "Suivant"),
+    "photo": ("", "Photo / cadre"),
+    "eye": ("", "Œil / surveillance"),
+    "fingerprint": ("", "Empreinte"),
+    "key": ("", "Clé"),
+    "bell_off": ("", "Sonnerie coupée"),
+    "check": ("", "Validé"),
+    "person_filled": ("", "Personne (plein)"),
+    "sunrise": ("", "Lever du soleil"),
+    "sunset": ("", "Coucher du soleil"),
+    "snow": ("", "Flocon / froid"),
+    "health": ("", "Santé"),
+    "smile": ("", "Humeur"),
+    "like": ("", "J'aime"),
+    "mail": ("", "Courrier"),
+    "message": ("", "Message"),
+    "calendar": ("", "Calendrier"),
+    "history": ("", "Historique"),
+    "cart": ("", "Courses"),
+    "bag": ("", "Achats"),
+    "trash": ("", "Poubelle"),
+    "work": ("", "Travail"),
+    "school": ("", "École"),
+    "building": ("", "Bâtiment"),
+    "globe": ("", "Internet / monde"),
+    "map": ("", "Carte"),
+    "plane": ("", "Avion / voyage"),
+    "bus": ("", "Bus"),
+    "train": ("", "Train"),
+    "bluetooth": ("", "Bluetooth"),
+    "antenna": ("", "Antenne / signal"),
+    "chip": ("", "Processeur"),
+    "chart": ("", "Tendance"),
+    "pie": ("", "Statistiques"),
+    "wrench": ("", "Outils / entretien"),
+    "puzzle": ("", "Extension"),
 }
 # Variantes selon l'etat
 TOGGLE_OFF = ""
@@ -338,13 +386,46 @@ def auto_icon(entity_id, st):
     return "pulse"
 
 
-def resolve_icon(item, st):
-    """Glyphe a afficher pour un element (ou None si pas d'icone)."""
+def icon_key(item, st):
+    """Cle de l'icone d'un element ("auto" resolu), ou None si pas d'icone."""
     key = item.get("icon") or "auto"
     if key == "none":
         return None
     if key == "auto":
         key = auto_icon(item.get("entity_id", ""), st)
+    return key
+
+
+def anim_active(item, st):
+    """Une icone animee bouge-t-elle ? Allume / en marche ; un thermostat seulement quand il chauffe
+    (ou refroidit) ; un capteur quand sa valeur est au-dessus de 0."""
+    if not st:
+        return False
+    state = st.get("state")
+    if state in ("unavailable", "unknown", None):
+        return False
+    domain = item.get("entity_id", "").split(".", 1)[0]
+    attrs = st.get("attributes", {})
+    if domain in ("climate", "water_heater") and attrs.get("hvac_action") is not None:
+        return attrs["hvac_action"] not in ("idle", "off")
+    if domain == "sensor":
+        try:
+            return float(state) > 0
+        except ValueError:
+            return False
+    if domain == "media_player":
+        return state == "playing"
+    return state in ACTIVE_STATES
+
+
+def resolve_icon(item, st):
+    """Glyphe a afficher pour un element (ou None si pas d'icone). Une icone animee renvoie
+    l'icone de police equivalente (carte de controle, reglages)."""
+    key = icon_key(item, st)
+    if key is None:
+        return None
+    if key in ANIM_ICONS:
+        key = ANIM_ICONS[key][0]
     state = (st or {}).get("state")
     if key == "toggle" and state != "on":
         return TOGGLE_OFF

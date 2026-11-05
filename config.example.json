@@ -12,6 +12,7 @@
   "transparent_bg": true,
   "hide_on_fullscreen": true,
   "show_icons": true,
+  "anim_icons": true,
   "theme_mode": "system",
   "colors": {
     "bg": "#202020",
@@ -35,7 +36,7 @@
     { "entity_id": "light.salon", "label": "Salon" },
     { "entity_id": "switch.prise_bureau", "label": "Bureau", "icon": "power" },
     { "entity_id": "sensor.temperature_salon", "label": "Temp.", "decimals": 1 },
-    { "entity_id": "climate.thermostat", "label": "Chauffage", "attribute": "current_temperature", "unit": "°C", "zone": "right" },
+    { "entity_id": "climate.thermostat", "label": "Chauffage", "icon": "flame_anim", "attribute": "current_temperature", "unit": "°C", "zone": "right" },
     { "entity_id": "scene.cinema", "label": "Ciné", "zone": "right" }
   ]
 }

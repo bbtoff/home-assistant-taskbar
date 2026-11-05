@@ -10,7 +10,8 @@ Affiche des **capteurs** et des **boutons Home Assistant** directement sur la **
 - 💡 **Boutons cliquables** : allumer/éteindre une lumière ou une prise, lancer une scène ou un script…
 - 🧩 **Appui long** sur un élément : une carte de contrôle s'ouvre, comme dans Home Assistant (luminosité, couleur, consigne de chauffage, volume, historique 24 h…)
 - ↔️ **Deux zones** : une à gauche et une à droite de la barre des tâches, chaque élément choisit la sienne
-- 🎨 Icônes intégrées à Windows 11, qui changent de couleur selon l'état (jaune = allumé), et thème **clair / sombre** qui suit Windows
+- 🎨 Près de 90 icônes Windows 11 qui changent de couleur selon l'état (jaune = allumé), et thème **clair / sombre** qui suit Windows
+- 🔥 **Icônes animées** : flamme qui brûle quand le chauffage chauffe, ventilateur qui tourne, ampoule qui rayonne… Lentes et discrètes
 - 🔧 Fenêtre de réglages graphique avec aperçu en direct : rien à éditer à la main
 
 <p align="center">
@@ -20,6 +21,23 @@ Affiche des **capteurs** et des **boutons Home Assistant** directement sur la **
 Un **programme d'installation** est fourni : rien d'autre à installer, pas même Python. Depuis les sources, il suffit de Python et de sa bibliothèque standard (tkinter, ctypes, urllib).
 
 ---
+
+## ✨ Nouveautés de la version 1.2
+
+- 🔥 **Icônes animées** : immobiles quand l'élément est éteint, elles bougent doucement quand il est allumé. Le rythme est volontairement lent pour ne pas attirer l'œil pendant qu'on travaille.
+
+  <p align="center"><img src="docs/screenshots/icones-animees.gif" alt="Flamme qui brûle puis s'éteint quand le chauffage s'arrête, ventilateur, ampoule, égaliseur et goutte animés"></p>
+
+  | Icône | Quand elle bouge |
+  |---|---|
+  | 🔥 Flamme | Thermostat **en train de chauffer** (pas seulement en mode chauffage). Éteinte, elle n'est plus qu'un contour. |
+  | 🌀 Ventilateur | Ventilateur allumé : les pales tournent lentement |
+  | 💡 Ampoule | Lumière allumée : le halo et les rayons « respirent » |
+  | 🎵 Égaliseur | Lecteur multimédia en lecture |
+  | 💧 Goutte | Arrosage ou vanne ouverts, ou capteur au-dessus de 0 (débit…) |
+
+  Elles se choisissent comme les autres icônes (**Réglages → Éléments → Changer…**), et l'option **Animer les icônes animées** de l'onglet Apparence les fige si tu préfères.
+- 🎨 **Deux fois plus d'icônes** : près de 90, avec console, ordinateur, téléphone, casque, courrier, calendrier, lever et coucher du soleil, flocon, avion, bus, train, empreinte, clé, outils…
 
 ## ✨ Nouveautés de la version 1.1
 
@@ -228,14 +246,14 @@ Une clé absente reprend la valeur du thème par défaut. Après avoir enregistr
 - **Ajouter des entités…** : parcourt toutes les entités, avec une recherche multi-mots et un filtre par type. Les entités déjà présentes sont grisées (✔).
 - **▲ ▼** pour l'ordre, **Dupliquer**, **Supprimer**
 - Pour chaque élément :
-  - **Libellé** et **Icône** : automatique selon le type, au choix parmi 45, ou aucune
+  - **Libellé** et **Icône** : automatique selon le type, au choix parmi près de 90 (dont 5 animées), ou aucune
   - **Valeur affichée** : l'état de l'entité ou un de ses attributs (ex. `current_temperature` d'un thermostat)
   - **Unité** et **Décimales**
   - **Action au clic** : automatique, aucune, ou n'importe quel service (ex. `light.turn_on`)
   - **Données (JSON)** : paramètres envoyés au service (ex. `{"entity_id": "light.salon", "brightness_pct": 30}`)
   - **Titre de la carte** : titre affiché sur la carte d'appui long. Vide = nom de l'entité dans Home Assistant.
 
-Le bouton **Changer…** à côté de l'icône ouvre le choix parmi 45 icônes Windows 11 :
+Le bouton **Changer…** à côté de l'icône ouvre le choix parmi près de 90 icônes Windows 11. Les **icônes animées** sont en bas, et s'animent dans la fenêtre pour donner un aperçu :
 
 ![Choix d'une icône](docs/screenshots/choix-icone.png)
 
@@ -261,7 +279,7 @@ Pour les scènes, boutons et scripts, la barre affiche « Activer », « Appuyer
   ![Disposition sur une ligne](docs/screenshots/barre-une-ligne.png)
 - **Thème de la barre** : **Suivre Windows** (par défaut), **Toujours sombre** ou **Toujours clair**. La barre a deux jeux de couleurs, un pour le mode sombre et un pour le mode clair. Elle bascule toute seule, en 2 secondes environ, quand tu changes le mode de Windows dans *Paramètres → Personnalisation → Couleurs*. Le choix « Couleurs à modifier » indique quel jeu tu édites.
 - **Fond transparent** (activé par défaut) : on voit le fond de la barre des tâches de Windows derrière les boutons. Comme les icônes de Windows restent visibles à travers, garde la barre dans une zone libre. Le survol affiche un rectangle de la couleur « Survol ».
-- **Police**, **taille**, **opacité**, **afficher les icônes**, **masquer en plein écran**
+- **Police**, **taille**, **opacité**, **afficher les icônes**, **animer les icônes animées**, **masquer en plein écran**
 - **Couleurs** : fond, valeurs, libellés, actif/allumé, survol, erreur, pour chacun des deux modes. Le bouton **Couleurs par défaut** remet celles d'origine.
 - **Carte de contrôle** : thème et couleurs de la carte d'appui long (voir [Thèmes de la carte](#-thèmes-de-la-carte)).
 
@@ -294,7 +312,7 @@ Format d'un élément :
 }
 ```
 
-Seul `entity_id` est obligatoire. `icon` peut valoir `"auto"` (par défaut), `"none"` ou une clé de `ICONS` dans [`ha_core.py`](ha_core.py). `service` peut valoir `"none"` pour désactiver le clic. `zone` vaut `"left"` (par défaut) ou `"right"`.
+Seul `entity_id` est obligatoire. `icon` peut valoir `"auto"` (par défaut), `"none"`, une clé de `ICONS` dans [`ha_core.py`](ha_core.py), ou une icône animée : `"flame_anim"`, `"fan_anim"`, `"bulb_anim"`, `"eq_anim"`, `"drop_anim"`. `service` peut valoir `"none"` pour désactiver le clic. `zone` vaut `"left"` (par défaut) ou `"right"`.
 
 Les décalages des deux zones sont `offset` (zone gauche, depuis le bord gauche) et `offset_right` (zone droite, depuis le bord droit). Une ancienne configuration réglée sur le côté droit (`"anchor": "right"`) est convertie toute seule : ses éléments passent dans la zone droite.
 
@@ -321,6 +339,7 @@ Windows 11 ne permet plus d'ajouter des « deskbands » (barres d'outils) à la 
 | [`card_ui.py`](card_ui.py) | Carte de contrôle (appui long) : curseurs, interrupteur, modes, historique 24 h |
 | [`settings_ui.py`](settings_ui.py) | Fenêtre de réglages, sélecteur d'entités, sélecteur d'icônes |
 | [`ha_core.py`](ha_core.py) | Commun : config, client Home Assistant, icônes, actions par défaut, démarrage auto |
+| [`anim_icons.py`](anim_icons.py) | Icônes animées : dessin vectoriel et rendu anticrénelé en Python pur (aucune dépendance) |
 | `config.example.json` | Exemple de configuration |
 | `config.json` | Ta configuration (créée automatiquement, ignorée par git) |
 | [`build.ps1`](build.ps1) | Construit l'exe (PyInstaller) puis le programme d'installation (Inno Setup) |
