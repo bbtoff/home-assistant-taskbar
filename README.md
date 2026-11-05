@@ -4,40 +4,55 @@ Affiche des **capteurs** et des **boutons Home Assistant** directement sur la **
 
 ![HA Taskbar sur la barre des tâches](docs/screenshots/barre.png)
 
-*Lumière allumée à 70 % (en jaune), prise éteinte, thermostat, consommation et scène, sur fond transparent à côté du widget météo de Windows. Les captures utilisent des données de démonstration.*
+*À gauche : lumière allumée à 70 % (en jaune), prise éteinte et thermostat, à côté du widget météo de Windows. À droite, juste avant les icônes de notification : consommation, température extérieure et scène. Le milieu de la barre des tâches a été retiré de l'image. Les captures utilisent des données de démonstration.*
 
-- Valeurs en temps réel : température, consommation, état d'une lumière…
-- Boutons cliquables : allumer/éteindre une lumière ou une prise, lancer une scène ou un script…
-- **Appui long** sur un élément : une carte de contrôle s'ouvre, comme dans Home Assistant (luminosité, couleur, consigne de chauffage, volume, historique 24 h…)
-- Icônes intégrées à Windows 11, qui changent de couleur selon l'état (jaune = allumé)
-- Fenêtre de réglages graphique avec aperçu en direct : rien à éditer à la main
+- 📊 **Valeurs en temps réel** : température, consommation, état d'une lumière…
+- 💡 **Boutons cliquables** : allumer/éteindre une lumière ou une prise, lancer une scène ou un script…
+- 🧩 **Appui long** sur un élément : une carte de contrôle s'ouvre, comme dans Home Assistant (luminosité, couleur, consigne de chauffage, volume, historique 24 h…)
+- ↔️ **Deux zones** : une à gauche et une à droite de la barre des tâches, chaque élément choisit la sienne
+- 🎨 Icônes intégrées à Windows 11, qui changent de couleur selon l'état (jaune = allumé), et thème **clair / sombre** qui suit Windows
+- 🔧 Fenêtre de réglages graphique avec aperçu en direct : rien à éditer à la main
+
+<p align="center">
+  <img src="docs/screenshots/clic.gif" alt="Clic pour allumer, molette pour la luminosité, clic pour éteindre">
+</p>
 
 Un **programme d'installation** est fourni : rien d'autre à installer, pas même Python. Depuis les sources, il suffit de Python et de sa bibliothèque standard (tkinter, ctypes, urllib).
 
 ---
 
-## Sommaire
+## ✨ Nouveautés de la version 1.1
 
-1. [Prérequis](#prérequis)
-2. [Installation](#installation)
-3. [Premier lancement](#premier-lancement)
-4. [Utilisation au quotidien](#utilisation-au-quotidien)
-5. [Les réglages en détail](#les-réglages-en-détail)
-6. [Fichier de configuration](#fichier-de-configuration)
-7. [Comment ça marche](#comment-ça-marche)
-8. [Structure du projet](#structure-du-projet)
-9. [Limites connues](#limites-connues)
-10. [Dépannage](#dépannage)
+- ↔️ **Deux zones sur la barre** : une à gauche et une à droite (juste avant les icônes de notification). Chaque élément choisit sa zone dans **Réglages → Éléments → Zone**, et chaque zone a son propre décalage dans **Réglages → Apparence**. Une zone sans élément n'apparaît pas.
+- 🔄 **Mise à jour automatique de la configuration** : une barre réglée « côté droit » en 1.0 passe toute seule dans la zone droite, avec le même décalage.
+- 🐞 **Correction** : le menu du clic droit s'affiche maintenant devant les capteurs.
+
+Le programme d'installation remplace l'ancienne version et garde tes réglages. Toutes les versions sont sur la page [**Releases**](https://github.com/bbtoff/home-assistant-taskbar/releases).
 
 ---
 
-## Prérequis
+## 📑 Sommaire
+
+1. [Prérequis](#-prérequis)
+2. [Installation](#-installation)
+3. [Premier lancement](#-premier-lancement)
+4. [Utilisation au quotidien](#-utilisation-au-quotidien)
+5. [Les réglages en détail](#-les-réglages-en-détail)
+6. [Fichier de configuration](#-fichier-de-configuration)
+7. [Comment ça marche](#-comment-ça-marche)
+8. [Structure du projet](#-structure-du-projet)
+9. [Limites connues](#-limites-connues)
+10. [Dépannage](#-dépannage)
+
+---
+
+## 📋 Prérequis
 
 - **Windows 11** (fonctionne aussi sous Windows 10, avec les icônes Segoe MDL2)
 - Uniquement pour lancer depuis les sources : **Python 3.8 ou plus récent** (testé avec 3.10), avec tkinter. C'est le cas par défaut avec l'installeur de python.org.
 - Un **Home Assistant** joignable depuis le PC, et un **jeton d'accès longue durée**
 
-### Créer le jeton d'accès Home Assistant
+### 🔑 Créer le jeton d'accès Home Assistant
 
 1. Dans Home Assistant, clique sur **ton profil** (en bas à gauche).
 2. Ouvre l'onglet **Sécurité**.
@@ -46,7 +61,7 @@ Un **programme d'installation** est fourni : rien d'autre à installer, pas mêm
 
 ---
 
-## Installation
+## 📦 Installation
 
 ### Avec le programme d'installation (recommandé)
 
@@ -81,7 +96,7 @@ powershell -ExecutionPolicy Bypass -File build.ps1
 
 ---
 
-## Premier lancement
+## 🚀 Premier lancement
 
 Au premier lancement, la fenêtre de **Réglages** s'ouvre toute seule :
 
@@ -99,12 +114,12 @@ Pour lancer HA Taskbar à chaque démarrage, coche **Lancer HA Taskbar au démar
 
 ---
 
-## Utilisation au quotidien
+## 👆 Utilisation au quotidien
 
 | Action | Effet |
 |---|---|
 | **Clic** sur un bouton | Action selon le type : allume/éteint une lumière, une prise ou un ventilateur, lance une scène ou un script, appuie sur un bouton… |
-| **Appui long** (½ seconde) | Ouvre la [carte de contrôle](#carte-de-contrôle-appui-long) de l'élément |
+| **Appui long** (½ seconde) | Ouvre la [carte de contrôle](#-carte-de-contrôle-appui-long) de l'élément |
 | **Clic** sur un capteur | Ouvre directement sa carte, puisqu'un capteur n'a pas d'action |
 | **Molette** sur une lumière | Luminosité +/− 10 % |
 | **Clic droit** n'importe où | Menu : Réglages…, Rafraîchir, Recharger la config, Quitter |
@@ -112,9 +127,13 @@ Pour lancer HA Taskbar à chaque démarrage, coche **Lancer HA Taskbar au démar
 
 La barre se masque automatiquement quand une application passe en plein écran (jeu, vidéo).
 
-### Carte de contrôle (appui long)
+### 🧩 Carte de contrôle (appui long)
 
 Un appui long sur un élément ouvre une carte juste au-dessus de la barre des tâches, dans l'esprit de la fenêtre de détail de Home Assistant. Son contenu dépend du type d'entité :
+
+<p align="center">
+  <img src="docs/screenshots/carte.gif" alt="Appui long sur une lumière : la carte s'ouvre, luminosité et température du blanc suivent en direct" width="360">
+</p>
 
 <p>
   <img src="docs/screenshots/carte-lumiere.png" alt="Carte d'une lumière" width="24%">
@@ -144,7 +163,7 @@ Le **titre** de la carte se change avec le crayon **✎** à côté (ou un doubl
 
 La carte se ferme avec **Échap**, ou par un clic n'importe où en dehors.
 
-#### Thèmes de la carte
+#### 🎨 Thèmes de la carte
 
 Dans **Réglages → Apparence → Carte de contrôle**, choisis un thème et ses couleurs (comme la barre, toujours sombre ou toujours clair). Un aperçu se met à jour à chaque changement, et le bouton **Ouvrir la carte sur la barre** montre le vrai résultat.
 
@@ -194,7 +213,7 @@ Une clé absente reprend la valeur du thème par défaut. Après avoir enregistr
 
 ---
 
-## Les réglages en détail
+## 🔧 Les réglages en détail
 
 ### Onglet Connexion
 - **Adresse** et **jeton** de Home Assistant
@@ -244,13 +263,13 @@ Pour les scènes, boutons et scripts, la barre affiche « Activer », « Appuyer
 - **Fond transparent** (activé par défaut) : on voit le fond de la barre des tâches de Windows derrière les boutons. Comme les icônes de Windows restent visibles à travers, garde la barre dans une zone libre. Le survol affiche un rectangle de la couleur « Survol ».
 - **Police**, **taille**, **opacité**, **afficher les icônes**, **masquer en plein écran**
 - **Couleurs** : fond, valeurs, libellés, actif/allumé, survol, erreur, pour chacun des deux modes. Le bouton **Couleurs par défaut** remet celles d'origine.
-- **Carte de contrôle** : thème et couleurs de la carte d'appui long (voir [Thèmes de la carte](#thèmes-de-la-carte)).
+- **Carte de contrôle** : thème et couleurs de la carte d'appui long (voir [Thèmes de la carte](#-thèmes-de-la-carte)).
 
 Tous les changements sont **prévisualisés en direct** sur la barre. **Appliquer**/**OK** enregistre, **Annuler** revient à l'état précédent.
 
 ---
 
-## Fichier de configuration
+## 📝 Fichier de configuration
 
 Les réglages sont stockés dans `config.json`, créé automatiquement :
 - version installée : `%APPDATA%\HATaskbar\config.json`
@@ -281,7 +300,7 @@ Les décalages des deux zones sont `offset` (zone gauche, depuis le bord gauche)
 
 ---
 
-## Comment ça marche
+## 🧠 Comment ça marche
 
 Windows 11 ne permet plus d'ajouter des « deskbands » (barres d'outils) à la barre des tâches. HA Taskbar contourne cela :
 
@@ -294,7 +313,7 @@ Windows 11 ne permet plus d'ajouter des « deskbands » (barres d'outils) à la 
 
 ---
 
-## Structure du projet
+## 📁 Structure du projet
 
 | Fichier | Rôle |
 |---|---|
@@ -311,7 +330,7 @@ Windows 11 ne permet plus d'ajouter des « deskbands » (barres d'outils) à la 
 
 ---
 
-## Limites connues
+## 🚧 Limites connues
 
 - Seule la barre des tâches de l'**écran principal** est gérée.
 - Avec la barre des tâches en **masquage automatique**, la fenêtre ne suit pas l'animation.
@@ -321,19 +340,19 @@ Windows 11 ne permet plus d'ajouter des « deskbands » (barres d'outils) à la 
 
 ---
 
-## Dépannage
+## 🩺 Dépannage
 
 | Symptôme | Solution |
 |---|---|
 | **● HA** rouge, « HTTP 401 » | Jeton invalide ou révoqué : recrée-le dans Home Assistant |
 | « Connexion impossible » | Vérifie l'adresse (http/https, port 8123) et que le PC joint Home Assistant |
 | Erreur de certificat | Décoche **Vérifier le certificat HTTPS** |
-| La barre recouvre des icônes | Ajuste le **décalage** dans l'onglet Apparence |
+| La barre recouvre des icônes | Ajuste le **décalage** de la zone concernée (gauche ou droite) dans l'onglet Apparence |
 | « HA Taskbar est déjà lancé » | Une instance tourne déjà : clic droit sur la barre → Réglages |
 | Rien ne s'affiche | Lance avec `python ha_taskbar.py` (et non `pythonw`) pour voir les erreurs dans la console |
 
 ---
 
-## À propos de ce projet
+## 💬 À propos de ce projet
 
 Je ne suis pas développeur 😄 J'ai apporté les idées, les tests et les retours au fil de l'eau. Toute la partie technique (code, programme d'installation, documentation et captures) a été réalisée par **Claude**, l'assistant IA d'Anthropic, à partir de mes demandes.

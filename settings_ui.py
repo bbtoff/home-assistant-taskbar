@@ -401,7 +401,7 @@ class SettingsWindow:
         left.columnconfigure(0, weight=1)
         self.tree = ttk.Treeview(left, columns=("label", "entity", "action", "zone"), show="headings",
                                  selectmode="browse")
-        for col, title, w in (("label", "Libellé", 110), ("entity", "Entité", 150), ("action", "Clic", 110),
+        for col, title, w in (("label", "Libellé", 95), ("entity", "Entité", 140), ("action", "Clic", 100),
                               ("zone", "Zone", 60)):
             self.tree.heading(col, text=title)
             self.tree.column(col, width=self.px(w), minwidth=self.px(50))
