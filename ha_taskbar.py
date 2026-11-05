@@ -6,7 +6,7 @@ sur une zone libre de la barre des taches (Windows 11 ne supporte plus les deskb
 
 Aucune dependance externe : Python 3.8+ (tkinter + ctypes + urllib).
 Lancement sans console :  pythonw ha_taskbar.py
-Reglages : clic droit sur la barre -> "Reglages..."
+Reglages : clic sur l'icone pres de l'horloge, ou clic droit sur la barre -> "Reglages..."
 """
 import base64
 import copy
@@ -80,6 +80,16 @@ MONITOR_DEFAULTTONEAREST = 2
 ERROR_ALREADY_EXISTS = 183
 EVENT_SYSTEM_FOREGROUND = 0x0003
 WINEVENT_OUTOFCONTEXT = 0x0000
+
+
+def tool_window(hwnd):
+    """Pas de bouton dans la barre des taches, pas de vol du focus. A reappliquer apres certains
+    reglages Tk (-transparentcolor remet le style etendu a zero)."""
+    if hwnd:
+        ex = user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
+        want = (ex | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE) & ~WS_EX_APPWINDOW
+        if want != ex:
+            user32.SetWindowLongW(hwnd, GWL_EXSTYLE, want)
 
 
 def get_rect(hwnd):
@@ -311,8 +321,7 @@ class Zone:
         win.geometry("1x1+-32000+-32000")
         win.update_idletasks()
         self.hwnd = user32.GetAncestor(win.winfo_id(), GA_ROOT)
-        ex = user32.GetWindowLongW(self.hwnd, GWL_EXSTYLE)
-        user32.SetWindowLongW(self.hwnd, GWL_EXSTYLE, (ex | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE) & ~WS_EX_APPWINDOW)
+        tool_window(self.hwnd)
         win.deiconify()
         win.update_idletasks()
         win.bind("<Button-3>", app.show_menu)
@@ -328,6 +337,7 @@ class Zone:
             self.win.attributes("-alpha", max(0.2, min(1.0, float(cfg.get("opacity", 1.0)))))
         except (tk.TclError, ValueError):
             pass
+        tool_window(self.hwnd)
         if self.container is not None:
             self.container.destroy()
         self.container = tk.Frame(self.win, bg=colors["bg"])
@@ -356,8 +366,7 @@ class Zone:
         self.hit.attributes("-alpha", 0.01)   # non nul -> Windows lui envoie bien les clics
         self.hit.update_idletasks()
         self.hit_hwnd = user32.GetAncestor(self.hit.winfo_id(), GA_ROOT)
-        ex = user32.GetWindowLongW(self.hit_hwnd, GWL_EXSTYLE)
-        user32.SetWindowLongW(self.hit_hwnd, GWL_EXSTYLE, (ex | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE) & ~WS_EX_APPWINDOW)
+        tool_window(self.hit_hwnd)
         self.hit.bind("<ButtonPress-1>", lambda e: app._hit_dispatch(e, "on_press"))
         self.hit.bind("<ButtonRelease-1>", lambda e: app.release())
         self.hit.bind("<MouseWheel>", lambda e: app._hit_dispatch(e, "on_wheel"))
@@ -375,6 +384,9 @@ class Zone:
         for w in (self.win, self.hit):
             if w is not None:
                 w.deiconify() if on else w.withdraw()
+        if on:
+            for h in self.hwnds():
+                tool_window(h)
         self.shown = on
         self.geom = None
 
@@ -452,6 +464,16 @@ class App:
         self._hook = user32.SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, None,
                                             self._hook_cb, 0, 0, WINEVENT_OUTOFCONTEXT)
 
+        # Icone dans la zone de notification : clic gauche -> reglages, clic droit -> menu
+        self.tray = None
+        try:
+            import tray
+            self.tray = tray.TrayIcon(ICON_PATH, "HA Taskbar " + __version__, self.open_settings,
+                                      lambda x, y: self.popup_menu(x, y, from_tray=True))
+        except Exception:
+            self.tray = None
+        self.root.bind("<Destroy>", self._on_destroy, add="+")
+
         threading.Thread(target=self.poll_loop, daemon=True).start()
         self.tick()
         self.hover_loop()
@@ -459,6 +481,17 @@ class App:
         self.root.after(UPDATE_FIRST_MS, self.update_loop)
         if needs_setup(self.cfg) or not os.path.exists(CONFIG_PATH):
             self.root.after(300, self.open_settings)
+
+    def _on_destroy(self, e):
+        if e.widget is self.root and self.tray is not None:
+            self.tray.remove()
+            self.tray = None
+
+    def quit(self):
+        if self.tray is not None:
+            self.tray.remove()
+            self.tray = None
+        self.root.destroy()
 
     # ---------------- config
     def apply_config(self, cfg):
@@ -769,6 +802,10 @@ class App:
 
     # ---------------- menu clic droit
     def show_menu(self, e):
+        self.popup_menu(e.x_root, e.y_root)
+        return "break"
+
+    def popup_menu(self, x, y, from_tray=False):
         m = tk.Menu(self.root, tearoff=0)
         if self.last_error:
             m.add_command(label="Erreur : " + self.last_error[:80], state="disabled")
@@ -782,15 +819,14 @@ class App:
         m.add_command(label="Recharger config.json", command=self.reload)
         m.add_command(label="Rechercher une mise à jour", command=lambda: self.check_update(manual=True))
         m.add_separator()
-        m.add_command(label="Quitter", command=self.root.destroy)
+        m.add_command(label="Quitter", command=self.quit)
         self.menu_open = True
         try:
             user32.SetForegroundWindow(self.main_zone.hwnd)  # sinon le menu ne se ferme pas en cliquant ailleurs
-            m.tk_popup(e.x_root, e.y_root)     # sous Windows : rend la main quand le menu se ferme
+            m.tk_popup(x, y)     # sous Windows : rend la main quand le menu se ferme
         finally:
             self.menu_open = False
             m.grab_release()
-        return "break"
 
     def reload(self):
         try:
@@ -813,7 +849,7 @@ def main():
     # Une seule instance a la fois
     kernel32.CreateMutexW(None, False, "Local\\HATaskbar_single_instance")
     if kernel32.GetLastError() == ERROR_ALREADY_EXISTS:
-        user32.MessageBoxW(None, "HA Taskbar est déjà lancé.\nClic droit sur la barre → Réglages.",
+        user32.MessageBoxW(None, "HA Taskbar est déjà lancé.\nClic sur l'icône près de l'horloge → Réglages.",
                            "HA Taskbar", 0x40)
         sys.exit(0)
     if not os.path.exists(CONFIG_PATH):

@@ -22,6 +22,13 @@ Un **programme d'installation** est fourni : rien d'autre à installer, pas mêm
 
 ---
 
+## ✨ Nouveautés de la version 1.6
+
+- 🔔 **Icône dans la zone de notification**, à côté de l'horloge : clic gauche pour ouvrir les réglages, clic droit pour le menu. Elle reste accessible même quand aucun élément n'est affiché.
+- 🐞 **Correction** : HA Taskbar n'a plus de bouton dans la barre des tâches. Il apparaissait avec le fond transparent.
+
+> Windows 11 range parfois les nouvelles icônes dans la flèche **^**. Pour l'avoir toujours visible : glisse-la à côté de l'horloge, ou **Paramètres → Personnalisation → Barre des tâches → Autres icônes de la barre d'état système → HA Taskbar**.
+
 ## ✨ Nouveautés de la version 1.5
 
 - 🔥 **13 nouvelles icônes animées**, soit 18 au total. Comme les premières, elles sont immobiles quand l'élément est éteint et bougent lentement quand il est actif :
@@ -195,6 +202,7 @@ Pour lancer HA Taskbar à chaque démarrage, coche **Lancer HA Taskbar au démar
 | **Clic** sur un capteur | Ouvre directement sa carte, puisqu'un capteur n'a pas d'action |
 | **Molette** sur une lumière | Luminosité +/− 10 % |
 | **Clic droit** n'importe où | Menu : Réglages…, Rafraîchir, Recharger la config, Quitter |
+| **Icône près de l'horloge** | Clic gauche : réglages. Clic droit : le même menu |
 | **● HA** en rouge | Home Assistant ne répond pas. Clic droit pour voir l'erreur, clic gauche pour ouvrir les réglages. |
 
 La barre se masque automatiquement quand une application passe en plein écran (jeu, vidéo).
@@ -396,6 +404,7 @@ Windows 11 ne permet plus d'ajouter des « deskbands » (barres d'outils) à la 
 | [`anim_icons.py`](anim_icons.py) | Icônes animées : dessin vectoriel et rendu anticrénelé en Python pur (aucune dépendance) |
 | [`ui_theme.py`](ui_theme.py) | Apparence Windows 11 des fenêtres : thème clair/sombre, menu latéral |
 | [`sv_ttk/`](sv_ttk/) | Thème [Sun Valley](https://github.com/rdbende/Sun-Valley-ttk-theme) de rdbende (licence MIT), fourni tel quel |
+| [`tray.py`](tray.py) | Icône dans la zone de notification (API Windows, sans dépendance) |
 | [`update_ui.py`](update_ui.py) | Fenêtre de mise à jour : nouveautés, téléchargement vérifié, installation |
 | `config.example.json` | Exemple de configuration |
 | `config.json` | Ta configuration (créée automatiquement, ignorée par git) |
@@ -424,7 +433,7 @@ Windows 11 ne permet plus d'ajouter des « deskbands » (barres d'outils) à la 
 | « Connexion impossible » | Vérifie l'adresse (http/https, port 8123) et que le PC joint Home Assistant |
 | Erreur de certificat | Décoche **Vérifier le certificat HTTPS** |
 | La barre recouvre des icônes | Ajuste le **décalage** de la zone concernée (gauche ou droite) dans l'onglet Apparence |
-| « HA Taskbar est déjà lancé » | Une instance tourne déjà : clic droit sur la barre → Réglages |
+| « HA Taskbar est déjà lancé » | Une instance tourne déjà : clic sur l'icône près de l'horloge (ou clic droit sur la barre) → Réglages |
 | Rien ne s'affiche | Lance avec `python ha_taskbar.py` (et non `pythonw`) pour voir les erreurs dans la console |
 
 ---
