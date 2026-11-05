@@ -379,6 +379,7 @@ class App:
         self.last_error = None
         self.last_states = {}
         self.hidden = False
+        self.menu_open = False   # menu clic droit affiche : les zones ne se remettent pas devant
         self.settings_win = None
         self.hovered = None
         self.card = None         # carte de controle ouverte (appui long)
@@ -609,6 +610,12 @@ class App:
         self.root.after(400, self.tick)
 
     def raise_now(self):
+        if self.menu_open:
+            # Menu clic droit ouvert : c'est lui qui doit rester devant les zones
+            menu = user32.FindWindowW("#32768", None)
+            if menu:
+                user32.SetWindowPos(menu, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE)
+            return
         if not self.hidden:
             for z in self.zones:
                 z.raise_now()
@@ -647,8 +654,13 @@ class App:
         m.add_command(label="Recharger config.json", command=self.reload)
         m.add_separator()
         m.add_command(label="Quitter", command=self.root.destroy)
-        user32.SetForegroundWindow(self.main_zone.hwnd)  # sinon le menu ne se ferme pas en cliquant ailleurs
-        m.tk_popup(e.x_root, e.y_root)
+        self.menu_open = True
+        try:
+            user32.SetForegroundWindow(self.main_zone.hwnd)  # sinon le menu ne se ferme pas en cliquant ailleurs
+            m.tk_popup(e.x_root, e.y_root)     # sous Windows : rend la main quand le menu se ferme
+        finally:
+            self.menu_open = False
+            m.grab_release()
         return "break"
 
     def reload(self):
