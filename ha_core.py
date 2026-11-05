@@ -10,7 +10,7 @@ import urllib.request
 
 from anim_icons import ANIM_ICONS
 
-__version__ = "1.2.0"
+__version__ = "1.3.0"
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 # Version installee (exe PyInstaller) : la config va dans %APPDATA%\HATaskbar,
@@ -46,6 +46,8 @@ DEFAULT_CONFIG = {
     "hide_on_fullscreen": True,
     "show_icons": True,
     "anim_icons": True,              # icones animees (flamme, ventilateur...) quand l'element est actif
+    "check_updates": True,           # cherche une nouvelle version sur GitHub (au demarrage puis 1 fois/jour)
+    "skip_version": "",              # version que l'utilisateur a choisi d'ignorer
     "theme_mode": "system",          # barre : "system" (suit Windows), "dark" ou "light"
     "colors": dict(DARK_COLORS),     # couleurs de la barre en mode sombre
     "colors_light": dict(LIGHT_COLORS),   # ... et en mode clair
@@ -486,6 +488,90 @@ def parse_time(iso):
     except (TypeError, ValueError):
         return None
     return t if t.tzinfo else t.replace(tzinfo=datetime.timezone.utc)
+
+
+# --------------------------------------------------------------------------- mises a jour (GitHub)
+GITHUB_REPO = "bbtoff/home-assistant-taskbar"
+RELEASES_URL = "https://github.com/%s/releases" % GITHUB_REPO
+_ASSET_PREFIX = "https://github.com/%s/releases/download/" % GITHUB_REPO
+
+
+def parse_version(v):
+    """"v1.2.0" -> (1, 2, 0). Les morceaux non numeriques comptent pour 0."""
+    out = []
+    for part in str(v).strip().lstrip("vV").split("."):
+        digits = "".join(ch for ch in part if ch.isdigit())
+        out.append(int(digits) if digits else 0)
+    while len(out) < 3:
+        out.append(0)
+    return tuple(out[:3])
+
+
+def latest_release(timeout=10):
+    """Derniere version publiee sur GitHub (API publique, sans jeton).
+    Renvoie {version, notes, page, asset_url, asset_name, size, sha256} ; asset_url vaut None
+    si la version n'a pas de programme d'installation."""
+    req = urllib.request.Request("https://api.github.com/repos/%s/releases/latest" % GITHUB_REPO,
+                                 headers={"Accept": "application/vnd.github+json",
+                                          "User-Agent": "HATaskbar/%s" % __version__})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        rel = json.loads(r.read().decode("utf-8"))
+    info = {"version": str(rel.get("tag_name", "")).lstrip("vV"), "notes": rel.get("body") or "",
+            "page": rel.get("html_url") or RELEASES_URL, "asset_url": None, "asset_name": None,
+            "size": None, "sha256": None}
+    for a in rel.get("assets", []):
+        url = a.get("browser_download_url") or ""
+        name = a.get("name") or ""
+        # Uniquement le programme d'installation, et uniquement depuis les versions de ce depot
+        if name.lower().endswith(".exe") and "setup" in name.lower() and url.startswith(_ASSET_PREFIX):
+            digest = a.get("digest") or ""
+            info.update(asset_url=url, asset_name=os.path.basename(name), size=a.get("size"),
+                        sha256=digest[7:].lower() if digest.startswith("sha256:") else None)
+            break
+    return info
+
+
+def update_available(info):
+    return bool(info and info.get("version")) and parse_version(info["version"]) > parse_version(__version__)
+
+
+def download_update(info, dest_dir, progress=None, cancelled=lambda: False):
+    """Telecharge le programme d'installation, verifie taille et empreinte SHA-256. Renvoie son chemin."""
+    import hashlib
+    os.makedirs(dest_dir, exist_ok=True)
+    path = os.path.join(dest_dir, info["asset_name"])
+    tmp = path + ".part"
+    req = urllib.request.Request(info["asset_url"], headers={"User-Agent": "HATaskbar/%s" % __version__})
+    h = hashlib.sha256()
+    done = 0
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r, open(tmp, "wb") as f:
+            total = info.get("size") or int(r.headers.get("Content-Length") or 0)
+            while True:
+                if cancelled():
+                    raise RuntimeError("téléchargement annulé")
+                chunk = r.read(64 * 1024)
+                if not chunk:
+                    break
+                f.write(chunk)
+                h.update(chunk)
+                done += len(chunk)
+                if progress:
+                    progress(done, total)
+        if info.get("size") and done != info["size"]:
+            raise RuntimeError("fichier incomplet (%d octets sur %d)" % (done, info["size"]))
+        if info.get("sha256") and h.hexdigest() != info["sha256"]:
+            raise RuntimeError("empreinte SHA-256 incorrecte : fichier abîmé ou modifié")
+        if os.path.exists(path):
+            os.remove(path)
+        os.replace(tmp, path)
+        return path
+    finally:
+        if os.path.exists(tmp):
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
 
 
 # --------------------------------------------------------------------------- demarrage Windows

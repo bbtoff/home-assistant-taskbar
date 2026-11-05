@@ -22,6 +22,12 @@ Un **programme d'installation** est fourni : rien d'autre à installer, pas mêm
 
 ---
 
+## ✨ Nouveautés de la version 1.3
+
+- ⬆️ **Mises à jour automatiques depuis GitHub** : HA Taskbar vérifie s'il existe une nouvelle version (une minute après le lancement, puis une fois par jour) et propose de l'installer en un clic. Voir [Mises à jour](#-mises-à-jour).
+
+> À partir de la 1.3, plus besoin de télécharger les nouvelles versions à la main. Il faut juste installer cette version-ci une fois.
+
 ## ✨ Nouveautés de la version 1.2
 
 - 🔥 **Icônes animées** : immobiles quand l'élément est éteint, elles bougent doucement quand il est allumé. Le rythme est volontairement lent pour ne pas attirer l'œil pendant qu'on travaille.
@@ -111,6 +117,20 @@ powershell -ExecutionPolicy Bypass -File build.ps1
 ```
 
 `build.ps1` installe PyInstaller dans un environnement virtuel dédié (`%LOCALAPPDATA%\HATaskbar-build`) et crée `HATaskbar.exe`. Il le passe ensuite à Inno Setup, qui produit `dist\HATaskbar-Setup-<version>.exe`. Le numéro de version vient de `__version__` dans [`ha_core.py`](ha_core.py).
+
+### 🔄 Mises à jour
+
+Quand une nouvelle version est publiée sur la page [Releases](https://github.com/bbtoff/home-assistant-taskbar/releases), une petite fenêtre s'ouvre avec ses nouveautés :
+
+![Fenêtre de mise à jour](docs/screenshots/mise-a-jour.png)
+
+- **Installer maintenant** : le programme d'installation est téléchargé depuis GitHub, puis **vérifié** (taille exacte et empreinte SHA-256 publiée par GitHub). HA Taskbar se ferme, se met à jour et redémarre tout seul. Tes réglages sont conservés.
+- **Plus tard** : la fenêtre se ferme, et le clic droit sur la barre propose **Mettre à jour vers la version…** tant que ce n'est pas fait.
+- **Ignorer cette version** : plus de rappel pour cette version-là, seulement pour la suivante.
+
+À tout moment : clic droit → **Rechercher une mise à jour**, ou **Réglages → Connexion → Rechercher maintenant**. La recherche automatique se désactive dans ce même onglet.
+
+La recherche interroge l'API publique de GitHub, sans compte ni jeton, et n'envoie aucune information sur toi ou ta maison. Depuis les sources (`python ha_taskbar.py`), la fenêtre propose seulement d'ouvrir la page de la version.
 
 ---
 
@@ -340,6 +360,7 @@ Windows 11 ne permet plus d'ajouter des « deskbands » (barres d'outils) à la 
 | [`settings_ui.py`](settings_ui.py) | Fenêtre de réglages, sélecteur d'entités, sélecteur d'icônes |
 | [`ha_core.py`](ha_core.py) | Commun : config, client Home Assistant, icônes, actions par défaut, démarrage auto |
 | [`anim_icons.py`](anim_icons.py) | Icônes animées : dessin vectoriel et rendu anticrénelé en Python pur (aucune dépendance) |
+| [`update_ui.py`](update_ui.py) | Fenêtre de mise à jour : nouveautés, téléchargement vérifié, installation |
 | `config.example.json` | Exemple de configuration |
 | `config.json` | Ta configuration (créée automatiquement, ignorée par git) |
 | [`build.ps1`](build.ps1) | Construit l'exe (PyInstaller) puis le programme d'installation (Inno Setup) |

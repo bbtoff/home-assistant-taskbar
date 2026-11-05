@@ -23,8 +23,9 @@ from tkinter import font as tkfont
 
 import anim_icons
 from ha_core import (ACTIVE_STATES, ANIM_ICONS, CONFIG_PATH, DEFAULT_CONFIG, ICON_FONTS, ICON_PATH, ICONS, STATE_TEXT,
-                     HomeAssistant, anim_active, bar_colors, bar_light, icon_key, system_light, item_zone, load_config,
-                     needs_setup, resolve_icon, resolve_service, save_config)
+                     HomeAssistant, __version__, anim_active, bar_colors, bar_light, icon_key, system_light, item_zone,
+                     latest_release, load_config, needs_setup, resolve_icon, resolve_service, save_config,
+                     update_available)
 
 # --------------------------------------------------------------------------- Win32
 # DPI : on travaille en pixels physiques pour coller exactement a la barre des taches
@@ -110,6 +111,10 @@ def foreground_is_fullscreen(own_hwnds):
 
 
 LONG_PRESS_MS = 450      # appui long -> carte de controle
+
+
+UPDATE_FIRST_MS = 60 * 1000          # 1re recherche de mise a jour 1 min apres le lancement
+UPDATE_EVERY_MS = 24 * 3600 * 1000   # puis une fois par jour
 
 
 def anim_now():
@@ -412,6 +417,9 @@ class App:
         self.hovered = None
         self.card = None         # carte de controle ouverte (appui long)
         self.anim_photos = {}    # images Tk des icones animees, par (icone, taille, etat, couleurs)
+        self.update_info = None  # nouvelle version trouvee sur GitHub
+        self.update_win = None
+        self._update_report = None
         self._press_item = None
         self._press_job = None
 
@@ -448,6 +456,7 @@ class App:
         self.tick()
         self.hover_loop()
         self.anim_loop()
+        self.root.after(UPDATE_FIRST_MS, self.update_loop)
         if needs_setup(self.cfg) or not os.path.exists(CONFIG_PATH):
             self.root.after(300, self.open_settings)
 
@@ -598,6 +607,65 @@ class App:
                         pass
         self.root.after(anim_icons.FRAME_MS, self.anim_loop)
 
+    # ---------------- mises a jour (GitHub)
+    def update_loop(self):
+        if self.cfg.get("check_updates", True):
+            self.check_update()
+        self.root.after(UPDATE_EVERY_MS, self.update_loop)
+
+    def check_update(self, manual=False, report=None):
+        """Interroge GitHub dans un thread. manual : demande explicite (on montre toujours le resultat).
+        report(texte) : ou afficher le resultat (sinon une petite fenetre)."""
+        self._update_report = report
+
+        def run():
+            try:
+                self.q.put(("update", (latest_release(), manual)))
+            except Exception as e:
+                self.q.put(("update_error", (str(e), manual)))
+        threading.Thread(target=run, daemon=True).start()
+
+    def _report(self, text):
+        if self._update_report:
+            self._update_report(text)
+        else:
+            from tkinter import messagebox
+            messagebox.showinfo("HA Taskbar", text)
+
+    def on_update_msg(self, kind, payload):
+        w = self.update_win
+        if kind == "update":
+            info, manual = payload
+            if update_available(info):
+                self.update_info = info
+                if manual or info["version"] != self.cfg.get("skip_version"):
+                    self.show_update()
+                if manual:
+                    self._report("Version %s disponible." % info["version"])
+            elif manual:
+                self._report("Tu as la dernière version (%s)." % __version__)
+        elif kind == "update_error":
+            msg, manual = payload
+            if manual:
+                self._report("Impossible de joindre GitHub : %s" % msg)
+        elif w is not None:
+            if kind == "update_progress":
+                w.on_progress(*payload)
+            elif kind == "update_ready":
+                w.on_ready(payload)
+            elif kind == "update_failed":
+                w.on_failed(payload)
+
+    def show_update(self):
+        if not self.update_info:
+            return
+        if self.update_win is not None and self.update_win.win.winfo_exists():
+            self.update_win.win.deiconify()
+            self.update_win.win.lift()
+            return
+        from update_ui import UpdateWindow
+        self.update_win = UpdateWindow(self, self.update_info)
+
     # ---------------- reseau (thread)
     def poll_loop(self):
         while True:
@@ -649,9 +717,11 @@ class App:
                         it.update(payload.get(it.entity_id))
                     if self.card is not None:
                         self.card.refresh()
-                else:
+                elif kind == "error":
                     self.last_error = payload
                     self._show_status()
+                else:
+                    self.on_update_msg(kind, payload)
         except queue.Empty:
             pass
         # Theme clair / sombre de Windows : verifie toutes les ~2 s, bascule a la volee
@@ -703,9 +773,14 @@ class App:
         if self.last_error:
             m.add_command(label="Erreur : " + self.last_error[:80], state="disabled")
             m.add_separator()
+        if self.update_info:
+            m.add_command(label="⬆  Mettre à jour vers la version %s…" % self.update_info["version"],
+                          command=self.show_update)
+            m.add_separator()
         m.add_command(label="Réglages…", command=self.open_settings)
         m.add_command(label="Rafraîchir", command=self.wake.set)
         m.add_command(label="Recharger config.json", command=self.reload)
+        m.add_command(label="Rechercher une mise à jour", command=lambda: self.check_update(manual=True))
         m.add_separator()
         m.add_command(label="Quitter", command=self.root.destroy)
         self.menu_open = True

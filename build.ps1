@@ -37,7 +37,7 @@ Write-Host "== PyInstaller"
     --name HATaskbar --windowed --onedir `
     --icon "$here\assets\ha_taskbar.ico" `
     --add-data "$here\assets\ha_taskbar.ico;assets" `
-    --hidden-import settings_ui --hidden-import card_ui `
+    --hidden-import settings_ui --hidden-import card_ui --hidden-import update_ui `
     --distpath "$BuildRoot\dist" --workpath "$BuildRoot\work" --specpath "$BuildRoot" `
     "$here\ha_taskbar.py"
 if ($LASTEXITCODE) { throw "PyInstaller a echoue" }

@@ -378,6 +378,25 @@ class SettingsWindow:
         ttk.Checkbutton(f, text="Lancer HA Taskbar au démarrage de Windows",
                         variable=self.v_startup).grid(row=8, column=1, columnspan=2, sticky="w")
 
+        # --- mises a jour
+        self.v_updates = self.track(tk.BooleanVar(value=self.cfg.get("check_updates", True)),
+                                    self.key("check_updates"))
+        ttk.Checkbutton(f, text="Rechercher les mises à jour sur GitHub (au démarrage, puis une fois par jour)",
+                        variable=self.v_updates).grid(row=9, column=1, columnspan=2, sticky="w", pady=(6, 0))
+        uf = ttk.Frame(f)
+        uf.grid(row=10, column=1, columnspan=2, sticky="w", pady=(6, 0))
+        ttk.Button(uf, text="Rechercher maintenant", command=self.check_update_now).pack(side="left")
+        self.update_label = ttk.Label(uf, text="Version installée : %s" % __version__, style="Hint.TLabel")
+        self.update_label.pack(side="left", padx=10)
+
+    def check_update_now(self):
+        self.update_label.configure(text="Recherche…", style="Hint.TLabel")
+
+        def report(text):
+            if self.win.winfo_exists():
+                self.update_label.configure(text=text, style="Hint.TLabel")
+        self.app.check_update(manual=True, report=report)
+
     def test_connection(self):
         ha = HomeAssistant(self.cfg["ha_url"], self.cfg["token"], self.cfg.get("verify_ssl", True))
         self.conn_label.configure(text="Connexion…", style="Hint.TLabel")

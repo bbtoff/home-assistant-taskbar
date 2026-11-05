@@ -54,6 +54,8 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 
 [Run]
 Filename: "{app}\HATaskbar.exe"; Description: "Lancer HA Taskbar"; Flags: nowait postinstall skipifsilent
+; Mise a jour automatique (installation silencieuse) : on relance la barre a la fin
+Filename: "{app}\HATaskbar.exe"; Flags: nowait; Check: WizardSilent
 
 [Code]
 procedure StopRunningApp();
