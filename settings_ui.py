@@ -95,30 +95,45 @@ class IconPicker:
             row=rows + 1, column=0, columnspan=self.COLS, sticky="w", pady=(10, 4))
         px = max(16, tkfont.Font(top, family=font[0], size=font[1]).measure(ICONS["flame"][0]))
         self.anim_cells = []
+        self.anim_px = px
+        blank = self.blank = tk.PhotoImage(master=top, width=px, height=px)
+        arows = (len(ANIM_ICONS) + self.COLS - 1) // self.COLS
         for i, (key, (_fb, label, _n)) in enumerate(ANIM_ICONS.items()):
             sel = key == current
-            imgs = [tk.PhotoImage(master=top, data=base64.b64encode(png), format="png")
-                    for png in anim_icons.frames_png(key, px, True, pal["icon_on"], pal["fg"])]
-            cell = tk.Label(f, image=imgs[0], cursor="hand2", width=px + 8, height=px + 4,
+            cell = tk.Label(f, image=blank, cursor="hand2", width=px + 8, height=px + 4,
                             bg=pal["cell_sel"] if sel else pal["card"], relief="flat", borderwidth=0,
                             highlightthickness=1, highlightbackground=pal["accent"] if sel else pal["border"])
-            cell.grid(row=rows + 2, column=i, padx=2, pady=2, ipadx=4, ipady=2)
+            r_, c_ = divmod(i, self.COLS)
+            cell.grid(row=rows + 2 + r_, column=c_, padx=2, pady=2, ipadx=4, ipady=2)
             cell.bind("<Button-1>", lambda e, k=key: self.choose(k))
             cell.bind("<Enter>", lambda e, l=label, w=cell: (self.name.configure(text=l),
                                                               w.configure(bg=pal["hover"])))
             cell.bind("<Leave>", lambda e, w=cell, s=sel: w.configure(bg=pal["cell_sel"] if s else pal["card"]))
-            self.anim_cells.append((cell, imgs))
-        self.name.grid(row=rows + 3, column=0, columnspan=self.COLS, sticky="w", pady=(10, 0))
+            self.anim_cells.append([cell, [], key])
+        self.name.grid(row=rows + 2 + arows, column=0, columnspan=self.COLS, sticky="w", pady=(10, 0))
+        self.top.after(10, self.load_next)       # images preparees une par une : la fenetre s'ouvre tout de suite
         self.animate()
         top.grab_set()
         top.focus_force()
+
+    def load_next(self):
+        if not self.top.winfo_exists():
+            return
+        pal = self.sw.pal
+        for entry in self.anim_cells:
+            if not entry[1]:
+                entry[1] = [tk.PhotoImage(master=self.top, data=base64.b64encode(png), format="png")
+                            for png in anim_icons.frames_png(entry[2], self.anim_px, True, pal["icon_on"], pal["fg"])]
+                self.top.after(5, self.load_next)
+                return
 
     def animate(self):
         if not self.top.winfo_exists():
             return
         n = int(time.monotonic() * 1000) // anim_icons.FRAME_MS
-        for cell, imgs in self.anim_cells:
-            cell.configure(image=imgs[n % len(imgs)])
+        for cell, imgs, _k in self.anim_cells:
+            if imgs:
+                cell.configure(image=imgs[n % len(imgs)])
         self.top.after(anim_icons.FRAME_MS, self.animate)
 
     def choose(self, key):

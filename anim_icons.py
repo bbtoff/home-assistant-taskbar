@@ -20,6 +20,19 @@ ANIM_ICONS = {
     "bulb_anim": ("lightbulb", "Ampoule qui rayonne", 32),           # respiration de 4 s
     "eq_anim": ("music", "Égaliseur (musique)", 24),                 # cycle de 3 s
     "drop_anim": ("drop", "Goutte qui tombe (arrosage)", 24),        # cycle de 3 s
+    "snow_anim": ("snow", "Flocon qui tourne (climatisation)", 32),  # 1/6 de tour en 4 s
+    "sun_anim": ("sun", "Soleil qui rayonne", 32),                   # 1/8 de tour en 4 s
+    "wifi_anim": ("wifi", "Ondes Wi-Fi / signal", 24),               # vague de 3 s
+    "bell_anim": ("bell", "Cloche qui sonne (sonnette, sirène)", 32),  # 2 balancements puis pause, 4 s
+    "washer_anim": ("refresh", "Lave-linge qui tourne", 24),         # 1 tour de tambour en 3 s
+    "bolt_anim": ("bolt", "Éclair (énergie qui monte)", 20),         # 2,5 s
+    "battery_anim": ("battery", "Batterie en charge", 32),           # remplissage en 4 s
+    "radar_anim": ("pulse", "Détection (mouvement, présence)", 24),  # ondes de 3 s
+    "heater_anim": ("flame", "Radiateur (chaleur qui monte)", 24),   # 3 s
+    "speaker_anim": ("speaker", "Haut-parleur (son)", 24),           # 3 s
+    "timer_anim": ("timer", "Minuteur (aiguille qui tourne)", 48),   # 1 tour en 6 s
+    "rain_anim": ("cloud", "Pluie", 24),                             # 3 s
+    "gear_anim": ("gear", "Engrenage qui tourne (automatisme)", 32), # 1/8 de tour en 4 s
 }
 
 
@@ -216,6 +229,8 @@ def _drop(cx, ty, s):
 def layers(key, S, active, n_frames):
     """Liste d'images ; chaque image = liste de couches (couverture, role de couleur, opacite).
     Roles : "fg" (couleur normale de l'icone), "on" (allume), "core" (coeur de flamme, plus clair)."""
+    if key in _BUILDERS:
+        return _BUILDERS[key](S, active, n_frames)
     tau = 2 * math.pi
     if not active:
         if key == "flame_anim":
@@ -267,6 +282,321 @@ def layers(key, S, active, n_frames):
                 ls.append((ring, "on", 1.0 - q * 0.9))
             frames.append(ls)
     return frames
+
+
+# --------------------------------------------------------------------------- icones supplementaires
+TAU = 2 * math.pi
+W = 0.085                       # epaisseur des traits
+
+
+def _rot(pts, a, cx=0.5, cy=0.5):
+    ca, sa = math.cos(a), math.sin(a)
+    return [(cx + (x - cx) * ca - (y - cy) * sa, cy + (x - cx) * sa + (y - cy) * ca) for x, y in pts]
+
+
+def _quad(p0, p1, w=W):
+    """Trait droit plein (rectangle) de p0 a p1."""
+    dx, dy = p1[0] - p0[0], p1[1] - p0[1]
+    d = math.hypot(dx, dy) or 1e-9
+    nx, ny = -dy / d * w / 2, dx / d * w / 2
+    return [(p0[0] + nx, p0[1] + ny), (p1[0] + nx, p1[1] + ny), (p1[0] - nx, p1[1] - ny), (p0[0] - nx, p0[1] - ny)]
+
+
+def _arc_band(cx, cy, r, a0, a1, w=W, n=18):
+    """Arc epais (bande) de l'angle a0 a a1 (radians, y vers le bas)."""
+    outer = [(cx + (r + w / 2) * math.cos(a0 + (a1 - a0) * i / n), cy + (r + w / 2) * math.sin(a0 + (a1 - a0) * i / n))
+             for i in range(n + 1)]
+    inner = [(cx + (r - w / 2) * math.cos(a0 + (a1 - a0) * i / n), cy + (r - w / 2) * math.sin(a0 + (a1 - a0) * i / n))
+             for i in range(n, -1, -1)]
+    return outer + inner
+
+
+def _ring(S, cx, cy, r, w=W):
+    return _sub(fill([_circle(cx, cy, r + w / 2, 32)], S), fill([_circle(cx, cy, max(0.001, r - w / 2), 32)], S))
+
+
+def _scale(cov, a):
+    return [c * a for c in cov]
+
+
+def _max(*covs):
+    return [max(v) for v in zip(*covs)]
+
+
+def _wave(f, n):
+    """Impulsion douce 0..1 qui passe une fois par cycle (f = phase 0..1)."""
+    f %= 1.0
+    return 0.5 - 0.5 * math.cos(TAU * f)
+
+
+# --- flocon
+def _snow_polys(a):
+    polys = []
+    for k in range(6):
+        ang = a + k * TAU / 6
+        tip = (0.5 + 0.4 * math.cos(ang), 0.5 + 0.4 * math.sin(ang))
+        polys.append(_quad((0.5, 0.5), tip))
+        b = (0.5 + 0.24 * math.cos(ang), 0.5 + 0.24 * math.sin(ang))
+        for s in (-1, 1):
+            e = (b[0] + 0.12 * math.cos(ang + s * 0.8), b[1] + 0.12 * math.sin(ang + s * 0.8))
+            polys.append(_quad(b, e, W * 0.85))
+    return polys
+
+
+def _b_snow(S, active, n):
+    if not active:
+        return [[(fill(_snow_polys(-TAU / 4), S), "fg", 1.0)]]
+    return [[(fill(_snow_polys(-TAU / 4 + (i / n) * TAU / 6), S), "on", 1.0)] for i in range(n)]
+
+
+# --- soleil
+def _sun_rays(a, l0=0.29, l1=0.43):
+    return [_quad((0.5 + l0 * math.cos(a + k * TAU / 8), 0.5 + l0 * math.sin(a + k * TAU / 8)),
+                  (0.5 + l1 * math.cos(a + k * TAU / 8), 0.5 + l1 * math.sin(a + k * TAU / 8))) for k in range(8)]
+
+
+def _b_sun(S, active, n):
+    if not active:
+        return [[(_max(_ring(S, 0.5, 0.5, 0.15), fill(_sun_rays(0), S)), "fg", 1.0)]]
+    disc = fill([_circle(0.5, 0.5, 0.19, 32)], S)
+    out = []
+    for i in range(n):
+        t = i / n
+        ext = 0.43 + 0.03 * math.sin(TAU * t)
+        out.append([(disc, "on", 1.0), (fill(_sun_rays(t * TAU / 8, 0.29, ext), S), "on", 1.0)])
+    return out
+
+
+# --- wi-fi
+_WIFI_C = (0.5, 0.8)
+
+
+def _b_wifi(S, active, n):
+    cx, cy = _WIFI_C
+    dot = fill([_circle(cx, cy, 0.065, 20)], S)
+    arcs = [fill([_arc_band(cx, cy, r, math.radians(-135), math.radians(-45))], S) for r in (0.22, 0.38, 0.54)]
+    if not active:
+        return [[(_max(dot, *arcs), "fg", 1.0)]]
+    out = []
+    for i in range(n):
+        t = i / n
+        ls = [(dot, "on", 1.0)]
+        for k, a in enumerate(arcs):
+            ls.append((a, "on", 0.25 + 0.75 * _wave(t - 0.12 - k * 0.16, n)))
+        out.append(ls)
+    return out
+
+
+# --- cloche
+def _bell_polys():
+    body = _path((0.5, 0.17),
+                 ((0.68, 0.17), (0.73, 0.31), (0.73, 0.47)),
+                 ((0.73, 0.61), (0.77, 0.69), (0.86, 0.75)),
+                 ((0.62, 0.75), (0.38, 0.75), (0.14, 0.75)),
+                 ((0.23, 0.69), (0.27, 0.61), (0.27, 0.47)),
+                 ((0.27, 0.31), (0.32, 0.17), (0.5, 0.17)))
+    return body, _circle(0.5, 0.84, 0.075, 18), _circle(0.5, 0.12, 0.045, 14)
+
+
+def _b_bell(S, active, n):
+    body, clap, knob = _bell_polys()
+    if not active:
+        return [[(_max(stroke([(body, True)], S, W), fill([clap, knob], S)), "fg", 1.0)]]
+    out = []
+    for i in range(n):
+        t = i / n
+        a = math.radians(16) * math.sin(TAU * 2 * t / 0.6) * (1 - t / 0.6) if t < 0.6 else 0.0
+        polys = [_rot(p, a, 0.5, 0.12) for p in (body, knob)]
+        cl = _rot(clap, a * 1.6, 0.5, 0.12)          # le battant suit avec un peu de retard
+        out.append([(fill(polys + [cl], S), "on", 1.0)])
+    return out
+
+
+# --- lave-linge
+def _b_washer(S, active, n):
+    frame_ = stroke([(_rect(0.15, 0.08, 0.85, 0.92), True), ([(0.15, 0.25), (0.85, 0.25)], False)], S, W)
+    knob = fill([_circle(0.3, 0.165, 0.035, 12), _circle(0.42, 0.165, 0.035, 12)], S)
+    door = _ring(S, 0.5, 0.585, 0.2)
+    base = _max(frame_, knob, door)
+    if not active:
+        return [[(base, "fg", 1.0)]]
+    out = []
+    for i in range(n):
+        a = (i / n) * TAU
+        ox, oy = 0.5 + 0.055 * math.cos(a), 0.585 + 0.055 * math.sin(a)
+        crescent = _sub(fill([_circle(0.5, 0.585, 0.13, 28)], S), fill([_circle(ox, oy, 0.12, 28)], S))
+        out.append([(base, "on", 1.0), (crescent, "on", 1.0)])
+    return out
+
+
+# --- eclair
+_BOLT = [(0.6, 0.04), (0.2, 0.56), (0.46, 0.56), (0.38, 0.96), (0.8, 0.42), (0.54, 0.42), (0.64, 0.04)]
+
+
+def _b_bolt(S, active, n):
+    if not active:
+        return [[(stroke([(_BOLT, True)], S, W * 0.9), "fg", 1.0)]]
+    full = fill([_BOLT], S)
+    out = []
+    for i in range(n):
+        t = i / n
+        level = 1.05 - 1.25 * t                       # l'energie monte du bas vers le haut
+        rows = []
+        for y in range(S):
+            k = 1.0 if (y + 0.5) / S >= level else 0.35
+            rows.extend(c * k for c in full[y * S:(y + 1) * S])
+        out.append([(rows, "on", 1.0)])
+    return out
+
+
+# --- batterie en charge
+def _b_battery(S, active, n):
+    body = stroke([(_rect(0.27, 0.17, 0.73, 0.92), True)], S, W)
+    cap = fill([_rect(0.4, 0.07, 0.6, 0.17)], S)
+    bars = [fill([_rect(0.36, 0.73 - k * 0.165, 0.64, 0.83 - k * 0.165)], S) for k in range(4)]
+    if not active:
+        return [[(_max(body, cap, bars[0], bars[1]), "fg", 1.0)]]
+    out = []
+    for i in range(n):
+        shown = int((i / n) * 5)                      # 0, 1, 2, 3 puis 4 barres
+        ls = [(_max(body, cap), "on", 1.0)]
+        for k in range(min(shown, 4)):
+            ls.append((bars[k], "on", 1.0))
+        out.append(ls)
+    return out
+
+
+# --- detection (ondes)
+def _b_radar(S, active, n):
+    dot = fill([_circle(0.5, 0.5, 0.1, 20)], S)
+    if not active:
+        return [[(_max(dot, _ring(S, 0.5, 0.5, 0.3, W * 0.8)), "fg", 1.0)]]
+    out = []
+    for i in range(n):
+        t = i / n
+        ls = [(dot, "on", 1.0)]
+        for ph in (0.0, 0.5):
+            q = (t + ph) % 1.0
+            ls.append((_ring(S, 0.5, 0.5, 0.15 + 0.3 * q, W * 0.8), "on", 1.0 - q))
+        out.append(ls)
+    return out
+
+
+# --- radiateur
+def _radiator(S):
+    body = stroke([(_rect(0.13, 0.5, 0.87, 0.86), True)], S, W)
+    fins = fill([_quad((x, 0.57), (x, 0.79), W * 0.8) for x in (0.32, 0.5, 0.68)], S)
+    feet = fill([_rect(0.2, 0.86, 0.28, 0.94), _rect(0.72, 0.86, 0.8, 0.94)], S)
+    return _max(body, fins, feet)
+
+
+def _heat_wave(x, y0, y1, phase, w=W * 0.75):
+    n = 16
+    pts = [(x + 0.035 * math.sin(TAU * 1.25 * (k / n) + phase), y0 + (y1 - y0) * k / n) for k in range(n + 1)]
+    return [_quad(a, b, w) for a, b in zip(pts, pts[1:])] + [_circle(p[0], p[1], w / 2, 8) for p in pts[1:-1]]
+
+
+def _b_heater(S, active, n):
+    rad = _radiator(S)
+    if not active:
+        return [[(rad, "fg", 1.0)]]
+    out = []
+    for i in range(n):
+        t = i / n
+        ls = [(rad, "on", 1.0)]
+        for k, x in enumerate((0.3, 0.5, 0.7)):
+            q = (t + k / 3) % 1.0
+            dy = -0.1 * q                            # les ondes montent et s'effacent
+            ls.append((fill(_heat_wave(x, 0.12 + dy, 0.42 + dy, TAU * t + k), S), "on", 1.0 - q * 0.85))
+        out.append(ls)
+    return out
+
+
+# --- haut-parleur
+_SPK = [(0.1, 0.38), (0.27, 0.38), (0.5, 0.17), (0.5, 0.83), (0.27, 0.62), (0.1, 0.62)]
+
+
+def _b_speaker(S, active, n):
+    spk = fill([_SPK], S)
+    arcs = [fill([_arc_band(0.5, 0.5, r, math.radians(-50), math.radians(50))], S) for r in (0.17, 0.32)]
+    if not active:
+        return [[(spk, "fg", 1.0)]]
+    out = []
+    for i in range(n):
+        t = i / n
+        ls = [(spk, "on", 1.0)]
+        for k, a in enumerate(arcs):
+            ls.append((a, "on", 0.2 + 0.8 * _wave(t - k * 0.2, n)))
+        out.append(ls)
+    return out
+
+
+# --- minuteur
+def _b_timer(S, active, n):
+    ring = _ring(S, 0.5, 0.56, 0.34)
+    top = fill([_rect(0.42, 0.06, 0.58, 0.13), _quad((0.5, 0.13), (0.5, 0.22), W * 0.9)], S)
+    pivot = fill([_circle(0.5, 0.56, 0.05, 12)], S)
+    base = _max(ring, top, pivot)
+
+    def hand(a):
+        return fill([_quad((0.5, 0.56), (0.5 + 0.24 * math.cos(a), 0.56 + 0.24 * math.sin(a)), W * 0.85)], S)
+    if not active:
+        return [[(_max(base, hand(-TAU / 4)), "fg", 1.0)]]
+    return [[(base, "on", 1.0), (hand(-TAU / 4 + TAU * i / n), "on", 1.0)] for i in range(n)]
+
+
+# --- pluie
+def _cloud():
+    pts = [(0.32 + 0.15 * math.cos(a), 0.42 + 0.15 * math.sin(a)) for a in
+           [math.radians(90 + 180 * k / 10) for k in range(11)]]
+    pts += [(0.53 + 0.2 * math.cos(a), 0.34 + 0.2 * math.sin(a)) for a in
+            [math.radians(200 + 140 * k / 12) for k in range(13)]]
+    pts += [(0.71 + 0.15 * math.cos(a), 0.42 + 0.15 * math.sin(a)) for a in
+            [math.radians(270 + 180 * k / 10) for k in range(11)]]
+    return pts
+
+
+def _b_rain(S, active, n):
+    cloud = _cloud()
+    if not active:
+        return [[(stroke([(cloud, True)], S, W), "fg", 1.0)]]
+    body = fill([cloud], S)
+    out = []
+    for i in range(n):
+        t = i / n
+        drops = []
+        for k, x in enumerate((0.33, 0.52, 0.71)):
+            q = (t + k * 0.37) % 1.0
+            y = 0.62 + 0.3 * q
+            drops.append((fill([_quad((x, y), (x - 0.03, y + 0.1), W * 0.8)], S), "on", min(1.0, (1 - q) * 2.2)))
+        out.append([(body, "on", 1.0)] + drops)
+    return out
+
+
+# --- engrenage
+def _gear(a):
+    pts = []
+    teeth = 8
+    for k in range(teeth * 4):
+        ang = a + TAU * k / (teeth * 4)
+        r = 0.43 if (k % 4) in (1, 2) else 0.32
+        pts.append((0.5 + r * math.cos(ang), 0.5 + r * math.sin(ang)))
+    return pts
+
+
+def _b_gear(S, active, n):
+    hole = fill([_circle(0.5, 0.5, 0.12, 20)], S)
+    if not active:
+        return [[(_sub(fill([_gear(0)], S), hole), "fg", 1.0)]]
+    return [[(_sub(fill([_gear(TAU / 8 * i / n)], S), hole), "on", 1.0)] for i in range(n)]
+
+
+_BUILDERS = {
+    "snow_anim": _b_snow, "sun_anim": _b_sun, "wifi_anim": _b_wifi, "bell_anim": _b_bell,
+    "washer_anim": _b_washer, "bolt_anim": _b_bolt, "battery_anim": _b_battery, "radar_anim": _b_radar,
+    "heater_anim": _b_heater, "speaker_anim": _b_speaker, "timer_anim": _b_timer, "rain_anim": _b_rain,
+    "gear_anim": _b_gear,
+}
 
 
 # --------------------------------------------------------------------------- PNG

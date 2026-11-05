@@ -11,7 +11,7 @@ Affiche des **capteurs** et des **boutons Home Assistant** directement sur la **
 - 🧩 **Appui long** sur un élément : une carte de contrôle s'ouvre, comme dans Home Assistant (luminosité, couleur, consigne de chauffage, volume, historique 24 h…)
 - ↔️ **Deux zones** : une à gauche et une à droite de la barre des tâches, chaque élément choisit la sienne
 - 🎨 Près de 90 icônes Windows 11 qui changent de couleur selon l'état (jaune = allumé), et thème **clair / sombre** qui suit Windows
-- 🔥 **Icônes animées** : flamme qui brûle quand le chauffage chauffe, ventilateur qui tourne, ampoule qui rayonne… Lentes et discrètes
+- 🔥 **18 icônes animées** : flamme qui brûle quand le chauffage chauffe, ventilateur qui tourne, cloche qui sonne, lave-linge, pluie… Lentes et discrètes
 - 🔧 Fenêtre de réglages graphique avec aperçu en direct : rien à éditer à la main
 
 <p align="center">
@@ -21,6 +21,33 @@ Affiche des **capteurs** et des **boutons Home Assistant** directement sur la **
 Un **programme d'installation** est fourni : rien d'autre à installer, pas même Python. Depuis les sources, il suffit de Python et de sa bibliothèque standard (tkinter, ctypes, urllib). Le thème des fenêtres est inclus dans le dépôt.
 
 ---
+
+## ✨ Nouveautés de la version 1.5
+
+- 🔥 **13 nouvelles icônes animées**, soit 18 au total. Comme les premières, elles sont immobiles quand l'élément est éteint et bougent lentement quand il est actif :
+
+  <p align="center">
+    <img src="docs/screenshots/icones-animees-2.gif" alt="Flocon, soleil, Wi-Fi, cloche, lave-linge, éclair et batterie animés"><br>
+    <img src="docs/screenshots/icones-animees-3.gif" alt="Détection, radiateur, haut-parleur, minuteur, pluie et engrenage animés">
+  </p>
+
+  | Icône | Quand elle est active |
+  |---|---|
+  | ❄️ Flocon | Climatisation, froid : il tourne très lentement |
+  | ☀️ Soleil | Les rayons tournent et respirent |
+  | 📶 Wi-Fi | Les ondes s'allument l'une après l'autre |
+  | 🔔 Cloche | Elle se balance puis fait une pause (sonnette, sirène) |
+  | 🧺 Lave-linge | Le linge tourne dans le tambour |
+  | ⚡ Éclair | L'énergie monte dans l'éclair (consommation au-dessus de 0) |
+  | 🔋 Batterie | En charge : les barres se remplissent |
+  | 📡 Détection | Des ondes s'élargissent (mouvement, présence) |
+  | ♨️ Radiateur | Des vagues de chaleur montent |
+  | 🔊 Haut-parleur | Les ondes sonores battent |
+  | ⏲️ Minuteur | L'aiguille tourne (un tour en 6 secondes) |
+  | 🌧️ Pluie | Des gouttes tombent du nuage |
+  | ⚙️ Engrenage | Il tourne lentement (automatisme, programme en cours) |
+
+  Dans le choix d'icônes, les animations se chargent l'une après l'autre : la fenêtre s'ouvre tout de suite.
 
 ## ✨ Nouveautés de la version 1.4
 
@@ -273,7 +300,7 @@ Une clé absente reprend la valeur du thème par défaut. Après avoir enregistr
 - **Ajouter des entités…** : parcourt toutes les entités, avec une recherche multi-mots et un filtre par type. Les entités déjà présentes sont grisées (✔).
 - **▲ ▼** pour l'ordre, **Dupliquer**, **Supprimer**
 - Pour chaque élément :
-  - **Libellé** et **Icône** : automatique selon le type, au choix parmi près de 90 (dont 5 animées), ou aucune
+  - **Libellé** et **Icône** : automatique selon le type, au choix parmi plus de 100 (dont 18 animées), ou aucune
   - **Valeur affichée** : l'état de l'entité ou un de ses attributs (ex. `current_temperature` d'un thermostat)
   - **Unité** et **Décimales**
   - **Action au clic** : automatique, aucune, ou n'importe quel service (ex. `light.turn_on`)
@@ -339,7 +366,7 @@ Format d'un élément :
 }
 ```
 
-Seul `entity_id` est obligatoire. `icon` peut valoir `"auto"` (par défaut), `"none"`, une clé de `ICONS` dans [`ha_core.py`](ha_core.py), ou une icône animée : `"flame_anim"`, `"fan_anim"`, `"bulb_anim"`, `"eq_anim"`, `"drop_anim"`. `service` peut valoir `"none"` pour désactiver le clic. `zone` vaut `"left"` (par défaut) ou `"right"`.
+Seul `entity_id` est obligatoire. `icon` peut valoir `"auto"` (par défaut), `"none"`, une clé de `ICONS` dans [`ha_core.py`](ha_core.py), ou une icône animée : `"flame_anim"`, `"fan_anim"`, `"bulb_anim"`, `"eq_anim"`, `"drop_anim"`, `"snow_anim"`, `"sun_anim"`, `"wifi_anim"`, `"bell_anim"`, `"washer_anim"`, `"bolt_anim"`, `"battery_anim"`, `"radar_anim"`, `"heater_anim"`, `"speaker_anim"`, `"timer_anim"`, `"rain_anim"`, `"gear_anim"` (liste dans [`anim_icons.py`](anim_icons.py)). `service` peut valoir `"none"` pour désactiver le clic. `zone` vaut `"left"` (par défaut) ou `"right"`.
 
 Les décalages des deux zones sont `offset` (zone gauche, depuis le bord gauche) et `offset_right` (zone droite, depuis le bord droit). Une ancienne configuration réglée sur le côté droit (`"anchor": "right"`) est convertie toute seule : ses éléments passent dans la zone droite.
 
