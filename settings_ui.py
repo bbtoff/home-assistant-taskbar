@@ -14,7 +14,7 @@ from tkinter import font as tkfont
 from ha_core import (__version__, CARD_THEMES, CARD_THEMES_PATH, DARK_COLORS, ICON_FONTS, ICONS, LIGHT_COLORS,
                      PLACEHOLDER_TOKEN, HomeAssistant, auto_icon, bar_colors, bar_light, card_light, card_palette,
                      card_themes, default_service, get_startup, resolve_icon, resolve_service, save_config,
-                     set_startup, system_light)
+                     set_startup, system_light, item_zone)
 
 HEX_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 COLOR_NAMES = [("bg", "Fond"), ("fg", "Valeurs"), ("dim", "Libellés"), ("on", "Actif / allumé"),
@@ -23,6 +23,7 @@ AUTO = "(auto)"
 NO_ACTION = "(aucune)"
 STATE_ATTR = "(état)"
 NEW_LABEL = "Nouvel élément"
+ZONE_TEXT = {"left": "Gauche", "right": "Droite"}
 ALL_DOMAINS = "(tous les types)"
 DOMAIN_NAMES = {
     "sensor": "Capteurs", "binary_sensor": "Capteurs binaires", "light": "Lumières", "switch": "Interrupteurs",
@@ -398,8 +399,10 @@ class SettingsWindow:
         left.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
         left.rowconfigure(0, weight=1)
         left.columnconfigure(0, weight=1)
-        self.tree = ttk.Treeview(left, columns=("label", "entity", "action"), show="headings", selectmode="browse")
-        for col, title, w in (("label", "Libellé", 110), ("entity", "Entité", 150), ("action", "Clic", 120)):
+        self.tree = ttk.Treeview(left, columns=("label", "entity", "action", "zone"), show="headings",
+                                 selectmode="browse")
+        for col, title, w in (("label", "Libellé", 110), ("entity", "Entité", 150), ("action", "Clic", 110),
+                              ("zone", "Zone", 60)):
             self.tree.heading(col, text=title)
             self.tree.column(col, width=self.px(w), minwidth=self.px(50))
         sb = ttk.Scrollbar(left, orient="vertical", command=self.tree.yview)
@@ -484,12 +487,23 @@ class SettingsWindow:
         self.hint(right, "Vide = nom de l'entité dans Home Assistant. Aussi modifiable avec le crayon ✎ "
                          "de la carte (appui long).", wrap=360, row=12, column=1, sticky="w")
 
+        row(13, "Zone")
+        self.v_zone = tk.StringVar(value="left")
+        zf = ttk.Frame(right)
+        zf.grid(row=13, column=1, sticky="w", pady=(4, 0))
+        self.rb_zones = [ttk.Radiobutton(zf, text=t, value=v, variable=self.v_zone)
+                         for t, v in (("Gauche", "left"), ("Droite", "right"))]
+        for rb in self.rb_zones:
+            rb.pack(side="left", padx=(0, 12))
+        self.hint(right, "Côté de la barre des tâches où s'affiche l'élément. Les décalages se règlent "
+                         "dans l'onglet Apparence.", wrap=360, row=14, column=1, sticky="w")
+
         for v in (self.v_eid, self.v_label, self.v_attr, self.v_unit, self.v_dec, self.v_service, self.v_icon,
-                  self.v_ctitle):
+                  self.v_ctitle, self.v_zone):
             v.trace_add("write", self.on_item_field)
         self.t_data.bind("<KeyRelease>", self.on_item_field)
         self.item_widgets = [self.cb_eid, self.e_label, self.cb_attr, self.e_unit, self.cb_dec,
-                             self.cb_service, self.t_data, self.b_icon, self.e_ctitle]
+                             self.cb_service, self.t_data, self.b_icon, self.e_ctitle] + self.rb_zones
 
         self.refresh_tree()
         if self.cfg["items"]:
@@ -520,7 +534,8 @@ class SettingsWindow:
         self.tree.delete(*self.tree.get_children())
         for i, it in enumerate(self.cfg["items"]):
             self.tree.insert("", "end", iid=str(i),
-                             values=(it.get("label", ""), it.get("entity_id", ""), self.action_text(it)))
+                             values=(it.get("label", ""), it.get("entity_id", ""), self.action_text(it),
+                                     ZONE_TEXT[item_zone(it)]))
         if self.cfg["items"]:
             self.empty_label.place_forget()
         else:
@@ -546,7 +561,8 @@ class SettingsWindow:
 
     def refresh_tree_row(self, i):
         it = self.cfg["items"][i]
-        self.tree.item(str(i), values=(it.get("label", ""), it.get("entity_id", ""), self.action_text(it)))
+        self.tree.item(str(i), values=(it.get("label", ""), it.get("entity_id", ""), self.action_text(it),
+                                     ZONE_TEXT[item_zone(it)]))
 
     def select_item(self, i):
         if 0 <= i < len(self.cfg["items"]):
@@ -570,6 +586,7 @@ class SettingsWindow:
         self.v_eid.set(it.get("entity_id", ""))
         self.v_label.set(it.get("label", ""))
         self.v_ctitle.set(it.get("card_title", ""))
+        self.v_zone.set(item_zone(it))
         self.v_icon.set(it.get("icon") or "auto")
         self.v_attr.set(it.get("attribute") or STATE_ATTR)
         self.v_unit.set(it.get("unit", ""))
@@ -641,6 +658,10 @@ class SettingsWindow:
             it["card_title"] = ctitle
         else:
             it.pop("card_title", None)
+        if self.v_zone.get() == "right":
+            it["zone"] = "right"
+        else:
+            it.pop("zone", None)
         icon = self.v_icon.get()
         if icon in ("", "auto"):
             it.pop("icon", None)
@@ -753,30 +774,35 @@ class SettingsWindow:
         pos = ttk.LabelFrame(f, text="Position sur la barre des tâches", padding=10)
         pos.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
         pos.columnconfigure(0, weight=1)
-        self.v_anchor = self.track(tk.StringVar(value=self.cfg.get("anchor", "left")), self.key("anchor"))
-        ttk.Radiobutton(pos, text="Côté gauche", value="left", variable=self.v_anchor).grid(row=0, column=0, sticky="w")
-        ttk.Radiobutton(pos, text="Côté droit (avant les icônes de notification)", value="right",
-                        variable=self.v_anchor).grid(row=1, column=0, sticky="w")
-
-        ttk.Label(pos, text="Décalage depuis le bord (pixels)").grid(row=2, column=0, sticky="w", pady=(10, 2))
-        of = ttk.Frame(pos)
-        of.grid(row=3, column=0, sticky="ew")
-        of.columnconfigure(0, weight=1)
         maxoff = max(400, self.win.winfo_screenwidth() - 50)
-        self.v_offset = tk.IntVar(value=int(self.cfg.get("offset", 12)))
-        self.offset_scale = ttk.Scale(of, from_=0, to=maxoff, orient="horizontal",
-                                      command=lambda v: self.v_offset.set(int(float(v))))
-        self.offset_scale.set(self.v_offset.get())
-        self.offset_scale.grid(row=0, column=0, sticky="ew")
-        ttk.Spinbox(of, from_=0, to=maxoff, width=6, textvariable=self.v_offset).grid(row=0, column=1, padx=(8, 0))
 
-        def set_offset(v):
-            v = int(v)
-            self.cfg["offset"] = v
-            if int(float(self.offset_scale.get())) != v:
-                self.offset_scale.set(v)
-        self.track(self.v_offset, set_offset)
-        self.hint(pos, "Fais glisser : la barre se déplace en direct.", row=4, column=0, sticky="w", pady=(2, 0))
+        def offset_slider(row, text, key, default):
+            ttk.Label(pos, text=text).grid(row=row, column=0, sticky="w", pady=(10 if row else 0, 2))
+            of = ttk.Frame(pos)
+            of.grid(row=row + 1, column=0, sticky="ew")
+            of.columnconfigure(0, weight=1)
+            var = tk.IntVar(value=int(self.cfg.get(key, default)))
+            scale = ttk.Scale(of, from_=0, to=maxoff, orient="horizontal",
+                              command=lambda v: var.set(int(float(v))))
+            scale.set(var.get())
+            scale.grid(row=0, column=0, sticky="ew")
+            ttk.Spinbox(of, from_=0, to=maxoff, width=6, textvariable=var).grid(row=0, column=1, padx=(8, 0))
+
+            def set_offset(v):
+                v = int(v)
+                self.cfg[key] = v
+                if int(float(scale.get())) != v:
+                    scale.set(v)
+            self.track(var, set_offset)
+            return var
+
+        self.v_offset = offset_slider(0, "Zone gauche : décalage depuis le bord gauche (pixels)", "offset", 60)
+        self.v_offset_right = offset_slider(
+            2, "Zone droite : décalage depuis le bord droit (pixels, avant les icônes de notification)",
+            "offset_right", 300)
+        self.hint(pos, "Chaque élément choisit sa zone dans l'onglet Éléments. Une zone sans élément "
+                       "n'apparaît pas. Fais glisser : la barre se déplace en direct.",
+                  row=4, column=0, sticky="w", pady=(2, 0))
 
         # --- texte
         look = ttk.LabelFrame(f, text="Texte et affichage", padding=10)

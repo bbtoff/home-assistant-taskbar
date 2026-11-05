@@ -21,7 +21,7 @@ from ctypes import wintypes
 from tkinter import font as tkfont
 
 from ha_core import (ACTIVE_STATES, CONFIG_PATH, DEFAULT_CONFIG, ICON_FONTS, ICON_PATH, STATE_TEXT, HomeAssistant,
-                     bar_colors, bar_light, system_light, load_config, needs_setup,
+                     bar_colors, bar_light, system_light, item_zone, load_config, needs_setup,
                      resolve_icon, resolve_service, save_config)
 
 # --------------------------------------------------------------------------- Win32
@@ -91,10 +91,10 @@ def class_name(hwnd):
     return buf.value
 
 
-def foreground_is_fullscreen(own_hwnd):
+def foreground_is_fullscreen(own_hwnds):
     """True si l'app au premier plan est en plein ecran (jeu, video...)."""
     fg = user32.GetForegroundWindow()
-    if not fg or fg == own_hwnd:
+    if not fg or fg in own_hwnds:
         return False
     if class_name(fg) in ("Progman", "WorkerW", "Shell_TrayWnd", "Shell_SecondaryTrayWnd"):
         return False
@@ -132,6 +132,7 @@ class Item:
 
         self.frame = tk.Frame(parent, bg=c["bg"], cursor=cursor, padx=8)
         self.frame.grid_rowconfigure(0, weight=1)      # contenu centre verticalement dans le rectangle
+        self.zone = item_zone(cfg)
         self.icon = None
         if app.cfg.get("show_icons", True) and cfg.get("icon") != "none" and app.icon_font:
             self.icon = tk.Label(self.frame, text="", bg=c["bg"], fg=c["fg"], cursor=cursor,
@@ -256,18 +257,129 @@ class Item:
         self.grow()
 
 
+class Zone:
+    """Une zone de la barre (gauche ou droite) : une fenetre sans bordure, toujours au premier plan,
+    plus une fenetre "attrape-clics" en mode fond transparent."""
+
+    def __init__(self, app, side, win):
+        self.app = app
+        self.side = side
+        self.win = win
+        self.hit = None
+        self.hit_hwnd = None
+        self.container = None
+        self.items = []
+        self.wanted = False      # la zone a quelque chose a afficher
+        self.shown = True
+        self.geom = None
+        win.withdraw()
+        win.overrideredirect(True)
+        win.attributes("-topmost", True)
+        win.geometry("1x1+-32000+-32000")
+        win.update_idletasks()
+        self.hwnd = user32.GetAncestor(win.winfo_id(), GA_ROOT)
+        ex = user32.GetWindowLongW(self.hwnd, GWL_EXSTYLE)
+        user32.SetWindowLongW(self.hwnd, GWL_EXSTYLE, (ex | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE) & ~WS_EX_APPWINDOW)
+        win.deiconify()
+        win.update_idletasks()
+        win.bind("<Button-3>", app.show_menu)
+
+    def style(self, cfg, colors):
+        self.win.configure(bg=colors["bg"])
+        try:
+            self.win.attributes("-transparentcolor", colors["bg"] if cfg.get("transparent_bg") else "")
+        except tk.TclError:
+            pass
+        self.setup_hit(bool(cfg.get("transparent_bg")))
+        try:
+            self.win.attributes("-alpha", max(0.2, min(1.0, float(cfg.get("opacity", 1.0)))))
+        except (tk.TclError, ValueError):
+            pass
+        if self.container is not None:
+            self.container.destroy()
+        self.container = tk.Frame(self.win, bg=colors["bg"])
+        # Remplit toute la fenetre (hauteur de la barre des taches) : chaque bouton est un rectangle plein
+        self.container.pack(fill="both", expand=True)
+        self.container.bind("<Button-3>", self.app.show_menu)
+        self.items = []
+        self.geom = None
+
+    # ---------------- mode transparent : fenetre attrape-clics
+    def setup_hit(self, enabled):
+        """En mode transparent, Windows laisse passer les clics sur les pixels transparents.
+        Une 2e fenetre quasi invisible (opacite ~1 %) placee juste dessous les recupere."""
+        if not enabled:
+            if self.hit is not None:
+                self.hit.destroy()
+                self.hit = self.hit_hwnd = None
+            return
+        if self.hit is not None:
+            return
+        app = self.app
+        self.hit = tk.Toplevel(app.root)
+        self.hit.overrideredirect(True)
+        self.hit.configure(bg="black")
+        self.hit.attributes("-topmost", True)
+        self.hit.attributes("-alpha", 0.01)   # non nul -> Windows lui envoie bien les clics
+        self.hit.update_idletasks()
+        self.hit_hwnd = user32.GetAncestor(self.hit.winfo_id(), GA_ROOT)
+        ex = user32.GetWindowLongW(self.hit_hwnd, GWL_EXSTYLE)
+        user32.SetWindowLongW(self.hit_hwnd, GWL_EXSTYLE, (ex | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE) & ~WS_EX_APPWINDOW)
+        self.hit.bind("<ButtonPress-1>", lambda e: app._hit_dispatch(e, "on_press"))
+        self.hit.bind("<ButtonRelease-1>", lambda e: app.release())
+        self.hit.bind("<MouseWheel>", lambda e: app._hit_dispatch(e, "on_wheel"))
+        self.hit.bind("<Button-3>", app.show_menu)
+        if not self.shown:
+            self.hit.withdraw()
+        self.geom = None          # force le placement au prochain tick
+
+    def hwnds(self):
+        return [h for h in (self.hwnd, self.hit_hwnd) if h]
+
+    def show(self, on):
+        if on == self.shown:
+            return
+        for w in (self.win, self.hit):
+            if w is not None:
+                w.deiconify() if on else w.withdraw()
+        self.shown = on
+        self.geom = None
+
+    def contains(self, x, y):
+        w = self.win
+        rx, ry = w.winfo_rootx(), w.winfo_rooty()
+        return self.shown and rx <= x < rx + w.winfo_width() and ry <= y < ry + w.winfo_height()
+
+    def place(self, r, offset):
+        h = r.bottom - r.top
+        w = max(1, self.container.winfo_reqwidth())
+        x = r.right - offset - w if self.side == "right" else r.left + offset
+        geom = "%dx%d+%d+%d" % (w, h, x, r.top)
+        if geom != self.geom:
+            # Position appliquee via Win32 : Tk ignore parfois "wm geometry" quand plusieurs fenetres
+            # sans bordure existent (zones + attrape-clics)
+            for tkwin, hwnd in ((self.hit, self.hit_hwnd), (self.win, self.hwnd)):
+                if tkwin is not None and hwnd:
+                    tkwin.geometry("%dx%d" % (w, h))
+                    user32.SetWindowPos(hwnd, HWND_TOPMOST, x, r.top, w, h, SWP_NOACTIVATE)
+            self.geom = geom
+
+    def raise_now(self):
+        if self.shown:
+            flags = SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE
+            if self.hit_hwnd:   # l'attrape-clics d'abord, la zone ensuite -> la zone reste au-dessus
+                user32.SetWindowPos(self.hit_hwnd, HWND_TOPMOST, 0, 0, 0, 0, flags)
+            user32.SetWindowPos(self.hwnd, HWND_TOPMOST, 0, 0, 0, 0, flags)
+
+
 class App:
     def __init__(self):
         self.q = queue.Queue()
         self.wake = threading.Event()
         self.last_error = None
         self.last_states = {}
-        self.geom = None
         self.hidden = False
         self.settings_win = None
-        self.hit = None          # fenetre "attrape-clics" (mode fond transparent)
-        self.hit_hwnd = None
-        self.hwnd = None
         self.hovered = None
         self.card = None         # carte de controle ouverte (appui long)
         self._press_item = None
@@ -275,8 +387,6 @@ class App:
 
         self.root = tk.Tk()
         self.root.withdraw()
-        self.root.overrideredirect(True)
-        self.root.attributes("-topmost", True)
         self.root.title("HA Taskbar")
         try:
             self.root.iconbitmap(default=ICON_PATH)   # icone de toutes les fenetres (reglages...)
@@ -285,23 +395,19 @@ class App:
         families = set(tkfont.families(self.root))
         self.icon_font = next((f for f in ICON_FONTS if f in families), None)
 
-        self.container = None
         self.items = []
+        # Deux zones : la fenetre principale a gauche, une 2e fenetre a droite. Les fenetres sont
+        # affichees (hors ecran) avant d'y mettre quoi que ce soit : creer une Toplevel avant
+        # l'affichage de la fenetre principale bloque le positionnement (bizarrerie Tk).
+        left = Zone(self, "left", self.root)
+        self.zones = [left, Zone(self, "right", tk.Toplevel(self.root))]
+        self.main_zone = left
         try:
             cfg = load_config()
         except Exception as e:
             cfg = copy.deepcopy(DEFAULT_CONFIG)
             self.last_error = "config.json illisible : %s" % e
         self.apply_config(cfg)
-
-        self.root.update_idletasks()
-        self.hwnd = user32.GetAncestor(self.root.winfo_id(), GA_ROOT)
-        ex = user32.GetWindowLongW(self.hwnd, GWL_EXSTYLE)
-        ex = (ex | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE) & ~WS_EX_APPWINDOW
-        user32.SetWindowLongW(self.hwnd, GWL_EXSTYLE, ex)
-        self.root.deiconify()
-        self.root.update_idletasks()
-        self.setup_hit_window(bool(self.cfg.get("transparent_bg")))
 
         # Des qu'une fenetre (dont la barre des taches) passe au premier plan, on se remet au-dessus
         self._hook_cb = WINEVENTPROC(lambda *a: self.raise_now())
@@ -323,36 +429,29 @@ class App:
         self.colors = bar_colors(cfg, self.light)
         self.ha = HomeAssistant(cfg["ha_url"], cfg["token"], cfg.get("verify_ssl", True))
 
-        self.root.configure(bg=self.colors["bg"])
-        try:
-            self.root.attributes("-transparentcolor", self.colors["bg"] if cfg.get("transparent_bg") else "")
-        except tk.TclError:
-            pass
-        self.setup_hit_window(bool(cfg.get("transparent_bg")))
-        try:
-            self.root.attributes("-alpha", max(0.2, min(1.0, float(cfg.get("opacity", 1.0)))))
-        except (tk.TclError, ValueError):
-            pass
-
-        if self.container is not None:
-            self.container.destroy()
-        self.container = tk.Frame(self.root, bg=self.colors["bg"])
-        # Remplit toute la fenetre (hauteur de la barre des taches) : chaque bouton est un rectangle plein
-        self.container.pack(fill="both", expand=True)
-        self.container.bind("<Button-3>", self.show_menu)
-        self.root.bind("<Button-3>", self.show_menu)
+        zones = {z.side: z for z in self.zones}
+        for z in self.zones:
+            z.style(cfg, self.colors)
+        self.items = []
+        for it_cfg in cfg.get("items", []):
+            z = zones[item_zone(it_cfg)]
+            it = Item(self, z.container, it_cfg)
+            it.frame.pack(side="left", fill="y")
+            z.items.append(it)
+            self.items.append(it)
+        # Zone principale (message d'erreur "● HA", invite si la barre est vide) : la gauche si elle sert
+        self.main_zone = zones["left"] if zones["left"].items or not self.items else zones["right"]
+        for z in self.zones:
+            z.wanted = bool(z.items) or z is self.main_zone
 
         font = (cfg.get("font", "Segoe UI"), int(cfg.get("font_size", 9)), "bold")
-        self.status = tk.Label(self.container, text="● HA", bg=self.colors["bg"],
+        self.status = tk.Label(self.main_zone.container, text="● HA", bg=self.colors["bg"],
                                fg=self.colors["error"], font=font)
         self.status.bind("<Button-3>", self.show_menu)
         self.status.bind("<Button-1>", lambda e: self.open_settings())
 
-        self.items = [Item(self, self.container, it) for it in cfg.get("items", [])]
-        for it in self.items:
-            it.frame.pack(side="left", fill="y")
         if not self.items:
-            hint = tk.Label(self.container, text="HA Taskbar · clic droit → Réglages", bg=self.colors["bg"],
+            hint = tk.Label(self.main_zone.container, text="HA Taskbar · clic droit → Réglages", bg=self.colors["bg"],
                             fg=self.colors["dim"], font=(cfg.get("font", "Segoe UI"), int(cfg.get("font_size", 9))))
             hint.pack(side="left", padx=8)
             hint.bind("<Button-3>", self.show_menu)
@@ -363,47 +462,19 @@ class App:
         if self.last_error:
             self._show_status()
         self.hovered = None
-        self.geom = None
         self.wake.set()
 
-    # ---------------- mode transparent : fenetre attrape-clics
-    def setup_hit_window(self, enabled):
-        """En mode transparent, Windows laisse passer les clics sur les pixels transparents.
-        Une 2e fenetre quasi invisible (opacite ~1 %) placee juste dessous les recupere."""
-        if not enabled:
-            if self.hit is not None:
-                self.hit.destroy()
-                self.hit = self.hit_hwnd = None
-            return
-        if self.hit is not None:
-            return
-        if not self.hwnd:
-            # Barre pas encore affichee : une Toplevel creee maintenant bloquerait le positionnement
-            # des deux fenetres (bizarrerie Tk). Elle sera creee juste apres l'affichage.
-            return
-        self.hit = tk.Toplevel(self.root)
-        self.hit.overrideredirect(True)
-        self.hit.configure(bg="black")
-        self.hit.attributes("-topmost", True)
-        self.hit.attributes("-alpha", 0.01)   # non nul -> Windows lui envoie bien les clics
-        self.hit.update_idletasks()
-        self.hit_hwnd = user32.GetAncestor(self.hit.winfo_id(), GA_ROOT)
-        ex = user32.GetWindowLongW(self.hit_hwnd, GWL_EXSTYLE)
-        user32.SetWindowLongW(self.hit_hwnd, GWL_EXSTYLE, (ex | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE) & ~WS_EX_APPWINDOW)
-        self.hit.bind("<ButtonPress-1>", lambda e: self._hit_dispatch(e, "on_press"))
-        self.hit.bind("<ButtonRelease-1>", lambda e: self.release())
-        self.hit.bind("<MouseWheel>", lambda e: self._hit_dispatch(e, "on_wheel"))
-        self.hit.bind("<Button-3>", self.show_menu)
-        self.geom = None          # force le placement au prochain tick
-
-    def item_at(self, x_root):
-        for it in self.items:
-            if it.contains_x(x_root):
-                return it
+    def item_at(self, x_root, y_root=None):
+        for z in self.zones:
+            if y_root is not None and not z.contains(x_root, y_root):
+                continue
+            for it in z.items:
+                if it.contains_x(x_root):
+                    return it
         return None
 
     def _hit_dispatch(self, e, method):
-        it = self.item_at(e.x_root)
+        it = self.item_at(e.x_root, e.y_root)
         if it is not None:
             getattr(it, method)(e)
         elif method == "on_press" and (not self.items or self.status.winfo_ismapped()):
@@ -459,10 +530,7 @@ class App:
         """Survol suivi par la position de la souris (fonctionne aussi sur les zones transparentes)."""
         try:
             x, y = self.root.winfo_pointerxy()
-            rx, ry = self.root.winfo_rootx(), self.root.winfo_rooty()
-            inside = (not self.hidden and rx <= x < rx + self.root.winfo_width()
-                      and ry <= y < ry + self.root.winfo_height())
-            it = self.item_at(x) if inside else None
+            it = self.item_at(x, y) if not self.hidden else None
             if it is not None and not it.hoverable():
                 it = None
             if it is not self.hovered:
@@ -507,7 +575,7 @@ class App:
     # ---------------- boucle UI
     def _show_status(self):
         if not self.status.winfo_ismapped():
-            others = [w for w in self.container.winfo_children() if w is not self.status]
+            others = [w for w in self.main_zone.container.winfo_children() if w is not self.status]
             if others:
                 self.status.pack(side="left", padx=6, before=others[0])
             else:
@@ -542,50 +610,29 @@ class App:
 
     def raise_now(self):
         if not self.hidden:
-            flags = SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE
-            if self.hit_hwnd:   # l'attrape-clics d'abord, la barre ensuite -> la barre reste au-dessus
-                user32.SetWindowPos(self.hit_hwnd, HWND_TOPMOST, 0, 0, 0, 0, flags)
-            user32.SetWindowPos(self.hwnd, HWND_TOPMOST, 0, 0, 0, 0, flags)
+            for z in self.zones:
+                z.raise_now()
+
+    def own_hwnds(self):
+        return [h for z in self.zones for h in z.hwnds()]
+
+    def offset(self, side):
+        key, default = ("offset_right", 300) if side == "right" else ("offset", 60)
+        try:
+            return int(self.cfg.get(key, default))
+        except (TypeError, ValueError):
+            return default
 
     def reposition(self):
         tb = user32.FindWindowW("Shell_TrayWnd", None)
         if not tb:
             return
-        if self.cfg.get("hide_on_fullscreen", True) and foreground_is_fullscreen(self.hwnd):
-            if not self.hidden:
-                self.root.withdraw()
-                if self.hit is not None:
-                    self.hit.withdraw()
-                self.hidden = True
-            return
-        if self.hidden:
-            self.root.deiconify()
-            if self.hit is not None:
-                self.hit.deiconify()
-            self.hidden = False
-            self.geom = None
-
+        self.hidden = bool(self.cfg.get("hide_on_fullscreen", True) and foreground_is_fullscreen(self.own_hwnds()))
         r = get_rect(tb)
-        h = r.bottom - r.top
-        w = max(1, self.container.winfo_reqwidth())
-        try:
-            offset = int(self.cfg.get("offset", 12))
-        except (TypeError, ValueError):
-            offset = 12
-        if self.cfg.get("anchor", "left") == "right":
-            x = r.right - offset - w
-        else:
-            x = r.left + offset
-        geom = "%dx%d+%d+%d" % (w, h, x, r.top)
-        if geom != self.geom:
-            # Position appliquee via Win32 : Tk ignore parfois "wm geometry" quand 2 fenetres
-            # sans bordure existent (barre + attrape-clics)
-            flags = SWP_NOACTIVATE
-            for tkwin, hwnd in ((self.hit, self.hit_hwnd), (self.root, self.hwnd)):
-                if tkwin is not None and hwnd:
-                    tkwin.geometry("%dx%d" % (w, h))
-                    user32.SetWindowPos(hwnd, HWND_TOPMOST, x, r.top, w, h, flags)
-            self.geom = geom
+        for z in self.zones:
+            z.show(z.wanted and not self.hidden)
+            if z.shown:
+                z.place(r, self.offset(z.side))
         # La barre des taches repasse devant a chaque clic : on se remet au-dessus
         self.raise_now()
 
@@ -600,7 +647,7 @@ class App:
         m.add_command(label="Recharger config.json", command=self.reload)
         m.add_separator()
         m.add_command(label="Quitter", command=self.root.destroy)
-        user32.SetForegroundWindow(self.hwnd)  # sinon le menu ne se ferme pas en cliquant ailleurs
+        user32.SetForegroundWindow(self.main_zone.hwnd)  # sinon le menu ne se ferme pas en cliquant ailleurs
         m.tk_popup(e.x_root, e.y_root)
         return "break"
 

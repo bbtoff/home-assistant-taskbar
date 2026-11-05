@@ -3,8 +3,8 @@
   "token": "",
   "verify_ssl": true,
   "poll_interval": 5,
-  "anchor": "left",
   "offset": 60,
+  "offset_right": 300,
   "layout": "stacked",
   "font": "Segoe UI",
   "font_size": 9,
@@ -35,7 +35,7 @@
     { "entity_id": "light.salon", "label": "Salon" },
     { "entity_id": "switch.prise_bureau", "label": "Bureau", "icon": "power" },
     { "entity_id": "sensor.temperature_salon", "label": "Temp.", "decimals": 1 },
-    { "entity_id": "climate.thermostat", "label": "Chauffage", "attribute": "current_temperature", "unit": "°C" },
-    { "entity_id": "scene.cinema", "label": "Ciné" }
+    { "entity_id": "climate.thermostat", "label": "Chauffage", "attribute": "current_temperature", "unit": "°C", "zone": "right" },
+    { "entity_id": "scene.cinema", "label": "Ciné", "zone": "right" }
   ]
 }

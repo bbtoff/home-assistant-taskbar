@@ -1,6 +1,6 @@
 # HA Taskbar
 
-Affiche des **capteurs** et des **boutons Home Assistant** directement sur la **barre des tâches de Windows 11**, dans une zone libre (à gauche ou à droite des icônes).
+Affiche des **capteurs** et des **boutons Home Assistant** directement sur la **barre des tâches de Windows 11**, dans les zones libres : une **zone à gauche** et une **zone à droite** des icônes, utilisables ensemble.
 
 ![HA Taskbar sur la barre des tâches](docs/screenshots/barre.png)
 
@@ -236,7 +236,7 @@ Pour les scènes, boutons et scripts, la barre affiche « Activer », « Appuyer
 
 ![Onglet Apparence](docs/screenshots/reglages-apparence.png)
 
-- **Position** : côté gauche ou droit de la barre des tâches, et **décalage** en pixels depuis le bord. Le curseur déplace la barre en direct.
+- **Position** : la barre a deux zones, une à **gauche** et une à **droite** (juste avant les icônes de notification). Chacune a son **décalage** en pixels depuis son bord, et le curseur la déplace en direct. Chaque élément choisit sa zone dans l'onglet Éléments (champ **Zone**), et une zone sans élément n'apparaît pas.
 - **Disposition** : libellé au-dessus de la valeur, ou les deux sur une ligne :
 
   ![Disposition sur une ligne](docs/screenshots/barre-une-ligne.png)
@@ -270,11 +270,14 @@ Format d'un élément :
   "unit": "°C",
   "decimals": 1,
   "service": "climate.set_preset_mode",
-  "data": { "entity_id": "climate.thermostat", "preset_mode": "eco" }
+  "data": { "entity_id": "climate.thermostat", "preset_mode": "eco" },
+  "zone": "right"
 }
 ```
 
-Seul `entity_id` est obligatoire. `icon` peut valoir `"auto"` (par défaut), `"none"` ou une clé de `ICONS` dans [`ha_core.py`](ha_core.py). `service` peut valoir `"none"` pour désactiver le clic.
+Seul `entity_id` est obligatoire. `icon` peut valoir `"auto"` (par défaut), `"none"` ou une clé de `ICONS` dans [`ha_core.py`](ha_core.py). `service` peut valoir `"none"` pour désactiver le clic. `zone` vaut `"left"` (par défaut) ou `"right"`.
+
+Les décalages des deux zones sont `offset` (zone gauche, depuis le bord gauche) et `offset_right` (zone droite, depuis le bord droit). Une ancienne configuration réglée sur le côté droit (`"anchor": "right"`) est convertie toute seule : ses éléments passent dans la zone droite.
 
 ---
 
@@ -282,7 +285,7 @@ Seul `entity_id` est obligatoire. `icon` peut valoir `"auto"` (par défaut), `"n
 
 Windows 11 ne permet plus d'ajouter des « deskbands » (barres d'outils) à la barre des tâches. HA Taskbar contourne cela :
 
-1. Une **petite fenêtre sans bordure**, « toujours au premier plan », est posée **par-dessus** la barre des tâches. Elle reprend exactement sa hauteur et sa position, grâce à l'API Win32 `FindWindow("Shell_TrayWnd")`.
+1. Une **petite fenêtre sans bordure** par zone (gauche et droite), « toujours au premier plan », est posée **par-dessus** la barre des tâches. Elle reprend exactement sa hauteur et sa position, grâce à l'API Win32 `FindWindow("Shell_TrayWnd")`.
 2. La barre des tâches repasse devant à chaque clic. La fenêtre se remet donc au premier plan **dès qu'une fenêtre devient active** (hook `EVENT_SYSTEM_FOREGROUND`), et en plus toutes les 0,4 s.
 3. La fenêtre est de type « outil » et « non activable » : elle n'apparaît ni dans Alt+Tab ni dans la barre des tâches, et ne vole pas le focus.
 4. Un **thread** interroge l'API REST de Home Assistant (`GET /api/states`, une seule requête pour toutes les entités) à intervalle régulier. Les clics appellent `POST /api/services/<domaine>/<service>`. La carte de contrôle lit l'historique avec `GET /api/history/period/…`.

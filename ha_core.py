@@ -34,8 +34,8 @@ DEFAULT_CONFIG = {
     "token": "",
     "verify_ssl": True,
     "poll_interval": 5,
-    "anchor": "left",
-    "offset": 60,
+    "offset": 60,                    # zone gauche : decalage depuis le bord gauche (pixels)
+    "offset_right": 300,             # zone droite : decalage depuis le bord droit (avant les icones)
     "layout": "stacked",
     "font": "Segoe UI",
     "font_size": 9,
@@ -60,7 +60,23 @@ def load_config():
         cfg.update(data)
         cfg["colors"] = dict(DARK_COLORS, **data.get("colors", {}))
         cfg["colors_light"] = dict(LIGHT_COLORS, **data.get("colors_light", {}))
+        migrate_zones(cfg, data)
     return cfg
+
+
+def migrate_zones(cfg, data):
+    """Anciennes configs (une seule zone, "anchor" gauche/droite) -> zones gauche et droite."""
+    anchor = cfg.pop("anchor", "left")
+    if "offset_right" in data or anchor != "right":
+        return
+    cfg["offset_right"] = data.get("offset", DEFAULT_CONFIG["offset_right"])
+    cfg["offset"] = DEFAULT_CONFIG["offset"]
+    for it in cfg.get("items", []):
+        it.setdefault("zone", "right")
+
+
+def item_zone(it):
+    return "right" if it.get("zone") == "right" else "left"
 
 
 # --------------------------------------------------------------------------- themes clair / sombre
