@@ -10,7 +10,7 @@ import urllib.request
 
 from anim_icons import ANIM_ICONS
 
-__version__ = "1.3.0"
+__version__ = "1.4.0"
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 # Version installee (exe PyInstaller) : la config va dans %APPDATA%\HATaskbar,

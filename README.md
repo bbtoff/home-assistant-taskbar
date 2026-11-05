@@ -18,9 +18,16 @@ Affiche des **capteurs** et des **boutons Home Assistant** directement sur la **
   <img src="docs/screenshots/clic.gif" alt="Clic pour allumer, molette pour la luminosité, clic pour éteindre">
 </p>
 
-Un **programme d'installation** est fourni : rien d'autre à installer, pas même Python. Depuis les sources, il suffit de Python et de sa bibliothèque standard (tkinter, ctypes, urllib).
+Un **programme d'installation** est fourni : rien d'autre à installer, pas même Python. Depuis les sources, il suffit de Python et de sa bibliothèque standard (tkinter, ctypes, urllib). Le thème des fenêtres est inclus dans le dépôt.
 
 ---
+
+## ✨ Nouveautés de la version 1.4
+
+- 🎨 **Réglages redessinés dans le style de Windows 11** : menu à gauche avec icônes, comme les Paramètres de Windows, champs et boutons arrondis, interrupteurs et curseurs modernes.
+- 🌗 **Clair ou sombre comme Windows**, barre de titre comprise. Le choix d'icônes, l'ajout d'entités et la fenêtre de mise à jour suivent aussi.
+
+![Réglages en mode sombre](docs/screenshots/reglages-apparence.png)
 
 ## ✨ Nouveautés de la version 1.3
 
@@ -360,6 +367,8 @@ Windows 11 ne permet plus d'ajouter des « deskbands » (barres d'outils) à la 
 | [`settings_ui.py`](settings_ui.py) | Fenêtre de réglages, sélecteur d'entités, sélecteur d'icônes |
 | [`ha_core.py`](ha_core.py) | Commun : config, client Home Assistant, icônes, actions par défaut, démarrage auto |
 | [`anim_icons.py`](anim_icons.py) | Icônes animées : dessin vectoriel et rendu anticrénelé en Python pur (aucune dépendance) |
+| [`ui_theme.py`](ui_theme.py) | Apparence Windows 11 des fenêtres : thème clair/sombre, menu latéral |
+| [`sv_ttk/`](sv_ttk/) | Thème [Sun Valley](https://github.com/rdbende/Sun-Valley-ttk-theme) de rdbende (licence MIT), fourni tel quel |
 | [`update_ui.py`](update_ui.py) | Fenêtre de mise à jour : nouveautés, téléchargement vérifié, installation |
 | `config.example.json` | Exemple de configuration |
 | `config.json` | Ta configuration (créée automatiquement, ignorée par git) |

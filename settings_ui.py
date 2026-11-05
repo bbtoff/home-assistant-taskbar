@@ -14,6 +14,7 @@ from tkinter import colorchooser, messagebox, ttk
 from tkinter import font as tkfont
 
 import anim_icons
+import ui_theme
 from ha_core import (__version__, ANIM_ICONS, CARD_THEMES, CARD_THEMES_PATH, DARK_COLORS, ICON_FONTS, ICONS, LIGHT_COLORS,
                      PLACEHOLDER_TOKEN, HomeAssistant, auto_icon, bar_colors, bar_light, card_light, card_palette,
                      card_themes, default_service, get_startup, resolve_icon, resolve_service, save_config,
@@ -54,11 +55,14 @@ class IconPicker:
         auto_key = auto_icon(it.get("entity_id", ""), sw.entities.get(it.get("entity_id", "")))
         font = (getattr(sw.app, "icon_font", None) or "Segoe Fluent Icons", 18)
 
+        pal = sw.pal
         top = self.top = tk.Toplevel(sw.win)
         top.title("Choisir une icône")
         top.transient(sw.win)
         top.resizable(False, False)
-        f = ttk.Frame(top, padding=12)
+        top.configure(bg=pal["bg"])
+        ui_theme.dark_title_bar(top, pal is ui_theme.PALETTES["dark"])
+        f = ttk.Frame(top, padding=16)
         f.pack(fill="both", expand=True)
 
         bf = ttk.Frame(f)
@@ -74,13 +78,14 @@ class IconPicker:
         for i, (key, (glyph, label)) in enumerate(ICONS.items()):
             r, c = divmod(i, self.COLS)
             sel = key == current
-            cell = tk.Label(f, text=glyph, font=font, width=2, cursor="hand2",
-                            bg="#cce4f7" if sel else "white", relief="solid", borderwidth=1)
+            cell = tk.Label(f, text=glyph, font=font, width=2, cursor="hand2", fg=pal["fg"],
+                            bg=pal["cell_sel"] if sel else pal["card"], relief="flat", borderwidth=0,
+                            highlightthickness=1, highlightbackground=pal["accent"] if sel else pal["border"])
             cell.grid(row=r + 1, column=c, padx=2, pady=2, ipadx=4, ipady=2)
             cell.bind("<Button-1>", lambda e, k=key: self.choose(k))
             cell.bind("<Enter>", lambda e, l=label, w=cell: (self.name.configure(text=l),
-                                                              w.configure(bg="#e5f1fb")))
-            cell.bind("<Leave>", lambda e, w=cell, s=sel: w.configure(bg="#cce4f7" if s else "white"))
+                                                              w.configure(bg=pal["hover"])))
+            cell.bind("<Leave>", lambda e, w=cell, s=sel: w.configure(bg=pal["cell_sel"] if s else pal["card"]))
         rows = (len(ICONS) + self.COLS - 1) // self.COLS
 
         # Icones animees : apercu "allume" qui bouge, comme sur la barre
@@ -93,14 +98,15 @@ class IconPicker:
         for i, (key, (_fb, label, _n)) in enumerate(ANIM_ICONS.items()):
             sel = key == current
             imgs = [tk.PhotoImage(master=top, data=base64.b64encode(png), format="png")
-                    for png in anim_icons.frames_png(key, px, True, "#d08000", "#1a1a1a")]
+                    for png in anim_icons.frames_png(key, px, True, pal["icon_on"], pal["fg"])]
             cell = tk.Label(f, image=imgs[0], cursor="hand2", width=px + 8, height=px + 4,
-                            bg="#cce4f7" if sel else "white", relief="solid", borderwidth=1)
+                            bg=pal["cell_sel"] if sel else pal["card"], relief="flat", borderwidth=0,
+                            highlightthickness=1, highlightbackground=pal["accent"] if sel else pal["border"])
             cell.grid(row=rows + 2, column=i, padx=2, pady=2, ipadx=4, ipady=2)
             cell.bind("<Button-1>", lambda e, k=key: self.choose(k))
             cell.bind("<Enter>", lambda e, l=label, w=cell: (self.name.configure(text=l),
-                                                              w.configure(bg="#e5f1fb")))
-            cell.bind("<Leave>", lambda e, w=cell, s=sel: w.configure(bg="#cce4f7" if s else "white"))
+                                                              w.configure(bg=pal["hover"])))
+            cell.bind("<Leave>", lambda e, w=cell, s=sel: w.configure(bg=pal["cell_sel"] if s else pal["card"]))
             self.anim_cells.append((cell, imgs))
         self.name.grid(row=rows + 3, column=0, columnspan=self.COLS, sticky="w", pady=(10, 0))
         self.animate()
@@ -130,10 +136,12 @@ class EntityPicker:
         top = self.top = tk.Toplevel(sw.win)
         top.title("Ajouter des entités Home Assistant")
         top.transient(sw.win)
-        top.geometry("%dx%d" % (sw.px(820), sw.px(560)))
-        top.minsize(sw.px(600), sw.px(400))
+        top.geometry("%dx%d" % (sw.px(900), sw.px(620)))
+        top.minsize(sw.px(640), sw.px(440))
+        top.configure(bg=sw.pal["bg"])
+        ui_theme.dark_title_bar(top, sw.pal is ui_theme.PALETTES["dark"])
 
-        f = ttk.Frame(top, padding=10)
+        f = ttk.Frame(top, padding=14)
         f.pack(fill="both", expand=True)
         f.columnconfigure(1, weight=1)
         f.rowconfigure(1, weight=1)
@@ -252,33 +260,33 @@ class SettingsWindow:
         win = self.win = tk.Toplevel(app.root)
         self.s = win.winfo_fpixels("1i") / 96.0      # facteur d'echelle DPI
         win.title("HA Taskbar %s — Réglages" % __version__)
-        win.geometry("%dx%d" % (self.px(980), self.px(760)))
-        win.minsize(self.px(900), self.px(700))
+        win.geometry("%dx%d" % (self.px(1180), self.px(860)))
+        win.minsize(self.px(1080), self.px(780))
         win.protocol("WM_DELETE_WINDOW", self.on_close)
 
-        style = ttk.Style(win)
-        try:
-            style.theme_use("vista")
-        except tk.TclError:
-            pass
-        style.configure("Hint.TLabel", foreground="#6b6b6b")
-        style.configure("Ok.TLabel", foreground="#107c10")
-        style.configure("Err.TLabel", foreground="#c42b1c")
-        style.configure("Treeview", rowheight=self.px(22))
+        # Theme Windows 11 (clair ou sombre comme Windows)
+        self.pal = ui_theme.apply(app.root)
+        win.configure(bg=self.pal["bg"])
+        ui_theme.dark_title_bar(win, self.pal is ui_theme.PALETTES["dark"])
+        ttk.Style(win).configure("Treeview", rowheight=self.px(30))
 
-        self.nb = ttk.Notebook(win)
-        self.nb.pack(fill="both", expand=True, padx=10, pady=(10, 0))
+        win.columnconfigure(1, weight=1)
+        win.rowconfigure(0, weight=1)
+        self.nb = ui_theme.SideNav(win, self.pal, getattr(app, "icon_font", None), "HA Taskbar",
+                                   "Version %s" % __version__, self.px)
+        self.nb.side.grid(row=0, column=0, rowspan=2, sticky="ns")
+        self.nb.grid(row=0, column=1, sticky="nsew")
         self.build_connection()
         self.build_items()
         self.build_appearance()
 
-        bar = ttk.Frame(win, padding=10)
-        bar.pack(fill="x")
+        bar = ttk.Frame(win, padding=(self.px(28), self.px(10), self.px(28), self.px(18)))
+        bar.grid(row=1, column=1, sticky="ew")
         self.status = ttk.Label(bar, text="", style="Hint.TLabel")
         self.status.pack(side="left")
         ttk.Button(bar, text="Appliquer", command=self.apply).pack(side="right")
-        ttk.Button(bar, text="Annuler", command=self.cancel).pack(side="right", padx=6)
-        ttk.Button(bar, text="OK", command=self.ok).pack(side="right")
+        ttk.Button(bar, text="Annuler", command=self.cancel).pack(side="right", padx=8)
+        ttk.Button(bar, text="OK", style="Accent.TButton", width=10, command=self.ok).pack(side="right")
 
         self.win.after(150, self.poll_queue)
         if self.cfg.get("token"):
@@ -332,8 +340,8 @@ class SettingsWindow:
 
     # ------------------------------------------------------------------ onglet Connexion
     def build_connection(self):
-        f = ttk.Frame(self.nb, padding=16)
-        self.nb.add(f, text="Connexion")
+        f = ttk.Frame(self.nb, padding=0)
+        self.nb.add(f, text="Connexion", icon="")
         f.columnconfigure(1, weight=1)
 
         ttk.Label(f, text="Adresse de Home Assistant").grid(row=0, column=0, sticky="w", padx=(0, 12))
@@ -441,8 +449,8 @@ class SettingsWindow:
 
     # ------------------------------------------------------------------ onglet Elements
     def build_items(self):
-        f = ttk.Frame(self.nb, padding=12)
-        self.nb.add(f, text="Éléments")
+        f = ttk.Frame(self.nb, padding=0)
+        self.nb.add(f, text="Éléments", icon="")
         f.columnconfigure(0, weight=1, minsize=self.px(420))
         f.columnconfigure(1, weight=1)
         f.rowconfigure(0, weight=1)
@@ -462,7 +470,6 @@ class SettingsWindow:
         self.tree.grid(row=0, column=0, sticky="nsew")
         sb.grid(row=0, column=1, sticky="ns")
         self.tree.bind("<<TreeviewSelect>>", self.on_select)
-        ttk.Style(self.win).configure("Empty.TLabel", background="white", foreground="#6b6b6b")
         self.empty_label = ttk.Label(left, style="Empty.TLabel", justify="center", anchor="center",
                                      text="La barre est vide.\n\nClique sur « Ajouter des entités… »\n"
                                           "pour choisir parmi tes entités Home Assistant.")
@@ -471,10 +478,10 @@ class SettingsWindow:
             row=2, column=0, columnspan=2, sticky="ew", pady=(8, 0))
         btns = ttk.Frame(left)
         btns.grid(row=1, column=0, columnspan=2, sticky="w", pady=(8, 0))
-        for text, cmd, w in (("Ajouter vide", self.add_item, 12), ("Dupliquer", self.dup_item, 10),
-                             ("Supprimer", self.del_item, 10), ("▲", lambda: self.move_item(-1), 3),
+        for text, cmd, w in (("Ajouter vide", self.add_item, None), ("Dupliquer", self.dup_item, None),
+                             ("Supprimer", self.del_item, None), ("▲", lambda: self.move_item(-1), 3),
                              ("▼", lambda: self.move_item(1), 3)):
-            ttk.Button(btns, text=text, command=cmd, width=w).pack(side="left", padx=(0, 4))
+            ttk.Button(btns, text=text, command=cmd, width=w).pack(side="left", padx=(0, 6))
 
         right = ttk.LabelFrame(f, text="Élément sélectionné", padding=12)
         right.grid(row=0, column=1, sticky="nsew")
@@ -500,7 +507,8 @@ class SettingsWindow:
         self.v_icon = tk.StringVar(value="auto")
         self.icon_preview = tk.Label(lf, text="", width=2,
                                      font=(getattr(self.app, "icon_font", None) or "Segoe Fluent Icons", 14),
-                                     relief="solid", borderwidth=1, bg="white", cursor="hand2")
+                                     relief="flat", borderwidth=0, bg=self.pal["field"], fg=self.pal["fg"],
+                                     highlightthickness=1, highlightbackground=self.pal["border"], cursor="hand2")
         self.icon_preview.pack(side="left", padx=(6, 4))
         self.icon_preview.bind("<Button-1>", lambda e: self.open_icon_picker())
         self.b_icon = ttk.Button(lf, text="Changer…", command=self.open_icon_picker)
@@ -527,7 +535,10 @@ class SettingsWindow:
         self.svc_info = self.hint(right, "", row=8, column=1, sticky="w")
 
         row(9, "Données (JSON)")
-        self.t_data = tk.Text(right, height=4, font=("Consolas", 9), wrap="word", relief="solid", borderwidth=1)
+        self.t_data = tk.Text(right, height=4, font=("Consolas", 10), wrap="word", relief="flat", borderwidth=0,
+                              bg=self.pal["field"], fg=self.pal["fg"], insertbackground=self.pal["fg"],
+                              highlightthickness=1, highlightbackground=self.pal["border"],
+                              highlightcolor=self.pal["accent"], padx=6, pady=4)
         self.t_data.grid(row=9, column=1, sticky="ew", pady=(4, 0))
         self.data_info = self.hint(right, "Optionnel. Vide = {\"entity_id\": \"<l'entité>\"}",
                                    row=10, column=1, sticky="w")
@@ -817,8 +828,8 @@ class SettingsWindow:
 
     # ------------------------------------------------------------------ onglet Apparence
     def build_appearance(self):
-        f = ttk.Frame(self.nb, padding=16)
-        self.nb.add(f, text="Apparence")
+        f = ttk.Frame(self.nb, padding=0)
+        self.nb.add(f, text="Apparence", icon="")
         f.columnconfigure(0, weight=3)
         f.columnconfigure(1, weight=2)
 

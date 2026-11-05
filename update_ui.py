@@ -8,6 +8,7 @@ import tkinter as tk
 import webbrowser
 from tkinter import ttk
 
+import ui_theme
 from ha_core import FROZEN, __version__, download_update, save_config
 
 
@@ -30,32 +31,36 @@ class UpdateWindow:
         self.info = info
         self.cancel_flag = False
         self.busy = False
+        pal = self.pal = ui_theme.apply(app.root)
         win = self.win = tk.Toplevel(app.root)
+        win.configure(bg=pal["bg"])
         win.title("Mise à jour de HA Taskbar")
         win.attributes("-topmost", True)
         win.resizable(False, False)
         win.protocol("WM_DELETE_WINDOW", self.later)
         px = lambda v: int(v * win.winfo_fpixels("1i") / 96)   # noqa: E731
-        f = ttk.Frame(win, padding=16)
+        ui_theme.dark_title_bar(win, pal is ui_theme.PALETTES["dark"])
+        f = ttk.Frame(win, padding=px(24))
         f.pack(fill="both", expand=True)
 
-        ttk.Label(f, text="Version %s disponible" % info["version"], font=("Segoe UI", 13, "bold")).pack(anchor="w")
-        ttk.Label(f, text="Tu as la version %s." % __version__, foreground="#5f5f5f").pack(anchor="w", pady=(2, 10))
+        ttk.Label(f, text="Version %s disponible" % info["version"], style="Title.TLabel").pack(anchor="w")
+        ttk.Label(f, text="Tu as la version %s." % __version__, style="Hint.TLabel").pack(anchor="w", pady=(2, 12))
 
-        notes = tk.Text(f, height=12, width=64, wrap="word", relief="solid", borderwidth=1,
-                        font=("Segoe UI", 9), padx=8, pady=6)
+        notes = tk.Text(f, height=12, width=64, wrap="word", relief="flat", borderwidth=0,
+                        bg=pal["card"], fg=pal["fg"], highlightthickness=1, highlightbackground=pal["border"],
+                        font="SunValleyBodyFont", padx=12, pady=10)
         notes.insert("1.0", plain_notes(info.get("notes", "")) or "(pas de notes de version)")
         notes.configure(state="disabled")
         notes.pack(fill="both", expand=True)
 
-        self.status = ttk.Label(f, text="", foreground="#5f5f5f", wraplength=px(460), justify="left")
+        self.status = ttk.Label(f, text="", style="Hint.TLabel", wraplength=px(520), justify="left")
         self.status.pack(anchor="w", pady=(10, 0))
         self.bar = ttk.Progressbar(f, mode="determinate", maximum=100)
 
         bf = ttk.Frame(f)
         bf.pack(fill="x", pady=(12, 0))
         if FROZEN and info.get("asset_url"):
-            self.b_install = ttk.Button(bf, text="Installer maintenant", command=self.install)
+            self.b_install = ttk.Button(bf, text="Installer maintenant", style="Accent.TButton", command=self.install)
             hint = ("Le programme d'installation est téléchargé depuis GitHub et vérifié, puis HA Taskbar "
                     "se ferme, se met à jour et redémarre tout seul. Tes réglages sont conservés.")
         else:
@@ -139,7 +144,7 @@ class UpdateWindow:
             self.close()
         else:
             self.status.configure(text="Échec : %s. Réessaie plus tard, ou télécharge la version "
-                                       "depuis la page GitHub." % msg, foreground="#c42b1c")
+                                       "depuis la page GitHub." % msg, style="Err.TLabel")
 
     def on_ready(self, path):
         self.status.configure(text="Vérifié ✔ Installation : HA Taskbar va redémarrer…")
