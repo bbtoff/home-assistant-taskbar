@@ -22,6 +22,7 @@ from ctypes import wintypes
 from tkinter import font as tkfont
 
 import anim_icons
+import screens
 from ha_core import (ACTIVE_STATES, ANIM_ICONS, CONFIG_PATH, DEFAULT_CONFIG, ICON_FONTS, ICON_PATH, ICONS, STATE_TEXT,
                      HomeAssistant, __version__, anim_active, bar_colors, bar_light, icon_key, system_light, item_zone,
                      latest_release, load_config, needs_setup, resolve_icon, resolve_service, save_config,
@@ -104,8 +105,8 @@ def class_name(hwnd):
     return buf.value
 
 
-def foreground_is_fullscreen(own_hwnds):
-    """True si l'app au premier plan est en plein ecran (jeu, video...)."""
+def foreground_is_fullscreen(own_hwnds, taskbar=None):
+    """True si l'app au premier plan est en plein ecran (jeu, video...) sur l'ecran de la barre."""
     fg = user32.GetForegroundWindow()
     if not fg or fg in own_hwnds:
         return False
@@ -114,7 +115,10 @@ def foreground_is_fullscreen(own_hwnds):
     r = get_rect(fg)
     mi = MONITORINFO()
     mi.cbSize = ctypes.sizeof(MONITORINFO)
-    if not user32.GetMonitorInfoW(user32.MonitorFromWindow(fg, MONITOR_DEFAULTTONEAREST), ctypes.byref(mi)):
+    hmon = user32.MonitorFromWindow(fg, MONITOR_DEFAULTTONEAREST)
+    if taskbar and hmon != user32.MonitorFromWindow(taskbar, MONITOR_DEFAULTTONEAREST):
+        return False      # plein ecran sur un autre ecran : la barre reste visible
+    if not user32.GetMonitorInfoW(hmon, ctypes.byref(mi)):
         return False
     m = mi.rcMonitor
     return r.left <= m.left and r.top <= m.top and r.right >= m.right and r.bottom >= m.bottom
@@ -583,7 +587,7 @@ class App:
     def open_card(self, item):
         from card_ui import Card
         self.close_card()
-        tb = user32.FindWindowW("Shell_TrayWnd", None)
+        tb = self.taskbar()
         if not tb:
             return
         r = get_rect(tb)
@@ -787,11 +791,16 @@ class App:
         except (TypeError, ValueError):
             return default
 
+    def taskbar(self):
+        """Barre des taches de l'ecran choisi dans les reglages (ecran principal par defaut)."""
+        return screens.find_taskbar(self.cfg.get("monitor", ""))
+
     def reposition(self):
-        tb = user32.FindWindowW("Shell_TrayWnd", None)
+        tb = self.taskbar()
         if not tb:
             return
-        self.hidden = bool(self.cfg.get("hide_on_fullscreen", True) and foreground_is_fullscreen(self.own_hwnds()))
+        self.hidden = bool(self.cfg.get("hide_on_fullscreen", True)
+                           and foreground_is_fullscreen(self.own_hwnds(), tb))
         r = get_rect(tb)
         for z in self.zones:
             z.show(z.wanted and not self.hidden)

@@ -38,7 +38,7 @@ Write-Host "== PyInstaller"
     --icon "$here\assets\ha_taskbar.ico" `
     --add-data "$here\assets\ha_taskbar.ico;assets" `
     --add-data "$here\sv_ttk;sv_ttk" `
-    --hidden-import settings_ui --hidden-import card_ui --hidden-import update_ui --hidden-import ui_theme --hidden-import tray `
+    --hidden-import settings_ui --hidden-import card_ui --hidden-import update_ui --hidden-import ui_theme --hidden-import tray --hidden-import screens `
     --distpath "$BuildRoot\dist" --workpath "$BuildRoot\work" --specpath "$BuildRoot" `
     "$here\ha_taskbar.py"
 if ($LASTEXITCODE) { throw "PyInstaller a echoue" }

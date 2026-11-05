@@ -36,6 +36,7 @@ DEFAULT_CONFIG = {
     "token": "",
     "verify_ssl": True,
     "poll_interval": 5,
+    "monitor": "",                   # ecran des boutons (ex. "\\.\DISPLAY2") ; "" = ecran principal
     "offset": 60,                    # zone gauche : decalage depuis le bord gauche (pixels)
     "offset_right": 300,             # zone droite : decalage depuis le bord droit (avant les icones)
     "layout": "stacked",

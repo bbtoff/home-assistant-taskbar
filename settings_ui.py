@@ -14,6 +14,7 @@ from tkinter import colorchooser, messagebox, ttk
 from tkinter import font as tkfont
 
 import anim_icons
+import screens
 import ui_theme
 from ha_core import (__version__, ANIM_ICONS, CARD_THEMES, CARD_THEMES_PATH, DARK_COLORS, ICON_FONTS, ICONS, LIGHT_COLORS,
                      PLACEHOLDER_TOKEN, HomeAssistant, auto_icon, bar_colors, bar_light, card_light, card_palette,
@@ -852,7 +853,36 @@ class SettingsWindow:
         pos = ttk.LabelFrame(f, text="Position sur la barre des tâches", padding=10)
         pos.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
         pos.columnconfigure(0, weight=1)
-        maxoff = max(400, self.win.winfo_screenwidth() - 50)
+        try:
+            self.monitors = screens.monitors()
+        except Exception:
+            self.monitors = []
+        maxoff = max([400, self.win.winfo_screenwidth() - 50] + [m["width"] - 50 for m in self.monitors])
+
+        # --- ecran (multi-ecran)
+        ttk.Label(pos, text="Écran").grid(row=0, column=0, sticky="w", pady=(0, 2))
+        cur = self.cfg.get("monitor", "") or ""
+        prim = next((m for m in self.monitors if m["primary"]), None)
+        self.screen_choices = [("", "Écran principal" + (" — %d × %d" % (prim["width"], prim["height"])
+                                                          if prim else ""))]
+        for m in self.monitors:
+            if not m["primary"]:
+                self.screen_choices.append((m["device"], screens.monitor_label(m)))
+        if cur and cur not in [d for d, _ in self.screen_choices]:
+            self.screen_choices.append((cur, "Écran %s (non branché)" % (screens.screen_number(cur) or "?")))
+        self.cb_screen = ttk.Combobox(pos, state="readonly", values=[t for _, t in self.screen_choices])
+        self.cb_screen.current(next(i for i, (d, _) in enumerate(self.screen_choices) if d == cur))
+        self.cb_screen.grid(row=1, column=0, sticky="ew")
+
+        def on_screen(_e=None):
+            self.cfg["monitor"] = self.screen_choices[self.cb_screen.current()][0]
+            self.changed()
+        self.cb_screen.bind("<<ComboboxSelected>>", on_screen)
+        if len(self.monitors) > 1 and any(not m["taskbar"] for m in self.monitors):
+            self.hint(pos, "Un écran sans barre des tâches ne peut pas accueillir les boutons : active "
+                           "« Afficher ma barre des tâches sur tous les écrans » dans les paramètres de "
+                           "Windows (Personnalisation → Barre des tâches → Comportements).",
+                      row=2, column=0, sticky="w", pady=(2, 0))
 
         def offset_slider(row, text, key, default):
             ttk.Label(pos, text=text).grid(row=row, column=0, sticky="w", pady=(10 if row else 0, 2))
@@ -874,13 +904,13 @@ class SettingsWindow:
             self.track(var, set_offset)
             return var
 
-        self.v_offset = offset_slider(0, "Zone gauche : décalage depuis le bord gauche (pixels)", "offset", 60)
+        self.v_offset = offset_slider(3, "Zone gauche : décalage depuis le bord gauche (pixels)", "offset", 60)
         self.v_offset_right = offset_slider(
-            2, "Zone droite : décalage depuis le bord droit (pixels, avant les icônes de notification)",
+            5, "Zone droite : décalage depuis le bord droit (pixels, avant les icônes de notification)",
             "offset_right", 300)
         self.hint(pos, "Chaque élément choisit sa zone dans l'onglet Éléments. Une zone sans élément "
                        "n'apparaît pas. Fais glisser : la barre se déplace en direct.",
-                  row=4, column=0, sticky="w", pady=(2, 0))
+                  row=7, column=0, sticky="w", pady=(2, 0))
 
         # --- texte
         look = ttk.LabelFrame(f, text="Texte et affichage", padding=10)
