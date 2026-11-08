@@ -10,7 +10,7 @@ import urllib.request
 
 from anim_icons import ANIM_ICONS
 
-__version__ = "1.6.0"
+__version__ = "1.7.0"
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 # Version installee (exe PyInstaller) : la config va dans %APPDATA%\HATaskbar,
@@ -54,6 +54,8 @@ DEFAULT_CONFIG = {
     "colors_light": dict(LIGHT_COLORS),   # ... et en mode clair
     "card_theme": "barre",           # theme de la carte d'appui long (cle de card_themes())
     "card_mode": "bar",              # carte : "bar" (comme la barre), "dark" ou "light"
+    "notifications": [],             # regles {entity_id, to, message} -> notification Windows
+    "notify_offline": True,          # prevenir quand Home Assistant ne repond plus / revient
     "items": [],
 }
 
@@ -243,6 +245,78 @@ def resolve_service(item):
     if svc == "none":
         return None
     return svc or default_service(item.get("entity_id", ""))
+
+
+def item_members(item):
+    """Entites commandees par un element : la sienne + celles du groupe ("group")."""
+    out = [item.get("entity_id", "")]
+    for e in item.get("group") or []:
+        if e and e not in out:
+            out.append(e)
+    return [e for e in out if e]
+
+
+def group_state(item, states):
+    """Etat combine d'un groupe : "on" si au moins un membre est actif. Renvoie (etat, actifs, total)."""
+    members = item_members(item)
+    sts = [states.get(e) for e in members]
+    known = [s for s in sts if s and s.get("state") not in ("unavailable", "unknown")]
+    on = sum(1 for s in known if s.get("state") in ACTIVE_STATES)
+    if not known:
+        return ("unavailable" if any(sts) else None), 0, len(members)
+    return ("on" if on else "off"), on, len(members)
+
+
+def parse_hhmm(v):
+    try:
+        h, m = str(v).strip().split(":")
+        h, m = int(h), int(m)
+        if 0 <= h < 24 and 0 <= m < 60:
+            return h * 60 + m
+    except (ValueError, AttributeError):
+        pass
+    return None
+
+
+def item_visible(item, now=None):
+    """Plage horaire d'affichage ("show_from" / "show_to", HH:MM). Sans plage : toujours visible.
+    La plage peut passer minuit (ex. 22:00 -> 07:00)."""
+    a, b = parse_hhmm(item.get("show_from")), parse_hhmm(item.get("show_to"))
+    if a is None or b is None or a == b:
+        return True
+    now = now or datetime.datetime.now()
+    t = now.hour * 60 + now.minute
+    return a <= t < b if a < b else (t >= a or t < b)
+
+
+# Raccourcis clavier globaux : "Ctrl+Alt+1"
+HOTKEY_MODS = {"alt": 0x1, "ctrl": 0x2, "control": 0x2, "ctl": 0x2, "shift": 0x4, "maj": 0x4, "win": 0x8}
+HOTKEY_KEYS = dict({"f%d" % i: 0x6F + i for i in range(1, 25)},
+                   space=0x20, espace=0x20, left=0x25, up=0x26, right=0x27, down=0x28,
+                   gauche=0x25, haut=0x26, droite=0x27, bas=0x28, home=0x24, end=0x23,
+                   insert=0x2D, delete=0x2E, pageup=0x21, pagedown=0x22,
+                   **{"num%d" % i: 0x60 + i for i in range(10)})
+
+
+def parse_hotkey(text):
+    """"Ctrl+Alt+1" -> (modificateurs, code de touche), ou None si invalide.
+    Il faut au moins un modificateur (sauf touches F1-F24)."""
+    parts = [p.strip().lower() for p in str(text or "").replace(" ", "").split("+") if p.strip()]
+    if not parts:
+        return None
+    mods, key = 0, None
+    for p in parts[:-1]:
+        if p not in HOTKEY_MODS:
+            return None
+        mods |= HOTKEY_MODS[p]
+    k = parts[-1]
+    if k in HOTKEY_KEYS:
+        key = HOTKEY_KEYS[k]
+    elif len(k) == 1 and (k.isalnum()):
+        key = ord(k.upper())
+    if key is None or (not mods and not 0x70 <= key <= 0x87):
+        return None
+    return mods, key
 
 
 # --------------------------------------------------------------------------- icones
@@ -481,6 +555,22 @@ class HomeAssistant:
             if t is not None:
                 out.append((t, e.get("state"), e.get("attributes") or {}))
         return out
+
+
+    def template(self, tpl, timeout=10):
+        """Rend un modele Jinja cote Home Assistant (texte)."""
+        data = json.dumps({"template": tpl}).encode()
+        req = urllib.request.Request(self.url + "/api/template", data=data, method="POST",
+                                     headers={"Authorization": "Bearer " + self.token,
+                                              "Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout, context=self.ctx) as resp:
+            return resp.read().decode("utf-8", "replace")
+
+    def device_entities(self, entity_id):
+        """Autres entites du meme appareil (lumiere d'un ventilateur, minuteur, capteurs...)."""
+        tpl = "{{ device_entities(device_id(%s)) | default([], true) | join(',') }}" % json.dumps(entity_id)
+        out = self.template(tpl).strip()
+        return [e for e in out.split(",") if e and e != entity_id]
 
 
 def parse_time(iso):

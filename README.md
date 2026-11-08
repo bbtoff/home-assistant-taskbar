@@ -22,6 +22,29 @@ Un **programme d'installation** est fourni : rien d'autre à installer, pas mêm
 
 ---
 
+## ✨ Nouveautés de la version 1.7
+
+**Carte de contrôle (appui long)**
+- 🌀 **Ventilateur** : choix du **sens de rotation** (été / hiver), oscillation si l'appareil la gère, modes traduits (Naturel, Nuit, Frais, Auto…). Quand le ventilateur n'a que quelques vitesses (3 à 10), elles s'affichent en boutons **1, 2, 3…** au lieu d'un curseur.
+- 🔌 **Sur le même appareil** : la carte montre les autres entités de l'appareil, par exemple la **lumière** d'un ventilateur de plafond, son **minuteur** ou son capteur de température.
+- ⏲️ **Arrêt programmé** : 15 min, 30 min, 1 h ou 2 h, pour les lumières, prises, ventilateurs, lecteurs et thermostats. Le temps restant s'affiche sur la carte et en badge sur la barre. Il s'annule depuis la carte ou le menu du clic droit.
+- 💡 **Lumières** : ambiances toutes prêtes (Lecture, Détente, Veilleuse) et **favoris** : « + Mémoriser » enregistre la luminosité et la couleur actuelles. Clic droit sur un ★ pour le supprimer.
+- 🪟 **Volets** : positions rapides 25 / 50 / 75 %.
+- 🌡️ **Thermostat** : humidité et température extérieure (prise dans l'entité météo).
+- 🤖 **Aspirateur** : batterie, puissance d'aspiration, bouton « Localiser ».
+- 🎵 **Média** : barre de progression du morceau et bouton couper le son.
+- 📈 **Historique** sur **24 h, 7 jours ou 30 jours**, avec la moyenne en plus du minimum et du maximum.
+
+**Barre**
+- 🖱️ **Molette** sur tous les types : vitesse d'un ventilateur, volume d'un lecteur, position d'un volet, consigne d'un thermostat, valeur d'un nombre, en plus de la luminosité. La valeur s'affiche tout de suite et la commande part à la fin du geste.
+- 🖲️ **Clic du milieu** au choix : ouvrir la carte (par défaut), inverser le sens de rotation, mode suivant, arrêt programmé, couper le son, ou n'importe quel service.
+- 🏷️ **Badge** sur l'icône : sens de rotation ↻ ↺, pourcentage, batterie ou un attribut.
+- 👥 **Groupes** : un élément peut commander plusieurs entités (« tous les ventilateurs »). Le clic allume tout, ou éteint tout si l'une d'elles est allumée, et la barre affiche « 2/3 ».
+- ⌨️ **Raccourcis clavier globaux** (ex. Ctrl+Alt+1) : ils font la même chose qu'un clic, depuis n'importe quelle application.
+- 🕘 **Plages horaires** : un élément peut n'apparaître que de 22:00 à 07:00, par exemple.
+- 🔔 **Notifications Windows** quand une entité change d'état (porte ouverte, machine terminée…), dans la nouvelle page **Réglages → Notifications**. Les entités n'ont pas besoin d'être sur la barre.
+- 📡 **Hors ligne** : si Home Assistant ne répond plus, les valeurs passent en gris, « ● HA hors ligne » s'affiche et une notification prévient, puis une autre au retour. Le clic droit indique l'heure de la dernière réponse et propose « Réessayer maintenant ».
+
 ## ✨ Nouveautés de la version 1.6
 
 - 🔔 **Icône dans la zone de notification**, à côté de l'horloge : clic gauche pour ouvrir les réglages, clic droit pour le menu. Elle reste accessible même quand aucun élément n'est affiché.
@@ -201,10 +224,12 @@ Pour lancer HA Taskbar à chaque démarrage, coche **Lancer HA Taskbar au démar
 | **Clic** sur un bouton | Action selon le type : allume/éteint une lumière, une prise ou un ventilateur, lance une scène ou un script, appuie sur un bouton… |
 | **Appui long** (½ seconde) | Ouvre la [carte de contrôle](#-carte-de-contrôle-appui-long) de l'élément |
 | **Clic** sur un capteur | Ouvre directement sa carte, puisqu'un capteur n'a pas d'action |
-| **Molette** sur une lumière | Luminosité +/− 10 % |
+| **Molette** | Luminosité d'une lumière, vitesse d'un ventilateur, volume d'un lecteur, position d'un volet, consigne d'un thermostat, valeur d'un nombre |
+| **Clic du milieu** (molette) | Ouvre la carte, ou l'action choisie dans **Réglages → Éléments → Plus d'options** |
+| **Raccourci clavier** | L'action du clic, depuis n'importe quelle application (à définir par élément) |
 | **Clic droit** n'importe où | Menu : Réglages…, Rafraîchir, Recharger la config, Quitter |
 | **Icône près de l'horloge** | Clic gauche : réglages. Clic droit : le même menu |
-| **● HA** en rouge | Home Assistant ne répond pas. Clic droit pour voir l'erreur, clic gauche pour ouvrir les réglages. |
+| **● HA hors ligne** en rouge | Home Assistant ne répond pas : les valeurs sont grisées. Clic droit pour voir l'erreur et réessayer, clic gauche pour ouvrir les réglages. |
 
 La barre se masque automatiquement quand une application passe en plein écran (jeu, vidéo).
 
@@ -225,18 +250,24 @@ Un appui long sur un élément ouvre une carte juste au-dessus de la barre des t
 
 | Type d'entité | Contenu de la carte |
 |---|---|
-| Lumière | Interrupteur, luminosité, température du blanc et couleurs, selon ce que gère l'ampoule |
-| Thermostat | Consigne avec − / + (ou molette), modes (arrêt, chauffage, auto…) et préréglages (éco, confort…) |
-| Volet | Ouvrir / Stop / Fermer, position et inclinaison |
-| Lecteur multimédia | Titre et artiste, précédent / lecture-pause / suivant, volume, source |
-| Ventilateur | Interrupteur, vitesse, modes |
+| Lumière | Interrupteur, luminosité, température du blanc et couleurs, selon ce que gère l'ampoule. Ambiances et favoris mémorisés |
+| Thermostat | Consigne avec − / + (ou molette), humidité et température extérieure, modes (arrêt, chauffage, auto…) et préréglages (éco, confort…) |
+| Volet | Ouvrir / Stop / Fermer, position avec raccourcis 25 / 50 / 75 %, inclinaison |
+| Lecteur multimédia | Titre et artiste, précédent / lecture-pause / suivant, couper le son, progression, volume, source |
+| Ventilateur | Interrupteur, vitesse (curseur, ou boutons 1, 2, 3… s'il a peu de vitesses), modes, sens de rotation, oscillation |
+| Aspirateur | Démarrer / Pause / Base / Localiser, batterie, puissance d'aspiration |
+| Groupe | Un interrupteur par membre (et la luminosité des lumières) |
 | Prise, interrupteur, automatisation | Interrupteur |
 | Serrure | Verrouiller / Déverrouiller |
 | Nombre, liste de choix | Curseur ou boutons de choix |
 | Scène, script, bouton | Bouton d'activation |
 | Capteur et autres | Valeur en grand |
 
-Toutes les cartes, sauf celles des scènes, scripts et boutons, affichent l'**historique des dernières 24 h**. C'est une courbe pour une valeur numérique, ou une frise colorée pour un état allumé/éteint. Au survol, la valeur et l'heure s'affichent. Le lien **Ouvrir dans Home Assistant** ouvre l'historique complet dans le navigateur.
+Les lumières, prises, ventilateurs, lecteurs et thermostats ont un **arrêt programmé** (15 min à 2 h). C'est HA Taskbar qui éteint l'appareil à l'heure dite : il doit donc rester lancé.
+
+Quand l'entité fait partie d'un appareil qui en a d'autres (la lumière d'un ventilateur de plafond, son minuteur, un capteur…), la carte les montre dans **Sur le même appareil**, avec leur commande.
+
+Toutes les cartes, sauf celles des scènes, scripts et boutons, affichent l'**historique** sur 24 h, 7 jours ou 30 jours (Home Assistant garde 10 jours par défaut). C'est une courbe pour une valeur numérique, avec minimum, moyenne et maximum, ou une frise colorée pour un état allumé/éteint. Au survol, la valeur et l'heure s'affichent. Le lien **Ouvrir dans Home Assistant** ouvre l'historique complet dans le navigateur.
 
 Les curseurs n'envoient la commande qu'au relâchement de la souris, pour ne pas inonder Home Assistant de requêtes. La consigne du thermostat est envoyée 0,7 s après le dernier clic sur − / +.
 
@@ -315,6 +346,12 @@ Une clé absente reprend la valeur du thème par défaut. Après avoir enregistr
   - **Action au clic** : automatique, aucune, ou n'importe quel service (ex. `light.turn_on`)
   - **Données (JSON)** : paramètres envoyés au service (ex. `{"entity_id": "light.salon", "brightness_pct": 30}`)
   - **Titre de la carte** : titre affiché sur la carte d'appui long. Vide = nom de l'entité dans Home Assistant.
+- Onglet **Plus d'options** de chaque élément :
+  - **Clic du milieu** : ouvrir la carte (par défaut), inverser le sens de rotation, mode suivant, arrêt programmé, couper le son, rien, ou un service
+  - **Badge** : petite info en bas à droite de l'icône (sens de rotation, pourcentage, batterie ou un attribut). Un arrêt programmé en cours s'y affiche toujours.
+  - **Grouper avec** : autres entités commandées par le même bouton
+  - **Raccourci clavier** : par exemple `Ctrl+Alt+1`, `Ctrl+Maj+L` ou `F9`. Si une autre application utilise déjà la combinaison, le menu du clic droit le signale.
+  - **Affiché de … à …** : plage horaire d'affichage, qui peut passer minuit (22:00 → 07:00)
 
 Le bouton **Changer…** à côté de l'icône ouvre le choix parmi près de 90 icônes Windows 11. Les **icônes animées** sont en bas, et s'animent dans la fenêtre pour donner un aperçu :
 
@@ -329,6 +366,7 @@ Actions automatiques au clic :
 | `button`, `input_button` | `press` |
 | `media_player` | `media_play_pause` |
 | `sensor`, `binary_sensor`, … | aucune (affichage seul) |
+| groupe (« Grouper avec ») | tout allumer, ou tout éteindre si l'un est allumé |
 
 Pour les scènes, boutons et scripts, la barre affiche « Activer », « Appuyer » ou « Lancer » à la place de l'état. Home Assistant y met en effet la date du dernier déclenchement, ce qui n'a pas d'intérêt ici.
 
@@ -346,6 +384,12 @@ Pour les scènes, boutons et scripts, la barre affiche « Activer », « Appuyer
 - **Police**, **taille**, **opacité**, **afficher les icônes**, **animer les icônes animées**, **masquer en plein écran**
 - **Couleurs** : fond, valeurs, libellés, actif/allumé, survol, erreur, pour chacun des deux modes. Le bouton **Couleurs par défaut** remet celles d'origine.
 - **Carte de contrôle** : thème et couleurs de la carte d'appui long (voir [Thèmes de la carte](#-thèmes-de-la-carte)).
+
+### Onglet Notifications
+- **Me prévenir quand Home Assistant ne répond plus** : une notification à la perte de connexion, une autre au retour
+- **Notifications d'état** : choisis une entité, éventuellement l'état qui déclenche (`on`, `open`, `off`…), et un message. Dans le message, `{name}` est le nom de l'entité, `{state}` son nouvel état et `{old}` l'état d'avant. **Tester** affiche la notification tout de suite.
+
+Les notifications apparaissent comme celles des autres applications, et dans le centre de notifications de Windows.
 
 Tous les changements sont **prévisualisés en direct** sur la barre. **Appliquer**/**OK** enregistre, **Annuler** revient à l'état précédent.
 
@@ -372,8 +416,27 @@ Format d'un élément :
   "decimals": 1,
   "service": "climate.set_preset_mode",
   "data": { "entity_id": "climate.thermostat", "preset_mode": "eco" },
-  "zone": "right"
+  "zone": "right",
+  "middle": "@preset",
+  "badge": "percentage",
+  "group": ["climate.chambre"],
+  "hotkey": "Ctrl+Alt+1",
+  "show_from": "22:00",
+  "show_to": "07:00",
+  "favorites": [{ "name": "Lecture", "brightness_pct": 80, "color_temp_kelvin": 4000 }],
+  "cover_positions": [25, 50, 75]
 }
+```
+
+`middle` (clic du milieu) : `"@card"` (par défaut), `"@direction"`, `"@preset"`, `"@timer30"` (ou un autre nombre de minutes), `"@mute"`, `"none"` ou un service. `badge` : `"direction"`, `"percentage"`, `"battery"` ou le nom d'un attribut. `favorites` (lumières) se remplit avec « + Mémoriser » dans la carte.
+
+Notifications (en dehors de `items`) :
+
+```json
+"notify_offline": true,
+"notifications": [
+  { "entity_id": "binary_sensor.porte_entree", "to": "on", "message": "{name} vient de s'ouvrir" }
+]
 ```
 
 Seul `entity_id` est obligatoire. `icon` peut valoir `"auto"` (par défaut), `"none"`, une clé de `ICONS` dans [`ha_core.py`](ha_core.py), ou une icône animée : `"flame_anim"`, `"fan_anim"`, `"bulb_anim"`, `"eq_anim"`, `"drop_anim"`, `"snow_anim"`, `"sun_anim"`, `"wifi_anim"`, `"bell_anim"`, `"washer_anim"`, `"bolt_anim"`, `"battery_anim"`, `"radar_anim"`, `"heater_anim"`, `"speaker_anim"`, `"timer_anim"`, `"rain_anim"`, `"gear_anim"` (liste dans [`anim_icons.py`](anim_icons.py)). `service` peut valoir `"none"` pour désactiver le clic. `zone` vaut `"left"` (par défaut) ou `"right"`.
@@ -425,7 +488,9 @@ Windows 11 ne permet plus d'ajouter des « deskbands » (barres d'outils) à la 
 - Avec la barre des tâches en **masquage automatique**, la fenêtre ne suit pas l'animation.
 - En fond transparent, le contour du texte est lissé sur la couleur « Fond ». Garde une couleur proche de ta barre des tâches (`#202020` en thème sombre, ou le thème clair pour une barre claire), sinon un léger liseré peut apparaître.
 - Une mise à jour de Windows peut modifier le comportement de la barre des tâches.
-- Rafraîchissement par interrogation périodique (pas de WebSocket), ce qui suffit pour un affichage à quelques secondes près.
+- Rafraîchissement par interrogation périodique (pas de WebSocket), ce qui suffit pour un affichage à quelques secondes près. Une notification peut donc arriver jusqu'à un intervalle de rafraîchissement après le changement, et un état qui change puis revient entre deux lectures passe inaperçu.
+- L'**arrêt programmé** est géré par HA Taskbar : si le PC s'éteint ou si l'application est fermée, l'appareil reste allumé. Pour un minuteur fiable, utilise celui de l'appareil quand il en a un (il s'affiche dans « Sur le même appareil »).
+- La **pochette** d'un morceau n'est pas affichée : Tk ne lit pas les images JPEG sans bibliothèque externe.
 
 ---
 

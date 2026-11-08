@@ -24,9 +24,9 @@ from tkinter import font as tkfont
 import anim_icons
 import screens
 from ha_core import (ACTIVE_STATES, ANIM_ICONS, CONFIG_PATH, DEFAULT_CONFIG, ICON_FONTS, ICON_PATH, ICONS, STATE_TEXT,
-                     HomeAssistant, __version__, anim_active, bar_colors, bar_light, icon_key, system_light, item_zone,
-                     latest_release, load_config, needs_setup, resolve_icon, resolve_service, save_config,
-                     update_available)
+                     HomeAssistant, __version__, anim_active, bar_colors, bar_light, group_state, icon_key,
+                     item_members, item_visible, system_light, item_zone, latest_release, load_config, needs_setup,
+                     parse_hotkey, resolve_icon, resolve_service, save_config, update_available)
 
 # --------------------------------------------------------------------------- Win32
 # DPI : on travaille en pixels physiques pour coller exactement a la barre des taches
@@ -125,6 +125,8 @@ def foreground_is_fullscreen(own_hwnds, taskbar=None):
 
 
 LONG_PRESS_MS = 450      # appui long -> carte de controle
+WHEEL_DELAY_MS = 350     # molette : on attend la fin des crans avant d'envoyer la commande
+OFFLINE_AFTER = 2        # nombre d'echecs de suite avant de passer en "hors ligne"
 
 
 UPDATE_FIRST_MS = 60 * 1000          # 1re recherche de mise a jour 1 min apres le lancement
@@ -149,6 +151,9 @@ class Item:
 
         self.service = resolve_service(cfg)
         self.service_data = cfg.get("data") or {"entity_id": self.entity_id}
+        self.members = item_members(cfg)
+        self.is_group = len(self.members) > 1
+        self.hold_until = 0.0        # molette : valeur en attente affichee, on ignore HA un instant
 
         cursor = "hand2"            # tout element ouvre au moins sa carte (appui long)
         fs = int(app.cfg.get("font_size", 9))
@@ -167,6 +172,10 @@ class Item:
             self.icon_px = max(12, ifont.measure(ICONS["flame"][0]))   # taille des icones animees
             self.icon = tk.Label(self.frame, text="", bg=c["bg"], fg=c["fg"], cursor=cursor, font=ifont)
             self.icon.grid(row=0, column=0, padx=(0, 6))
+        # petit badge (minuterie, sens de rotation, pourcentage...) en bas a droite de l'icone
+        self.badge = tk.Label(self.frame, text="", bg=c["bg"], fg=c["on"], cursor=cursor,
+                              font=(font, max(fs - 3, 6), "bold"), padx=0, pady=0, borderwidth=0)
+        self.badge_text = ""
         self.txt = tk.Frame(self.frame, bg=c["bg"], cursor=cursor)
         self.txt.grid(row=0, column=1, sticky="w")
 
@@ -184,12 +193,14 @@ class Item:
                                   font=(font, fs, "bold"), cursor=cursor)
             self.title.pack(side="left")
             self.value.pack(side="left", padx=(4, 0))
-        self.widgets = [w for w in (self.frame, self.icon, self.txt, self.title, self.value) if w is not None]
+        self.widgets = [w for w in (self.frame, self.icon, self.badge, self.txt, self.title, self.value)
+                        if w is not None]
 
         for w in self.widgets:
             w.bind("<ButtonPress-1>", self.on_press)
             w.bind("<ButtonRelease-1>", lambda e: app.release())
             w.bind("<MouseWheel>", self.on_wheel)
+            w.bind("<Button-2>", self.on_middle)
             w.bind("<Button-3>", app.show_menu)
         self.grow()
 
@@ -219,21 +230,79 @@ class Item:
 
     def on_click(self, _e=None):
         """Appui court : action de l'element, ou sa carte s'il n'a pas d'action (capteur...)."""
-        if self.service:
-            self.app.call_service(self.service, self.service_data)
-        else:
+        if not self.app.click_item(self.cfg):
             self.app.open_card(self)
 
-    def on_wheel(self, e):
-        # Molette sur une lumiere = luminosite +/- 10 %
-        if self.domain == "light":
-            step = 10 if e.delta > 0 else -10
-            self.app.call_service("light.turn_on", {"entity_id": self.entity_id, "brightness_step_pct": step})
+    def on_middle(self, _e=None):
+        self.app.middle_click(self)
+        return "break"
 
-    def update(self, st):
+    def on_wheel(self, e):
+        self.app.wheel(self, 1 if e.delta > 0 else -1)
+
+    def show_pending(self, text):
+        """Valeur choisie a la molette, affichee tout de suite (avant la reponse de HA)."""
+        self.hold_until = time.monotonic() + 2.0
+        self.shown = None
+        self.value.configure(text=text, fg=self.app.colors["on"])
+        self.grow()
+
+    def set_badge(self, text):
+        text = text or ""
+        if text == self.badge_text:
+            return
+        self.badge_text = text
+        if not text:
+            self.badge.place_forget()
+            return
+        self.badge.configure(text=text)
+        if self.icon is not None:
+            self.badge.place(in_=self.icon, relx=1.0, rely=1.0, x=4, y=2, anchor="se")
+        else:
+            self.badge.place(in_=self.txt, relx=1.0, rely=0.0, anchor="ne")
+        self.badge.lift()
+
+    def badge_for(self, st):
+        """Texte du badge : minuterie en cours en priorite, sinon le badge choisi dans les reglages."""
+        left = self.app.timer_left(self.entity_id)
+        if left is not None:
+            return "⏲%d" % max(1, round(left / 60.0))
+        mode = self.cfg.get("badge") or ""
+        if not mode or not st or st.get("state") in ("unavailable", "unknown"):
+            return ""
+        a = st.get("attributes", {})
+        if mode == "direction":
+            return {"forward": "↻", "reverse": "↺"}.get(a.get("direction"), "")
+        if mode == "percentage":
+            p = a.get("percentage")
+            if p is None and a.get("brightness"):
+                p = round(a["brightness"] * 100 / 255)
+            return "%d" % p if p is not None and st.get("state") == "on" else ""
+        if mode == "battery":
+            b = a.get("battery_level", a.get("battery"))
+            return "%s%%" % b if b is not None else ""
+        v = a.get(mode)
+        return "" if v is None else str(v)[:6]
+
+    def refresh_from(self, states):
+        if time.monotonic() < self.hold_until:
+            return
+        self.update(states.get(self.entity_id), states)
+
+    def update(self, st, states=None):
         c = self.app.colors
         key = icon_key(self.cfg, st)
         anim = key if key in ANIM_ICONS else None
+        self.set_badge(self.badge_for(st))
+        if self.is_group and states is not None and not self.cfg.get("attribute"):
+            gstate, on, total = group_state(self.cfg, states)
+            if gstate is not None:
+                fake = dict(st or {"entity_id": self.entity_id, "attributes": {}})
+                fake["state"] = gstate
+                fg = c["dim"] if gstate == "unavailable" or self.app.offline else (c["on"] if on else c["fg"])
+                self.show(resolve_icon(self.cfg, fake), "%d/%d" % (on, total), fg, fg,
+                          anim and (anim, bool(on) and not self.app.offline))
+                return
         if st is None:
             self.show(resolve_icon(self.cfg, None), "?", c["error"], c["dim"], anim and (anim, False))
             return
@@ -253,6 +322,8 @@ class Item:
 
         if self.domain == "light" and st.get("state") == "on" and attrs.get("brightness") and not attr:
             text = "%d%%" % round(attrs["brightness"] * 100 / 255)
+        if self.domain == "fan" and st.get("state") == "on" and attrs.get("percentage") and not attr:
+            text = "%d%%" % attrs["percentage"]
 
         # Scenes / boutons : l'etat est la date du dernier declenchement -> on affiche l'action
         if not attr and st.get("state") not in ("unavailable", "unknown"):
@@ -268,14 +339,15 @@ class Item:
 
         state = st.get("state")
         active = state in ACTIVE_STATES and self.domain not in ("sensor",)
-        if state in ("unavailable", "unknown"):
+        if state in ("unavailable", "unknown") or self.app.offline:
             fg = icon_fg = c["dim"]
         elif active:
             fg = c["fg"] if attr else c["on"]
             icon_fg = c["on"]
         else:
             fg = icon_fg = c["fg"]
-        self.show(resolve_icon(self.cfg, st), text, fg, icon_fg, anim and (anim, anim_active(self.cfg, st)))
+        self.show(resolve_icon(self.cfg, st), text, fg, icon_fg,
+                  anim and (anim, anim_active(self.cfg, st) and not self.app.offline))
 
     def show(self, glyph, text, fg, icon_fg, anim=None):
         new = (glyph, text, fg, icon_fg, anim)
@@ -374,6 +446,7 @@ class Zone:
         self.hit.bind("<ButtonPress-1>", lambda e: app._hit_dispatch(e, "on_press"))
         self.hit.bind("<ButtonRelease-1>", lambda e: app.release())
         self.hit.bind("<MouseWheel>", lambda e: app._hit_dispatch(e, "on_wheel"))
+        self.hit.bind("<Button-2>", lambda e: app._hit_dispatch(e, "on_middle"))
         self.hit.bind("<Button-3>", app.show_menu)
         if not self.shown:
             self.hit.withdraw()
@@ -438,6 +511,16 @@ class App:
         self._update_report = None
         self._press_item = None
         self._press_job = None
+        self.offline = False     # Home Assistant ne repond plus (valeurs grisees)
+        self.fail_count = 0
+        self.last_ok = None      # heure (time.time) de la derniere reponse de HA
+        self.prev_states = None  # etats precedents (notifications sur changement)
+        self.timers = {}         # arret programme : entity_id -> heure de fin (time.time)
+        self.hotkey_map = {}     # id du raccourci -> config de l'element
+        self.hotkey_errors = []
+        self._wheel = {}         # molette : entity_id -> [valeur en attente, job after]
+        self._vis_sig = None
+        self.tray = None
 
         self.root = tk.Tk()
         self.root.withdraw()
@@ -469,13 +552,13 @@ class App:
                                             self._hook_cb, 0, 0, WINEVENT_OUTOFCONTEXT)
 
         # Icone dans la zone de notification : clic gauche -> reglages, clic droit -> menu
-        self.tray = None
         try:
             import tray
             self.tray = tray.TrayIcon(ICON_PATH, "HA Taskbar " + __version__, self.open_settings,
-                                      lambda x, y: self.popup_menu(x, y, from_tray=True))
+                                      lambda x, y: self.popup_menu(x, y, from_tray=True), self.on_hotkey)
         except Exception:
             self.tray = None
+        self.register_hotkeys()
         self.root.bind("<Destroy>", self._on_destroy, add="+")
 
         threading.Thread(target=self.poll_loop, daemon=True).start()
@@ -510,7 +593,10 @@ class App:
         for z in self.zones:
             z.style(cfg, self.colors)
         self.items = []
+        self._vis_sig = self.visibility_sig(cfg)
         for it_cfg in cfg.get("items", []):
+            if not item_visible(it_cfg):          # hors de sa plage horaire d'affichage
+                continue
             z = zones[item_zone(it_cfg)]
             it = Item(self, z.container, it_cfg)
             it.frame.pack(side="left", fill="y")
@@ -535,11 +621,255 @@ class App:
             hint.bind("<Button-1>", lambda e: self.open_settings())
         if self.last_states:
             for it in self.items:
-                it.update(self.last_states.get(it.entity_id))
+                it.refresh_from(self.last_states)
         if self.last_error:
             self._show_status()
         self.hovered = None
+        self.register_hotkeys()
         self.wake.set()
+
+    @staticmethod
+    def visibility_sig(cfg):
+        return tuple(item_visible(it) for it in cfg.get("items", []))
+
+    # ---------------- actions
+    def click_item(self, item_cfg):
+        """Action du clic (ou du raccourci clavier). False si l'element n'a pas d'action."""
+        members = item_members(item_cfg)
+        if len(members) > 1 and not item_cfg.get("service") and not item_cfg.get("data"):
+            # groupe : tout eteint si au moins un membre est allume, sinon tout allume
+            _g, on, _n = group_state(item_cfg, self.last_states)
+            self.call_service("homeassistant.turn_%s" % ("off" if on else "on"), {"entity_id": members})
+            return True
+        svc = resolve_service(item_cfg)
+        if not svc:
+            return False
+        data = item_cfg.get("data") or {"entity_id": members if len(members) > 1 else item_cfg.get("entity_id", "")}
+        self.call_service(svc, data)
+        return True
+
+    def middle_click(self, item):
+        """Clic du milieu : action choisie dans les reglages (par defaut : ouvrir la carte)."""
+        act = item.cfg.get("middle") or "@card"
+        eid = item.entity_id
+        a = (self.last_states.get(eid) or {}).get("attributes", {})
+        if act == "@card":
+            self.open_card(item)
+        elif act == "@direction":
+            self.call_service("fan.set_direction", {"entity_id": eid, "direction":
+                                                    "forward" if a.get("direction") == "reverse" else "reverse"})
+        elif act == "@preset":
+            modes = a.get("preset_modes") or []
+            if modes:
+                cur = a.get("preset_mode")
+                nxt = modes[(modes.index(cur) + 1) % len(modes)] if cur in modes else modes[0]
+                self.call_service(item.domain + ".set_preset_mode", {"entity_id": eid, "preset_mode": nxt})
+        elif act.startswith("@timer"):
+            try:
+                minutes = int(act[6:] or 30)
+            except ValueError:
+                minutes = 30
+            if self.timer_left(eid) is not None:
+                self.cancel_timer(eid)
+            else:
+                self.start_timer(eid, minutes)
+        elif act == "@mute":
+            self.call_service("media_player.volume_mute",
+                              {"entity_id": eid, "is_volume_muted": not a.get("is_volume_muted")})
+        elif act != "none":
+            self.call_service(act, {"entity_id": item.members if item.is_group else eid})
+
+    def wheel(self, item, d):
+        """Molette sur un element : luminosite, vitesse, volume, position, consigne, valeur..."""
+        eid, dom = item.entity_id, item.domain
+        st = self.last_states.get(eid)
+        if not st or st.get("state") in ("unavailable", "unknown"):
+            return
+        a = st.get("attributes", {})
+        pend = self._wheel.get(eid)
+        on = st.get("state") == "on"
+
+        def num(v, default=None):
+            try:
+                return float(v)
+            except (TypeError, ValueError):
+                return default
+
+        if dom == "light":
+            if a.get("brightness") is None and not (set(a.get("supported_color_modes") or []) - {"onoff"}):
+                return
+            base = pend[0] if pend else ((num(a.get("brightness"), 0) * 100 / 255.0) if on else 0)
+            v = max(0, min(100, round(base / 5.0) * 5 + 10 * d))
+            if pend is None and not on and d < 0:
+                return
+            fmt = "%d%%" % v if v > 0 else "OFF"
+
+            def send(v):
+                if v <= 0:
+                    self.call_service("light.turn_off", {"entity_id": eid})
+                else:
+                    self.call_service("light.turn_on", {"entity_id": eid, "brightness_pct": int(v)})
+        elif dom == "fan":
+            if "percentage" not in a:
+                return
+            step = num(a.get("percentage_step"), 10) or 10
+            if step < 5:
+                step = 10
+            base = pend[0] if pend else (num(a.get("percentage"), 0) if on else 0)
+            v = max(0, min(100, round((base + step * d) / step) * step))
+            if pend is None and not on and d < 0:
+                return
+            fmt = "%d%%" % round(v) if v > 0 else "OFF"
+
+            def send(v):
+                if v <= 0:
+                    self.call_service("fan.turn_off", {"entity_id": eid})
+                else:
+                    self.call_service("fan.set_percentage", {"entity_id": eid, "percentage": int(round(v))})
+        elif dom == "media_player":
+            if "volume_level" not in a:
+                return
+            base = pend[0] if pend else num(a.get("volume_level"), 0) * 100
+            v = max(0, min(100, round(base / 5.0) * 5 + 5 * d))
+            fmt = "%d%%" % v
+
+            def send(v):
+                self.call_service("media_player.volume_set", {"entity_id": eid, "volume_level": round(v / 100.0, 2)})
+        elif dom == "cover":
+            if a.get("current_position") is None:
+                return
+            base = pend[0] if pend else num(a.get("current_position"), 0)
+            v = max(0, min(100, round(base / 10.0) * 10 + 10 * d))
+            fmt = "%d%%" % v
+
+            def send(v):
+                self.call_service("cover.set_cover_position", {"entity_id": eid, "position": int(v)})
+        elif dom in ("climate", "water_heater"):
+            if a.get("temperature") is None:
+                return
+            step = num(a.get("target_temp_step"), 0.5) or 0.5
+            lo, hi = num(a.get("min_temp"), 5), num(a.get("max_temp"), 35)
+            base = pend[0] if pend else num(a.get("temperature"), 20)
+            v = max(lo, min(hi, round((base + step * d) / step) * step))
+            fmt = "→ %g°" % v
+
+            def send(v):
+                self.call_service(dom + ".set_temperature", {"entity_id": eid, "temperature": v})
+        elif dom in ("input_number", "number"):
+            step = num(a.get("step"), 1) or 1
+            lo, hi = num(a.get("min"), 0), num(a.get("max"), 100)
+            base = pend[0] if pend else num(st.get("state"), lo)
+            v = max(lo, min(hi, round((base + step * d) / step) * step))
+            fmt = "%g" % v
+
+            def send(v):
+                self.call_service(dom + ".set_value", {"entity_id": eid, "value": v})
+        else:
+            return
+        if pend and pend[1] is not None:
+            self.root.after_cancel(pend[1])
+
+        def fire():
+            p_ = self._wheel.pop(eid, None)
+            if p_ is not None:
+                send(p_[0])
+        self._wheel[eid] = [v, self.root.after(WHEEL_DELAY_MS, fire)]
+        item.show_pending(fmt)
+
+    # ---------------- arret programme (minuterie locale)
+    def start_timer(self, eid, minutes):
+        self.timers[eid] = time.time() + minutes * 60
+        self.refresh_badges()
+
+    def cancel_timer(self, eid):
+        self.timers.pop(eid, None)
+        self.refresh_badges()
+
+    def timer_left(self, eid):
+        end = self.timers.get(eid)
+        return None if end is None else max(0.0, end - time.time())
+
+    def check_timers(self):
+        now = time.time()
+        for eid, end in list(self.timers.items()):
+            if now >= end:
+                del self.timers[eid]
+                members = next((item_members(it) for it in self.cfg.get("items", [])
+                                if it.get("entity_id") == eid and it.get("group")), [eid])
+                if len(members) > 1:
+                    self.call_service("homeassistant.turn_off", {"entity_id": members})
+                else:
+                    self.call_service("%s.turn_off" % eid.split(".", 1)[0], {"entity_id": eid})
+                self.notify("Arrêt programmé", "%s : éteint." % self.friendly(eid))
+        self.refresh_badges()
+
+    def refresh_badges(self):
+        for it in self.items:
+            try:
+                it.set_badge(it.badge_for(self.last_states.get(it.entity_id)))
+            except tk.TclError:
+                pass
+
+    # ---------------- raccourcis clavier globaux
+    def register_hotkeys(self):
+        if self.tray is None:
+            return
+        self.tray.clear_hotkeys()
+        self.hotkey_map, self.hotkey_errors = {}, []
+        for i, it in enumerate(self.cfg.get("items", [])):
+            hk = parse_hotkey(it.get("hotkey"))
+            if not hk:
+                continue
+            hid = i + 1
+            if self.tray.register_hotkey(hid, *hk):
+                self.hotkey_map[hid] = it
+            else:
+                self.hotkey_errors.append(it.get("hotkey"))
+
+    def on_hotkey(self, hid):
+        it = self.hotkey_map.get(hid)
+        if it is None:
+            return
+        if not self.click_item(it):
+            item = next((x for x in self.items if x.cfg is it), None)
+            if item is not None:
+                self.open_card(item)
+
+    # ---------------- notifications Windows
+    def friendly(self, eid):
+        st = self.last_states.get(eid) or {}
+        return st.get("attributes", {}).get("friendly_name") or eid
+
+    def notify(self, title, text, warning=False):
+        if self.tray is not None:
+            try:
+                self.tray.notify(title, text, warning)
+            except Exception:
+                pass
+
+    def check_notifications(self, old, new):
+        for rule in self.cfg.get("notifications", []) or []:
+            eid = rule.get("entity_id")
+            if not eid or rule.get("enabled") is False:
+                continue
+            a, b = old.get(eid), new.get(eid)
+            if not a or not b:
+                continue
+            sa, sb = a.get("state"), b.get("state")
+            if sa == sb or sb in ("unavailable", "unknown") or sa in ("unavailable", "unknown"):
+                continue
+            want = (rule.get("to") or "").strip()
+            if want and want not in (sb, STATE_TEXT.get(sb)):
+                continue
+            at = b.get("attributes", {})
+            name = at.get("friendly_name") or eid
+            state = ("%s %s" % (STATE_TEXT.get(sb, sb), at.get("unit_of_measurement", ""))).strip()
+            text = (rule.get("message") or "").strip() or "{name} : {state}"
+            try:
+                text = text.format(name=name, state=state, old=STATE_TEXT.get(sa, sa))
+            except (KeyError, IndexError, ValueError):
+                pass
+            self.notify("Home Assistant", text)
 
     def item_at(self, x_root, y_root=None):
         for z in self.zones:
@@ -733,7 +1063,15 @@ class App:
         threading.Thread(target=run, daemon=True).start()
 
     # ---------------- boucle UI
+    def set_tray_tip(self):
+        if self.tray is not None:
+            tip = "HA Taskbar %s" % __version__
+            if self.offline:
+                tip += " — Home Assistant hors ligne"
+            self.tray.set_tip(tip)
+
     def _show_status(self):
+        self.status.configure(text="● HA hors ligne" if self.offline else "● HA")
         if not self.status.winfo_ismapped():
             others = [w for w in self.main_zone.container.winfo_children() if w is not self.status]
             if others:
@@ -747,15 +1085,35 @@ class App:
                 kind, payload = self.q.get_nowait()
                 if kind == "states":
                     self.last_error = None
+                    was_offline = self.offline
+                    self.offline, self.fail_count, self.last_ok = False, 0, time.time()
+                    if self.prev_states:
+                        self.check_notifications(self.prev_states, payload)
+                    self.prev_states = payload
                     self.last_states = payload
                     if self.status.winfo_ismapped():
                         self.status.pack_forget()
                     for it in self.items:
-                        it.update(payload.get(it.entity_id))
+                        if was_offline:
+                            it.shown = None
+                        it.refresh_from(payload)
                     if self.card is not None:
                         self.card.refresh()
+                    if was_offline:
+                        self.set_tray_tip()
+                        if self.cfg.get("notify_offline", True):
+                            self.notify("Home Assistant", "Connexion rétablie.")
                 elif kind == "error":
                     self.last_error = payload
+                    self.fail_count += 1
+                    if not self.offline and self.fail_count >= OFFLINE_AFTER:
+                        self.offline = True
+                        for it in self.items:
+                            it.shown = None
+                            it.refresh_from(self.last_states)
+                        self.set_tray_tip()
+                        if self.cfg.get("notify_offline", True) and self.last_ok:
+                            self.notify("Home Assistant ne répond plus", payload[:200], warning=True)
                     self._show_status()
                 else:
                     self.on_update_msg(kind, payload)
@@ -763,6 +1121,10 @@ class App:
             pass
         # Theme clair / sombre de Windows : verifie toutes les ~2 s, bascule a la volee
         self._theme_tick = getattr(self, "_theme_tick", 0) + 1
+        if self._theme_tick % 25 == 0:          # ~10 s : minuteries, plages horaires d'affichage
+            self.check_timers()
+            if self.visibility_sig(self.cfg) != self._vis_sig:
+                self.apply_config(self.cfg)
         if self._theme_tick % 5 == 0 and system_light() != self.sys_light:
             self.apply_config(self.cfg)
             if self.card is not None:
@@ -818,6 +1180,20 @@ class App:
         m = tk.Menu(self.root, tearoff=0)
         if self.last_error:
             m.add_command(label="Erreur : " + self.last_error[:80], state="disabled")
+            if self.last_ok:
+                m.add_command(label="Dernière réponse de HA à %s" % time.strftime(
+                    "%H:%M:%S", time.localtime(self.last_ok)), state="disabled")
+            m.add_command(label="Réessayer maintenant", command=self.wake.set)
+            m.add_separator()
+        for hk in self.hotkey_errors:
+            m.add_command(label="Raccourci déjà pris par une autre application : %s" % hk, state="disabled")
+        if self.hotkey_errors:
+            m.add_separator()
+        if self.timers:
+            for eid in list(self.timers):
+                m.add_command(label="⏲  Annuler l'arrêt de %s (dans %d min)" % (
+                    self.friendly(eid), max(1, round(self.timer_left(eid) / 60.0))),
+                    command=lambda e=eid: self.cancel_timer(e))
             m.add_separator()
         if self.update_info:
             m.add_command(label="⬆  Mettre à jour vers la version %s…" % self.update_info["version"],

@@ -53,11 +53,16 @@ user32.RegisterWindowMessageW.restype = ctypes.c_uint
 user32.RegisterWindowMessageW.argtypes = [wintypes.LPCWSTR]
 user32.GetCursorPos.argtypes = [ctypes.POINTER(wintypes.POINT)]
 shell32.Shell_NotifyIconW.argtypes = [wintypes.DWORD, ctypes.POINTER(NOTIFYICONDATAW)]
+user32.RegisterHotKey.argtypes = [wintypes.HWND, ctypes.c_int, ctypes.c_uint, ctypes.c_uint]
+user32.UnregisterHotKey.argtypes = [wintypes.HWND, ctypes.c_int]
 kernel32.GetModuleHandleW.restype = wintypes.HMODULE
 kernel32.GetModuleHandleW.argtypes = [wintypes.LPCWSTR]
 
 NIM_ADD, NIM_MODIFY, NIM_DELETE, NIM_SETVERSION = 0, 1, 2, 4
-NIF_MESSAGE, NIF_ICON, NIF_TIP, NIF_SHOWTIP = 0x1, 0x2, 0x4, 0x80
+NIF_MESSAGE, NIF_ICON, NIF_TIP, NIF_INFO, NIF_SHOWTIP = 0x1, 0x2, 0x4, 0x10, 0x80
+NIIF_INFO, NIIF_WARNING, NIIF_USER, NIIF_LARGE_ICON = 0x1, 0x2, 0x4, 0x20
+WM_HOTKEY = 0x0312
+MOD_NOREPEAT = 0x4000
 NOTIFYICON_VERSION_4 = 4
 WM_APP = 0x8000
 WM_CONTEXTMENU, WM_LBUTTONUP, WM_RBUTTONUP = 0x007B, 0x0202, 0x0205
@@ -77,8 +82,9 @@ def cursor_pos():
 class TrayIcon:
     """on_left() : clic gauche ; on_menu(x, y) : clic droit (position du curseur, en pixels physiques)."""
 
-    def __init__(self, icon_path, tip, on_left, on_menu):
-        self.on_left, self.on_menu = on_left, on_menu
+    def __init__(self, icon_path, tip, on_left, on_menu, on_hotkey=None):
+        self.on_left, self.on_menu, self.on_hotkey = on_left, on_menu, on_hotkey
+        self.hotkeys = set()
         self.tip = tip
         self.added = False
         self.taskbar_created = 0   # des messages arrivent pendant CreateWindowExW
@@ -124,7 +130,34 @@ class TrayIcon:
             d = self._data()
             shell32.Shell_NotifyIconW(NIM_MODIFY, ctypes.byref(d))
 
+    def notify(self, title, text, warning=False):
+        """Notification Windows (bulle / centre de notifications) au nom de HA Taskbar."""
+        if not self.added:
+            return False
+        d = self._data()
+        d.uFlags |= NIF_INFO
+        d.szInfoTitle = (title or "")[:63]
+        d.szInfo = (text or " ")[:255]
+        d.dwInfoFlags = NIIF_WARNING if warning else (NIIF_USER | NIIF_LARGE_ICON if self.hicon else NIIF_INFO)
+        d.hBalloonIcon = self.hicon
+        return bool(shell32.Shell_NotifyIconW(NIM_MODIFY, ctypes.byref(d)))
+
+    # ---------------- raccourcis clavier globaux (WM_HOTKEY recu par la fenetre cachee)
+    def register_hotkey(self, hid, mods, vk):
+        if not self.hwnd:
+            return False
+        ok = bool(user32.RegisterHotKey(self.hwnd, hid, mods | MOD_NOREPEAT, vk))
+        if ok:
+            self.hotkeys.add(hid)
+        return ok
+
+    def clear_hotkeys(self):
+        for hid in list(self.hotkeys):
+            user32.UnregisterHotKey(self.hwnd, hid)
+        self.hotkeys.clear()
+
     def remove(self):
+        self.clear_hotkeys()
         if self.added:
             d = self._data()
             shell32.Shell_NotifyIconW(NIM_DELETE, ctypes.byref(d))
@@ -144,6 +177,13 @@ class TrayIcon:
                     self.on_left()
                 elif event == WM_CONTEXTMENU:
                     self.on_menu(*cursor_pos())
+            except Exception:
+                pass
+            return 0
+        if msg == WM_HOTKEY:
+            try:
+                if self.on_hotkey:
+                    self.on_hotkey(int(wparam))
             except Exception:
                 pass
             return 0
