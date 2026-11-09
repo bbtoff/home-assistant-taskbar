@@ -124,14 +124,15 @@ Le programme d'installation remplace l'ancienne version et garde tes réglages. 
 
 1. [Prérequis](#-prérequis)
 2. [Installation](#-installation)
-3. [Premier lancement](#-premier-lancement)
-4. [Utilisation au quotidien](#-utilisation-au-quotidien)
-5. [Les réglages en détail](#-les-réglages-en-détail)
-6. [Fichier de configuration](#-fichier-de-configuration)
-7. [Comment ça marche](#-comment-ça-marche)
-8. [Structure du projet](#-structure-du-projet)
-9. [Limites connues](#-limites-connues)
-10. [Dépannage](#-dépannage)
+3. [Sécurité et confidentialité](#-sécurité-et-confidentialité)
+4. [Premier lancement](#-premier-lancement)
+5. [Utilisation au quotidien](#-utilisation-au-quotidien)
+6. [Les réglages en détail](#-les-réglages-en-détail)
+7. [Fichier de configuration](#-fichier-de-configuration)
+8. [Comment ça marche](#-comment-ça-marche)
+9. [Structure du projet](#-structure-du-projet)
+10. [Limites connues](#-limites-connues)
+11. [Dépannage](#-dépannage)
 
 ---
 
@@ -162,7 +163,7 @@ Une fois installé, HA Taskbar apparaît dans le menu Démarrer et se désinstal
 
 Pour une mise à jour, lance simplement le nouveau programme d'installation : il ferme HA Taskbar, remplace les fichiers et garde tes réglages.
 
-> Le programme n'est pas signé numériquement : au premier lancement, Windows SmartScreen peut afficher « Windows a protégé votre PC ». Clique sur **Informations complémentaires**, puis **Exécuter quand même**.
+> Le programme n'est pas signé numériquement : au premier lancement, Windows SmartScreen peut afficher « Windows a protégé votre PC ». Clique sur **Informations complémentaires**, puis **Exécuter quand même**. Pour vérifier le fichier avant, voir [Sécurité et confidentialité](#-sécurité-et-confidentialité).
 
 ### Depuis les sources
 
@@ -196,6 +197,48 @@ Quand une nouvelle version est publiée sur la page [Releases](https://github.co
 À tout moment : clic droit → **Rechercher une mise à jour**, ou **Réglages → Connexion → Rechercher maintenant**. La recherche automatique se désactive dans ce même onglet.
 
 La recherche interroge l'API publique de GitHub, sans compte ni jeton, et n'envoie aucune information sur toi ou ta maison. Depuis les sources (`python ha_taskbar.py`), la fenêtre propose seulement d'ouvrir la page de la version.
+
+---
+
+## 🔒 Sécurité et confidentialité
+
+HA Taskbar est un projet personnel, au code entièrement ouvert. Voici exactement ce qu'il fait, pour que tu puisses l'installer en connaissance de cause.
+
+### Ce qui sort de ton PC
+
+| Destination | Pourquoi | Ce qui est envoyé |
+|---|---|---|
+| **Ton Home Assistant**, à l'adresse saisie dans les réglages | Lire les états et l'historique, envoyer les commandes que tu déclenches | Ton jeton d'accès, les commandes |
+| **api.github.com** et **github.com** | Rechercher et télécharger les mises à jour (désactivable dans **Réglages → Connexion**) | Rien d'autre que le numéro de version d'HA Taskbar |
+
+C'est tout : **pas de télémétrie**, pas de statistiques, pas de publicité, pas de compte à créer. Le lien **Ouvrir dans Home Assistant** d'une carte ouvre simplement ton navigateur.
+
+### Le jeton d'accès
+
+- Il est enregistré **en clair** dans `config.json` : `%APPDATA%\HATaskbar\` pour la version installée, à côté du script depuis les sources. Comme beaucoup de réglages d'applications, il est donc lisible par les programmes qui tournent sous ton compte Windows.
+- Crée un **jeton dédié** nommé « HA Taskbar » : en cas de doute, tu le supprimes dans Home Assistant (**profil → Sécurité**) sans toucher à tes autres accès.
+- La désinstallation propose d'effacer les réglages, jeton compris.
+- Laisse **Vérifier le certificat HTTPS** coché (**Réglages → Connexion**). Décoche-le seulement pour un Home Assistant en HTTPS avec un certificat auto-signé, sur ton réseau local.
+
+### Ce qui est modifié sur ton PC
+
+- Le dossier du programme : `%LOCALAPPDATA%\Programs\HA Taskbar`
+- Le dossier des réglages : `%APPDATA%\HATaskbar`
+- Une seule valeur du registre, `HATaskbar` dans `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, si le lancement au démarrage est coché
+
+Aucun droit administrateur, aucun service, aucun pilote. Les mises à jour automatiques n'installent que le programme d'installation publié dans les [Releases](https://github.com/bbtoff/home-assistant-taskbar/releases) de ce dépôt, après avoir vérifié sa taille et son empreinte SHA-256.
+
+### Vérifier le programme d'installation
+
+1. **Empreinte SHA-256** : elle est indiquée dans les notes de chaque version, et à côté du fichier sur la page Releases. Pour la comparer, dans PowerShell :
+   ```powershell
+   Get-FileHash .\HATaskbar-Setup-1.7.0.exe
+   ```
+   Majuscules ou minuscules, peu importe : les 64 caractères doivent être identiques.
+2. **Analyse VirusTotal** : chaque version donne le lien de son rapport. Les programmes construits avec PyInstaller sont parfois signalés à tort par quelques antivirus peu connus (souvent 1 à 5 sur plus de 70) : c'est un faux positif connu, dû au lanceur que PyInstaller ajoute à tous les programmes Python.
+3. **Sans faire confiance au fichier .exe** : tu peux [lancer HA Taskbar depuis les sources](#depuis-les-sources), ou [construire toi-même le programme d'installation](#construire-le-programme-dinstallation) avec `build.ps1`.
+
+Pour signaler un problème de sécurité, voir [SECURITY.md](SECURITY.md).
 
 ---
 
@@ -475,6 +518,7 @@ Windows 11 ne permet plus d'ajouter des « deskbands » (barres d'outils) à la 
 | [`update_ui.py`](update_ui.py) | Fenêtre de mise à jour : nouveautés, téléchargement vérifié, installation |
 | `config.example.json` | Exemple de configuration |
 | `config.json` | Ta configuration (créée automatiquement, ignorée par git) |
+| [`SECURITY.md`](SECURITY.md) | Signaler une faille de sécurité |
 | [`build.ps1`](build.ps1) | Construit l'exe (PyInstaller) puis le programme d'installation (Inno Setup) |
 | [`installer/ha_taskbar.iss`](installer/ha_taskbar.iss) | Script Inno Setup : raccourcis, démarrage auto, désinstallation |
 | [`assets/`](assets/) | Icône du programme |

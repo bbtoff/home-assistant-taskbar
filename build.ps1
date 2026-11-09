@@ -54,3 +54,4 @@ if ($LASTEXITCODE) { throw "Inno Setup a echoue" }
 
 $setup = "$here\dist\HATaskbar-Setup-$version.exe"
 Write-Host "== OK : $setup ($([math]::Round((Get-Item $setup).Length / 1MB, 1)) Mo)"
+Write-Host "== SHA-256 : $((Get-FileHash $setup -Algorithm SHA256).Hash.ToLower())"
