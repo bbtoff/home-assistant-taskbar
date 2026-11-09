@@ -235,7 +235,7 @@ Aucun droit administrateur, aucun service, aucun pilote. Les mises à jour autom
    Get-FileHash .\HATaskbar-Setup-1.7.0.exe
    ```
    Majuscules ou minuscules, peu importe : les 64 caractères doivent être identiques.
-2. **Analyse VirusTotal** : chaque version donne le lien de son rapport. Les programmes construits avec PyInstaller sont parfois signalés à tort par quelques antivirus peu connus (souvent 1 à 5 sur plus de 70) : c'est un faux positif connu, dû au lanceur que PyInstaller ajoute à tous les programmes Python.
+2. **Analyse VirusTotal** : chaque version donne le lien de son rapport (par exemple [celui de la 1.7.0](https://www.virustotal.com/gui/file/fc9aa967ec70136170b0f20e3b1fb22be36b73e6a594a49a870e022d4e8a6001)). Les programmes construits avec PyInstaller sont parfois signalés à tort par quelques antivirus peu connus (souvent 1 à 5 sur plus de 70) : c'est un faux positif connu, dû au lanceur que PyInstaller ajoute à tous les programmes Python.
 3. **Sans faire confiance au fichier .exe** : tu peux [lancer HA Taskbar depuis les sources](#depuis-les-sources), ou [construire toi-même le programme d'installation](#construire-le-programme-dinstallation) avec `build.ps1`.
 
 Pour signaler un problème de sécurité, voir [SECURITY.md](SECURITY.md).
