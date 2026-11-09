@@ -32,10 +32,38 @@ if (-not (Test-Path "$venv\Scripts\python.exe")) {
 if ($LASTEXITCODE) { throw "installation de PyInstaller impossible" }
 
 # --- 2. executable
+# Informations d'identite de l'exe (Proprietes > Details) : un exe sans editeur ni
+# description parait plus suspect aux antivirus qui jugent "a l'allure".
+$nums = @(($version -split '[^0-9]+' | Where-Object { $_ -ne '' } | Select-Object -First 4) | ForEach-Object { [int]$_ })
+while ($nums.Count -lt 4) { $nums += 0 }
+$vtuple = $nums -join ", "
+$vfile = "$BuildRoot\version_info.txt"
+$year = (Get-Date).Year
+@"
+VSVersionInfo(
+  ffi=FixedFileInfo(filevers=($vtuple), prodvers=($vtuple), mask=0x3f, flags=0x0, OS=0x40004,
+                    fileType=0x1, subtype=0x0, date=(0, 0)),
+  kids=[
+    StringFileInfo([StringTable('040C04B0', [
+      StringStruct('CompanyName', 'bbtoff'),
+      StringStruct('FileDescription', 'HA Taskbar - Home Assistant dans la barre des taches'),
+      StringStruct('FileVersion', '$version'),
+      StringStruct('InternalName', 'HATaskbar'),
+      StringStruct('LegalCopyright', 'Copyright (c) $year bbtoff'),
+      StringStruct('OriginalFilename', 'HATaskbar.exe'),
+      StringStruct('ProductName', 'HA Taskbar'),
+      StringStruct('ProductVersion', '$version'),
+      StringStruct('Comments', 'https://github.com/bbtoff/home-assistant-taskbar')])]),
+    VarFileInfo([VarStruct('Translation', [0x040C, 1200])])
+  ]
+)
+"@ | Set-Content -Path $vfile -Encoding ASCII
+
 Write-Host "== PyInstaller"
 & "$venv\Scripts\pyinstaller.exe" --noconfirm --clean --log-level WARN `
     --name HATaskbar --windowed --onedir `
     --icon "$here\assets\ha_taskbar.ico" `
+    --version-file "$vfile" `
     --add-data "$here\assets\ha_taskbar.ico;assets" `
     --add-data "$here\sv_ttk;sv_ttk" `
     --hidden-import settings_ui --hidden-import card_ui --hidden-import update_ui --hidden-import ui_theme --hidden-import tray --hidden-import screens `

@@ -15,6 +15,15 @@ AppVersion={#AppVersion}
 AppVerName=HA Taskbar {#AppVersion}
 AppPublisher=bbtoff
 AppPublisherURL=https://github.com/bbtoff/home-assistant-taskbar
+AppSupportURL=https://github.com/bbtoff/home-assistant-taskbar/issues
+AppUpdatesURL=https://github.com/bbtoff/home-assistant-taskbar/releases
+AppCopyright=Copyright (c) {#GetDateTimeString('yyyy', '', '')} bbtoff
+; Informations d'identite du programme d'installation (Proprietes > Details)
+VersionInfoVersion={#AppVersion}
+VersionInfoCompany=bbtoff
+VersionInfoDescription=Programme d'installation de HA Taskbar
+VersionInfoProductName=HA Taskbar
+VersionInfoProductVersion={#AppVersion}
 ; Installation pour l'utilisateur courant : pas de droits administrateur
 ; ({autopf} = %LOCALAPPDATA%\Programs)
 PrivilegesRequired=lowest
