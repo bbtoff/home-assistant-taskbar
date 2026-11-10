@@ -165,6 +165,20 @@ Pour une mise à jour, lance simplement le nouveau programme d'installation : il
 
 > Le programme n'est pas signé numériquement : au premier lancement, Windows SmartScreen peut afficher « Windows a protégé votre PC ». Clique sur **Informations complémentaires**, puis **Exécuter quand même**. Pour vérifier le fichier avant, voir [Sécurité et confidentialité](#-sécurité-et-confidentialité).
 
+### Version portable (sans installation)
+
+Pour essayer HA Taskbar sans rien installer :
+
+1. Télécharge `HATaskbar-Portable-<version>.zip` depuis la page [**Releases**](https://github.com/bbtoff/home-assistant-taskbar/releases).
+2. Décompresse-le dans un dossier où tu peux écrire : Documents, Bureau, clé USB… (pas dans `Program Files`).
+3. Lance `HATaskbar.exe` dans le dossier `HA Taskbar`.
+
+Tes réglages, jeton compris, restent dans ce dossier (`config.json`) : rien n'est écrit dans `%APPDATA%`, ni dans le registre, sauf si tu coches **Lancer au démarrage de Windows**. Pour tout supprimer, décoche cette case si besoin, quitte HA Taskbar et supprime le dossier. C'est le fichier `portable.txt` qui active ce mode : ne le supprime pas.
+
+La version portable signale les nouvelles versions, mais ne se met pas à jour toute seule : télécharge le nouveau `.zip` et remplace le contenu du dossier en gardant ton `config.json`.
+
+Comme pour le programme d'installation, Windows SmartScreen peut afficher un avertissement au premier lancement.
+
 ### Depuis les sources
 
 ```powershell
@@ -182,7 +196,7 @@ winget install -e --id JRSoftware.InnoSetup --scope user   # une seule fois
 powershell -ExecutionPolicy Bypass -File build.ps1
 ```
 
-`build.ps1` installe PyInstaller dans un environnement virtuel dédié (`%LOCALAPPDATA%\HATaskbar-build`) et crée `HATaskbar.exe`. Il le passe ensuite à Inno Setup, qui produit `dist\HATaskbar-Setup-<version>.exe`. Le numéro de version vient de `__version__` dans [`ha_core.py`](ha_core.py).
+`build.ps1` installe PyInstaller dans un environnement virtuel dédié (`%LOCALAPPDATA%\HATaskbar-build`) et crée `HATaskbar.exe`. Il en fait la version portable `dist\HATaskbar-Portable-<version>.zip`, puis le passe à Inno Setup, qui produit `dist\HATaskbar-Setup-<version>.exe`. Il affiche à la fin l'empreinte SHA-256 des deux fichiers. Le numéro de version vient de `__version__` dans [`ha_core.py`](ha_core.py).
 
 ### 🔄 Mises à jour
 
@@ -222,9 +236,13 @@ C'est tout : **pas de télémétrie**, pas de statistiques, pas de publicité, p
 
 ### Ce qui est modifié sur ton PC
 
+Avec le programme d'installation :
+
 - Le dossier du programme : `%LOCALAPPDATA%\Programs\HA Taskbar`
 - Le dossier des réglages : `%APPDATA%\HATaskbar`
 - Une seule valeur du registre, `HATaskbar` dans `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, si le lancement au démarrage est coché
+
+Avec la [version portable](#version-portable-sans-installation), seulement son propre dossier, plus la valeur du registre si tu coches le lancement au démarrage.
 
 Aucun droit administrateur, aucun service, aucun pilote. Les mises à jour automatiques n'installent que le programme d'installation publié dans les [Releases](https://github.com/bbtoff/home-assistant-taskbar/releases) de ce dépôt, après avoir vérifié sa taille et son empreinte SHA-256.
 
@@ -236,7 +254,8 @@ Aucun droit administrateur, aucun service, aucun pilote. Les mises à jour autom
    ```
    Majuscules ou minuscules, peu importe : les 64 caractères doivent être identiques.
 2. **Analyse VirusTotal** : chaque version donne le lien de son rapport (par exemple [celui de la 1.7.0](https://www.virustotal.com/gui/file/fc9aa967ec70136170b0f20e3b1fb22be36b73e6a594a49a870e022d4e8a6001)). Les programmes construits avec PyInstaller sont parfois signalés à tort par quelques antivirus peu connus (souvent 1 à 5 sur plus de 70) : c'est un faux positif connu, dû au lanceur que PyInstaller ajoute à tous les programmes Python.
-3. **Sans faire confiance au fichier .exe** : tu peux [lancer HA Taskbar depuis les sources](#depuis-les-sources), ou [construire toi-même le programme d'installation](#construire-le-programme-dinstallation) avec `build.ps1`.
+3. **Sans rien installer** : la [version portable](#version-portable-sans-installation) se supprime avec son dossier.
+4. **Sans faire confiance au fichier .exe** : tu peux [lancer HA Taskbar depuis les sources](#depuis-les-sources), ou [construire toi-même le programme d'installation](#construire-le-programme-dinstallation) avec `build.ps1`.
 
 Pour signaler un problème de sécurité, voir [SECURITY.md](SECURITY.md).
 
@@ -521,6 +540,7 @@ Windows 11 ne permet plus d'ajouter des « deskbands » (barres d'outils) à la 
 | [`SECURITY.md`](SECURITY.md) | Signaler une faille de sécurité |
 | [`build.ps1`](build.ps1) | Construit l'exe (PyInstaller) puis le programme d'installation (Inno Setup) |
 | [`installer/ha_taskbar.iss`](installer/ha_taskbar.iss) | Script Inno Setup : raccourcis, démarrage auto, désinstallation |
+| [`installer/portable.txt`](installer/portable.txt) | Mode d'emploi de la version portable ; sa présence à côté de l'exe active ce mode |
 | [`assets/`](assets/) | Icône du programme |
 | [`tools/make_icon.py`](tools/make_icon.py) | Génère l'icône (`python tools/make_icon.py`) |
 

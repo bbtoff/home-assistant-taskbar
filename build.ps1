@@ -1,7 +1,8 @@
 <#
   Construit le programme d'installation de HA Taskbar :
     1. HATaskbar.exe autonome avec PyInstaller (plus besoin de Python sur le PC cible)
-    2. dist\HATaskbar-Setup-<version>.exe avec Inno Setup
+    2. dist\HATaskbar-Portable-<version>.zip : le meme exe, sans installation
+    3. dist\HATaskbar-Setup-<version>.exe avec Inno Setup
 
   Prerequis (une seule fois) :
     - Python 3.8+          (python.org)
@@ -71,7 +72,20 @@ Write-Host "== PyInstaller"
     "$here\ha_taskbar.py"
 if ($LASTEXITCODE) { throw "PyInstaller a echoue" }
 
-# --- 3. programme d'installation
+# --- 3. version portable : le dossier de l'exe + portable.txt (les reglages restent dans ce dossier)
+Write-Host "== Version portable"
+New-Item -ItemType Directory -Force "$here\dist" | Out-Null
+$stage = "$BuildRoot\portable"
+if (Test-Path $stage) { Remove-Item -Recurse -Force $stage }
+New-Item -ItemType Directory -Force $stage | Out-Null
+Copy-Item -Recurse "$BuildRoot\dist\HATaskbar" "$stage\HA Taskbar"
+Copy-Item "$here\installer\portable.txt" "$stage\HA Taskbar\portable.txt"
+$portable = "$here\dist\HATaskbar-Portable-$version.zip"
+if (Test-Path $portable) { Remove-Item -Force $portable }
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+[System.IO.Compression.ZipFile]::CreateFromDirectory($stage, $portable, [System.IO.Compression.CompressionLevel]::Optimal, $false)
+
+# --- 4. programme d'installation
 $iscc = @("$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe",
           "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
           "$env:ProgramFiles\Inno Setup 6\ISCC.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
@@ -83,3 +97,5 @@ if ($LASTEXITCODE) { throw "Inno Setup a echoue" }
 $setup = "$here\dist\HATaskbar-Setup-$version.exe"
 Write-Host "== OK : $setup ($([math]::Round((Get-Item $setup).Length / 1MB, 1)) Mo)"
 Write-Host "== SHA-256 : $((Get-FileHash $setup -Algorithm SHA256).Hash.ToLower())"
+Write-Host "== OK : $portable ($([math]::Round((Get-Item $portable).Length / 1MB, 1)) Mo)"
+Write-Host "== SHA-256 : $((Get-FileHash $portable -Algorithm SHA256).Hash.ToLower())"

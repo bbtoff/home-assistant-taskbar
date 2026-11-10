@@ -1,0 +1,22 @@
+HA Taskbar - version portable
+=============================
+
+Ce fichier active le mode portable : ne le supprime pas.
+
+- Rien à installer : lance HATaskbar.exe.
+- Tes réglages (config.json, avec ton jeton Home Assistant) sont enregistrés
+  dans ce dossier, et nulle part ailleurs.
+- HA Taskbar n'écrit rien dans le registre, sauf si tu coches
+  « Lancer au démarrage de Windows » dans les réglages.
+
+Place ce dossier dans un endroit où tu peux écrire (Documents, Bureau, clé USB…),
+pas dans « Program Files ».
+
+Mise à jour : quitte HA Taskbar (clic droit > Quitter), télécharge le nouveau
+.zip et remplace le contenu de ce dossier, en gardant ton config.json.
+
+Pour tout supprimer : décoche « Lancer au démarrage de Windows » si tu l'avais
+coché, quitte HA Taskbar, puis supprime ce dossier.
+
+Code source, empreintes SHA-256 et analyses antivirus :
+https://github.com/bbtoff/home-assistant-taskbar

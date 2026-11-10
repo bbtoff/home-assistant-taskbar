@@ -15,13 +15,17 @@ __version__ = "1.7.0"
 HERE = os.path.dirname(os.path.abspath(__file__))
 # Version installee (exe PyInstaller) : la config va dans %APPDATA%\HATaskbar,
 # le dossier du programme n'etant pas fait pour etre modifie.
+# Version portable (fichier "portable.txt" a cote de l'exe) : la config reste dans le dossier
+# du programme, rien n'est ecrit ailleurs.
 # Depuis les sources : config.json a cote du script, comme avant.
 FROZEN = getattr(sys, "frozen", False)
 RESOURCE_DIR = getattr(sys, "_MEIPASS", HERE)
-if FROZEN:
+APP_DIR = os.path.dirname(os.path.abspath(sys.executable)) if FROZEN else HERE
+PORTABLE = FROZEN and os.path.exists(os.path.join(APP_DIR, "portable.txt"))
+if FROZEN and not PORTABLE:
     CONFIG_DIR = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "HATaskbar")
 else:
-    CONFIG_DIR = HERE
+    CONFIG_DIR = APP_DIR
 CONFIG_PATH = os.path.join(CONFIG_DIR, "config.json")
 ICON_PATH = os.path.join(RESOURCE_DIR, "assets", "ha_taskbar.ico")
 PLACEHOLDER_TOKEN = "COLLE_ICI_TON_JETON_LONGUE_DUREE"

@@ -9,7 +9,7 @@ import webbrowser
 from tkinter import ttk
 
 import ui_theme
-from ha_core import FROZEN, __version__, download_update, save_config
+from ha_core import FROZEN, PORTABLE, __version__, download_update, save_config
 
 
 def plain_notes(md):
@@ -59,10 +59,15 @@ class UpdateWindow:
 
         bf = ttk.Frame(f)
         bf.pack(fill="x", pady=(12, 0))
-        if FROZEN and info.get("asset_url"):
+        if FROZEN and not PORTABLE and info.get("asset_url"):
             self.b_install = ttk.Button(bf, text="Installer maintenant", style="Accent.TButton", command=self.install)
             hint = ("Le programme d'installation est téléchargé depuis GitHub et vérifié, puis HA Taskbar "
                     "se ferme, se met à jour et redémarre tout seul. Tes réglages sont conservés.")
+        elif PORTABLE:
+            # Version portable : pas d'installation, on ouvre la page de la version
+            self.b_install = ttk.Button(bf, text="Ouvrir la page de la version", command=self.open_page)
+            hint = ("Tu utilises la version portable : télécharge le nouveau fichier .zip, quitte HA Taskbar "
+                    "puis remplace le contenu de son dossier. Garde ton config.json : il contient tes réglages.")
         else:
             # Lance depuis les sources (ou version sans installateur) : on ouvre la page de la version
             self.b_install = ttk.Button(bf, text="Ouvrir la page de la version", command=self.open_page)
