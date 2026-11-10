@@ -22,6 +22,31 @@ Un **programme d'installation** et une **version portable** (sans installation) 
 
 ---
 
+## ✨ Nouveautés de la version 1.8
+
+**Plus réactif**
+- ⚡ **Temps réel** : HA Taskbar reste connecté à Home Assistant (WebSocket). La barre, la carte et les notifications réagissent en **moins d'une seconde**, et un changement bref ne passe plus inaperçu. En cas de coupure, il revient tout seul à l'interrogation régulière.
+- ⌨️ **Palette de commandes** (`Ctrl+Alt+Espace`) : une barre de recherche au milieu de l'écran, depuis n'importe quelle application. Tape « salon », **Entrée** pour allumer ou éteindre, **← →** ou la molette pour régler, **Tab** pour la carte. **Toutes** les entités de Home Assistant y sont, même celles qui ne sont pas sur la barre.
+- ✋ **Modifier depuis la barre** : clic droit sur un élément → **Modifier cet élément…** ou **Masquer**. **Ctrl + glisser** un élément pour le déplacer ou le changer de zone.
+
+**Plus lisible**
+- 💬 **Infobulle au survol** : nom, valeur, « modifié il y a 12 min » et une **mini-courbe des 6 dernières heures** (ou une frise allumé / éteint).
+- 🎨 **Couleur selon la valeur** : par exemple `> 25 orange ; > 30 rouge ; < 15 bleu` pour une température, ou un CO₂ en rouge au-dessus de 1000 ppm.
+- 🔋 **Icônes qui suivent la valeur** : pile qui se vide, barres du Wi-Fi ou du signal, volume d'un haut-parleur, météo du moment.
+- ✨ Une valeur qui change **brille un instant**.
+- 🤏 **Barre compacte** : seulement les icônes, la valeur dans l'infobulle.
+- 🌦️ **Carte météo** : conditions actuelles et **prévisions sur 5 jours**.
+
+**Plus pratique**
+- 🏠 **Choix des entités par pièce** dans « Ajouter des entités… », avec une colonne Pièce.
+- 🔔 **Notifications de Home Assistant dans Windows** : les notifications persistantes, et celles envoyées par tes automatisations avec l'événement `ha_taskbar_notify`.
+- 🪫 **Résumé des piles faibles** : un seul élément affiche « 3 » piles sous 20 % (ou « OK ») ; sa carte en donne la liste.
+- 🔕 **Plage sans notification** (par exemple de 22:00 à 07:00) et **pause** depuis le clic droit (1 h, 3 h, jusqu'à demain 8 h).
+- 💾 **Export / import** de tous les réglages, **sans le jeton** : pour sauvegarder, changer de PC ou partager.
+- 🔎 **Recherche dans les réglages**, en haut à gauche de la fenêtre.
+
+Les nouvelles options sont dans **Réglages → Confort**, **Réglages → Notifications** et **Éléments → Plus d'options**.
+
 ## ✨ Nouveautés de la version 1.7.1
 
 - 📦 **Version portable** : un simple `.zip` à décompresser, sans installation. Les réglages restent dans son dossier, rien n'est écrit ailleurs sur le PC : le supprimer suffit à tout effacer. Idéal pour essayer HA Taskbar sans rien installer. Voir [Version portable](#version-portable-sans-installation).
@@ -230,7 +255,7 @@ HA Taskbar est un projet personnel, au code entièrement ouvert. Voici exactemen
 
 | Destination | Pourquoi | Ce qui est envoyé |
 |---|---|---|
-| **Ton Home Assistant**, à l'adresse saisie dans les réglages | Lire les états et l'historique, envoyer les commandes que tu déclenches | Ton jeton d'accès, les commandes |
+| **Ton Home Assistant**, à l'adresse saisie dans les réglages | Lire les états, l'historique et les pièces, recevoir les changements en temps réel, envoyer les commandes que tu déclenches | Ton jeton d'accès, les commandes |
 | **api.github.com** et **github.com** | Rechercher et télécharger les mises à jour (désactivable dans **Réglages → Connexion**) | Rien d'autre que le numéro de version d'HA Taskbar |
 
 C'est tout : **pas de télémétrie**, pas de statistiques, pas de publicité, pas de compte à créer. Le lien **Ouvrir dans Home Assistant** d'une carte ouvre simplement ton navigateur.
@@ -297,11 +322,27 @@ Pour lancer HA Taskbar à chaque démarrage, coche **Lancer HA Taskbar au démar
 | **Molette** | Luminosité d'une lumière, vitesse d'un ventilateur, volume d'un lecteur, position d'un volet, consigne d'un thermostat, valeur d'un nombre |
 | **Clic du milieu** (molette) | Ouvre la carte, ou l'action choisie dans **Réglages → Éléments → Plus d'options** |
 | **Raccourci clavier** | L'action du clic, depuis n'importe quelle application (à définir par élément) |
-| **Clic droit** n'importe où | Menu : Réglages…, Rafraîchir, Recharger la config, Quitter |
+| **Survol** | Infobulle : valeur, dernière modification, courbe des 6 dernières heures |
+| **Ctrl + glisser** un élément | Le déplace sur la barre, ou dans l'autre zone |
+| **Clic droit** sur un élément | Le modifier, ouvrir sa carte, le masquer |
+| **Clic droit** n'importe où | Menu : palette de commandes, éléments masqués, suspendre les notifications, Réglages…, Rafraîchir, Quitter |
+| **Ctrl+Alt+Espace** | [Palette de commandes](#️-palette-de-commandes) |
 | **Icône près de l'horloge** | Clic gauche : réglages. Clic droit : le même menu |
 | **● HA hors ligne** en rouge | Home Assistant ne répond pas : les valeurs sont grisées. Clic droit pour voir l'erreur et réessayer, clic gauche pour ouvrir les réglages. |
 
 La barre se masque automatiquement quand une application passe en plein écran (jeu, vidéo).
+
+### ⌨️ Palette de commandes
+
+`Ctrl+Alt+Espace` (modifiable dans **Réglages → Confort**) ouvre une barre de recherche au milieu de l'écran, quelle que soit l'application active. Elle cherche dans **toutes** les entités de Home Assistant, par nom, identifiant ou pièce, sans tenir compte des accents. Les éléments de ta barre et les entités pilotables passent en premier.
+
+| Touche | Effet |
+|---|---|
+| **Entrée** ou clic | Action : allume / éteint, lance la scène… (ouvre la carte pour un capteur ou un thermostat) |
+| **← →** ou molette | Règle : luminosité, vitesse, volume, position, consigne |
+| **Tab** | Ouvre la carte de l'entité |
+| **↑ ↓** | Change de ligne |
+| **Échap** | Ferme (un 2e appui sur le raccourci aussi) |
 
 ### 🧩 Carte de contrôle (appui long)
 
@@ -327,6 +368,8 @@ Un appui long sur un élément ouvre une carte juste au-dessus de la barre des t
 | Ventilateur | Interrupteur, vitesse (curseur, ou boutons 1, 2, 3… s'il a peu de vitesses), modes, sens de rotation, oscillation |
 | Aspirateur | Démarrer / Pause / Base / Localiser, batterie, puissance d'aspiration |
 | Groupe | Un interrupteur par membre (et la luminosité des lumières) |
+| Météo | Température, conditions, humidité, vent et prévisions sur 5 jours |
+| Résumé des piles | Les piles sous le seuil, de la plus vide à la moins vide |
 | Prise, interrupteur, automatisation | Interrupteur |
 | Serrure | Verrouiller / Déverrouiller |
 | Nombre, liste de choix | Curseur ou boutons de choix |
@@ -422,6 +465,8 @@ Une clé absente reprend la valeur du thème par défaut. Après avoir enregistr
   - **Grouper avec** : autres entités commandées par le même bouton
   - **Raccourci clavier** : par exemple `Ctrl+Alt+1`, `Ctrl+Maj+L` ou `F9`. Si une autre application utilise déjà la combinaison, le menu du clic droit le signale.
   - **Affiché de … à …** : plage horaire d'affichage, qui peut passer minuit (22:00 → 07:00)
+  - **Couleur selon la valeur** : règles séparées par `;`, comme `> 25 orange ; > 30 rouge ; < 15 bleu`. Couleurs : rouge, orange, jaune, vert, bleu, violet, rose, gris, ou `#rrggbb`. Quand plusieurs règles conviennent, la plus précise gagne (30 l'emporte sur 25).
+  - **Masquer cet élément de la barre** : il reste dans la liste, pour le réafficher plus tard (aussi depuis le clic droit sur la barre)
 
 Le bouton **Changer…** à côté de l'icône ouvre le choix parmi près de 90 icônes Windows 11. Les **icônes animées** sont en bas, et s'animent dans la fenêtre pour donner un aperçu :
 
@@ -457,9 +502,28 @@ Pour les scènes, boutons et scripts, la barre affiche « Activer », « Appuyer
 
 ### Onglet Notifications
 - **Me prévenir quand Home Assistant ne répond plus** : une notification à la perte de connexion, une autre au retour
+- **Afficher les notifications de Home Assistant** : les notifications persistantes (mise à jour disponible, nouvel appareil…) et celles de tes automatisations. Pour en envoyer une vers le PC, ajoute à une automatisation l'action **Déclencher un événement** :
+  ```yaml
+  action: event
+  event: ha_taskbar_notify
+  event_data:
+    title: Machine à laver
+    message: Le cycle est terminé
+  ```
+  Il faut la connexion temps réel (onglet Confort). Recevoir ces événements demande un jeton créé avec un compte **administrateur**.
+- **Pas de notification de … à …** : plage horaire silencieuse, qui peut passer minuit. Le clic droit sur la barre permet aussi de **suspendre** les notifications (1 h, 3 h, jusqu'à demain 8 h), et le mode **Ne pas déranger** de Windows s'applique.
 - **Notifications d'état** : choisis une entité, éventuellement l'état qui déclenche (`on`, `open`, `off`…), et un message. Dans le message, `{name}` est le nom de l'entité, `{state}` son nouvel état et `{old}` l'état d'avant. **Tester** affiche la notification tout de suite.
 
 Les notifications apparaissent comme celles des autres applications, et dans le centre de notifications de Windows.
+
+### Onglet Confort
+- **Mises à jour instantanées** : connexion permanente à Home Assistant. L'état de la connexion s'affiche dessous. Décoché, HA Taskbar interroge Home Assistant à l'intervalle de l'onglet Connexion.
+- **Palette de commandes** : son raccourci (vide = seulement depuis le menu du clic droit), et un bouton pour l'essayer.
+- **Sur la barre** : barre compacte (icônes seules), infobulle au survol, valeur qui brille quand elle change.
+- **Piles faibles** : le seuil (20 % par défaut), et un bouton qui ajoute le résumé des piles à la barre.
+- **Sauvegarde** : **Exporter…** écrit un fichier avec tous tes réglages, sans le jeton d'accès. **Importer…** les remplace, en gardant ton jeton.
+
+La case **Rechercher un réglage**, en haut à gauche de la fenêtre, trouve une option dans toutes les pages et l'affiche.
 
 Tous les changements sont **prévisualisés en direct** sur la barre. **Appliquer**/**OK** enregistre, **Annuler** revient à l'état précédent.
 
@@ -494,9 +558,13 @@ Format d'un élément :
   "show_from": "22:00",
   "show_to": "07:00",
   "favorites": [{ "name": "Lecture", "brightness_pct": 80, "color_temp_kelvin": 4000 }],
-  "cover_positions": [25, 50, 75]
+  "cover_positions": [25, 50, 75],
+  "thresholds": "> 25 orange ; > 30 rouge",
+  "hidden": false
 }
 ```
+
+L'entité spéciale `"@batteries"` est le résumé des piles faibles.
 
 `middle` (clic du milieu) : `"@card"` (par défaut), `"@direction"`, `"@preset"`, `"@timer30"` (ou un autre nombre de minutes), `"@mute"`, `"none"` ou un service. `badge` : `"direction"`, `"percentage"`, `"battery"` ou le nom d'un attribut. `favorites` (lumières) se remplit avec « + Mémoriser » dans la carte.
 
@@ -504,12 +572,17 @@ Notifications (en dehors de `items`) :
 
 ```json
 "notify_offline": true,
+"ha_notifications": true,
+"quiet_from": "22:00",
+"quiet_to": "07:00",
 "notifications": [
   { "entity_id": "binary_sensor.porte_entree", "to": "on", "message": "{name} vient de s'ouvrir" }
 ]
 ```
 
 Seul `entity_id` est obligatoire. `icon` peut valoir `"auto"` (par défaut), `"none"`, une clé de `ICONS` dans [`ha_core.py`](ha_core.py), ou une icône animée : `"flame_anim"`, `"fan_anim"`, `"bulb_anim"`, `"eq_anim"`, `"drop_anim"`, `"snow_anim"`, `"sun_anim"`, `"wifi_anim"`, `"bell_anim"`, `"washer_anim"`, `"bolt_anim"`, `"battery_anim"`, `"radar_anim"`, `"heater_anim"`, `"speaker_anim"`, `"timer_anim"`, `"rain_anim"`, `"gear_anim"` (liste dans [`anim_icons.py`](anim_icons.py)). `service` peut valoir `"none"` pour désactiver le clic. `zone` vaut `"left"` (par défaut) ou `"right"`.
+
+Options de l'onglet Confort : `"realtime": true`, `"palette_hotkey": "Ctrl+Alt+Space"`, `"compact": false`, `"tooltips": true`, `"flash_changes": true`, `"battery_low": 20`.
 
 L'écran est `monitor` : vide pour l'écran principal, sinon son nom Windows (par exemple `"\\\\.\\DISPLAY2"` dans le fichier JSON).
 
@@ -524,7 +597,7 @@ Windows 11 ne permet plus d'ajouter des « deskbands » (barres d'outils) à la 
 1. Une **petite fenêtre sans bordure** par zone (gauche et droite), « toujours au premier plan », est posée **par-dessus** la barre des tâches. Elle reprend exactement sa hauteur et sa position, grâce à l'API Win32 `FindWindow("Shell_TrayWnd")`.
 2. La barre des tâches repasse devant à chaque clic. La fenêtre se remet donc au premier plan **dès qu'une fenêtre devient active** (hook `EVENT_SYSTEM_FOREGROUND`), et en plus toutes les 0,4 s.
 3. La fenêtre est de type « outil » et « non activable » : elle n'apparaît ni dans Alt+Tab ni dans la barre des tâches, et ne vole pas le focus.
-4. Un **thread** interroge l'API REST de Home Assistant (`GET /api/states`, une seule requête pour toutes les entités) à intervalle régulier. Les clics appellent `POST /api/services/<domaine>/<service>`. La carte de contrôle lit l'historique avec `GET /api/history/period/…`.
+4. Un **thread** reste connecté à l'**API WebSocket** de Home Assistant (`/api/websocket`) et s'abonne aux changements d'état (`state_changed`), aux notifications persistantes et à l'événement `ha_taskbar_notify`. Le client WebSocket est écrit en Python pur ([`ha_ws.py`](ha_ws.py)) et se reconnecte tout seul. Un second thread lit tous les états d'un coup (`GET /api/states`) : à intervalle régulier sans temps réel, une fois par minute sinon, pour se resynchroniser. Les clics appellent `POST /api/services/<domaine>/<service>`. La carte de contrôle lit l'historique avec `GET /api/history/period/…`, et les prévisions météo avec le service `weather.get_forecasts`.
 5. Pour éviter tout scintillement, un élément n'est redessiné que si sa valeur change, et sa largeur ne rétrécit jamais.
 6. **Fond transparent** : la couleur de fond est déclarée « transparente » (`-transparentcolor`). Windows laisse alors passer les clics à travers les pixels transparents. Une seconde fenêtre presque invisible (opacité 1 %), placée juste sous la barre, récupère ces clics et les transmet au bouton situé sous la souris. Tout le rectangle d'un bouton reste ainsi cliquable.
 
@@ -541,6 +614,9 @@ Windows 11 ne permet plus d'ajouter des « deskbands » (barres d'outils) à la 
 | [`anim_icons.py`](anim_icons.py) | Icônes animées : dessin vectoriel et rendu anticrénelé en Python pur (aucune dépendance) |
 | [`ui_theme.py`](ui_theme.py) | Apparence Windows 11 des fenêtres : thème clair/sombre, menu latéral |
 | [`sv_ttk/`](sv_ttk/) | Thème [Sun Valley](https://github.com/rdbende/Sun-Valley-ttk-theme) de rdbende (licence MIT), fourni tel quel |
+| [`ha_ws.py`](ha_ws.py) | Connexion temps réel : client WebSocket minimal et abonnement aux événements de Home Assistant |
+| [`palette.py`](palette.py) | Palette de commandes (recherche dans toutes les entités) |
+| [`tooltip_ui.py`](tooltip_ui.py) | Infobulle au survol et sa mini-courbe |
 | [`tray.py`](tray.py) | Icône dans la zone de notification (API Windows, sans dépendance) |
 | [`update_ui.py`](update_ui.py) | Fenêtre de mise à jour : nouveautés, téléchargement vérifié, installation |
 | `config.example.json` | Exemple de configuration |
@@ -560,7 +636,8 @@ Windows 11 ne permet plus d'ajouter des « deskbands » (barres d'outils) à la 
 - Avec la barre des tâches en **masquage automatique**, la fenêtre ne suit pas l'animation.
 - En fond transparent, le contour du texte est lissé sur la couleur « Fond ». Garde une couleur proche de ta barre des tâches (`#202020` en thème sombre, ou le thème clair pour une barre claire), sinon un léger liseré peut apparaître.
 - Une mise à jour de Windows peut modifier le comportement de la barre des tâches.
-- Rafraîchissement par interrogation périodique (pas de WebSocket), ce qui suffit pour un affichage à quelques secondes près. Une notification peut donc arriver jusqu'à un intervalle de rafraîchissement après le changement, et un état qui change puis revient entre deux lectures passe inaperçu.
+- Sans la connexion temps réel (désactivée, ou impossible à établir), HA Taskbar interroge Home Assistant à intervalle régulier : une notification peut alors arriver jusqu'à un intervalle après le changement, et un état qui change puis revient entre deux lectures passe inaperçu.
+- La **palette de commandes** ne règle que ce que gère la molette (luminosité, vitesse, volume, position, consigne, nombres). Pour le reste, Tab ouvre la carte.
 - L'**arrêt programmé** est géré par HA Taskbar : si le PC s'éteint ou si l'application est fermée, l'appareil reste allumé. Pour un minuteur fiable, utilise celui de l'appareil quand il en a un (il s'affiche dans « Sur le même appareil »).
 - La **pochette** d'un morceau n'est pas affichée : Tk ne lit pas les images JPEG sans bibliothèque externe.
 

@@ -1,6 +1,7 @@
 # Configuration personnelle : contient le jeton d'acces Home Assistant -> ne JAMAIS publier
 config.json
 config.json.tmp
+config.json.bak
 
 # Python
 __pycache__/

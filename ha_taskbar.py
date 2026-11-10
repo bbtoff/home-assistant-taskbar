@@ -23,10 +23,11 @@ from tkinter import font as tkfont
 
 import anim_icons
 import screens
-from ha_core import (ACTIVE_STATES, ANIM_ICONS, CONFIG_PATH, DEFAULT_CONFIG, ICON_FONTS, ICON_PATH, ICONS, STATE_TEXT,
-                     HomeAssistant, __version__, anim_active, bar_colors, bar_light, group_state, icon_key,
-                     item_members, item_visible, system_light, item_zone, latest_release, load_config, needs_setup,
-                     parse_hotkey, resolve_icon, resolve_service, save_config, update_available)
+from ha_core import (ACTIVE_STATES, ANIM_ICONS, BATTERIES, CONFIG_PATH, DEFAULT_CONFIG, ICON_FONTS, ICON_PATH, ICONS,
+                     STATE_TEXT, WEATHER_TEXT, HomeAssistant, __version__, anim_active, bar_colors, bar_light,
+                     battery_state, group_state, icon_key, in_quiet_hours, item_members, item_visible, system_light,
+                     item_zone, latest_release, load_config, mix_color, needs_setup, parse_hotkey, parse_thresholds,
+                     resolve_icon, resolve_service, save_config, threshold_color, update_available)
 
 # --------------------------------------------------------------------------- Win32
 # DPI : on travaille en pixels physiques pour coller exactement a la barre des taches
@@ -127,6 +128,9 @@ def foreground_is_fullscreen(own_hwnds, taskbar=None):
 LONG_PRESS_MS = 450      # appui long -> carte de controle
 WHEEL_DELAY_MS = 350     # molette : on attend la fin des crans avant d'envoyer la commande
 OFFLINE_AFTER = 2        # nombre d'echecs de suite avant de passer en "hors ligne"
+RT_POLL_S = 60           # connexion temps reel active : simple verification complete chaque minute
+PALETTE_HOTKEY_ID = 900  # identifiant du raccourci de la palette (les elements utilisent 1, 2, 3...)
+AREAS_EVERY_S = 1800     # pieces de Home Assistant relues toutes les 30 min
 
 
 UPDATE_FIRST_MS = 60 * 1000          # 1re recherche de mise a jour 1 min apres le lancement
@@ -154,6 +158,8 @@ class Item:
         self.members = item_members(cfg)
         self.is_group = len(self.members) > 1
         self.hold_until = 0.0        # molette : valeur en attente affichee, on ignore HA un instant
+        self.rules = parse_thresholds(cfg.get("thresholds"))[0]    # couleurs selon la valeur
+        self._flash_job = None
 
         cursor = "hand2"            # tout element ouvre au moins sa carte (appui long)
         fs = int(app.cfg.get("font_size", 9))
@@ -161,7 +167,7 @@ class Item:
         stacked = app.cfg.get("layout", "stacked") == "stacked"
         label = cfg.get("label") or self.entity_id
 
-        self.frame = tk.Frame(parent, bg=c["bg"], cursor=cursor, padx=8)
+        self.frame = tk.Frame(parent, bg=c["bg"], cursor=cursor, padx=6 if app.cfg.get("compact") else 8)
         self.frame.grid_rowconfigure(0, weight=1)      # contenu centre verticalement dans le rectangle
         self.zone = item_zone(cfg)
         self.icon = None
@@ -171,13 +177,16 @@ class Item:
             ifont = tkfont.Font(self.frame, family=app.icon_font, size=fs + (7 if stacked else 3))
             self.icon_px = max(12, ifont.measure(ICONS["flame"][0]))   # taille des icones animees
             self.icon = tk.Label(self.frame, text="", bg=c["bg"], fg=c["fg"], cursor=cursor, font=ifont)
-            self.icon.grid(row=0, column=0, padx=(0, 6))
+            self.icon.grid(row=0, column=0, padx=(0, 0 if app.cfg.get("compact") else 6))
         # petit badge (minuterie, sens de rotation, pourcentage...) en bas a droite de l'icone
         self.badge = tk.Label(self.frame, text="", bg=c["bg"], fg=c["on"], cursor=cursor,
                               font=(font, max(fs - 3, 6), "bold"), padx=0, pady=0, borderwidth=0)
         self.badge_text = ""
         self.txt = tk.Frame(self.frame, bg=c["bg"], cursor=cursor)
-        self.txt.grid(row=0, column=1, sticky="w")
+        # Barre compacte : icone seule (la valeur est dans l'infobulle) ; sans icone, on garde le texte
+        self.compact = bool(app.cfg.get("compact")) and self.icon is not None
+        if not self.compact:
+            self.txt.grid(row=0, column=1, sticky="w")
 
         if stacked:
             self.title = tk.Label(self.txt, text=label, bg=c["bg"], fg=c["dim"],
@@ -198,14 +207,18 @@ class Item:
 
         for w in self.widgets:
             w.bind("<ButtonPress-1>", self.on_press)
-            w.bind("<ButtonRelease-1>", lambda e: app.release())
+            w.bind("<Control-ButtonPress-1>", lambda e: app.drag_start(self))
+            w.bind("<B1-Motion>", app.drag_motion)
+            w.bind("<ButtonRelease-1>", app.release)
             w.bind("<MouseWheel>", self.on_wheel)
             w.bind("<Button-2>", self.on_middle)
-            w.bind("<Button-3>", app.show_menu)
+            w.bind("<Button-3>", lambda e: app.show_menu(e, self))
         self.grow()
 
     def grow(self):
         """Fige la largeur de la zone texte sur la plus grande valeur vue -> pas de redimensionnement."""
+        if self.compact:
+            return
         w = self.txt.winfo_reqwidth()
         if w > self.max_w:
             self.max_w = w
@@ -291,6 +304,14 @@ class Item:
 
     def update(self, st, states=None):
         c = self.app.colors
+        if self.entity_id == BATTERIES:          # resume des piles faibles
+            st = battery_state(states if states is not None else self.app.last_states,
+                               self.app.cfg.get("battery_low", 20))
+            n = len(st["attributes"]["low"])
+            fg = c["dim"] if self.app.offline else (c["error"] if n else c["fg"])
+            self.set_badge("")
+            self.show(resolve_icon(self.cfg, st), "%d" % n if n else "OK", fg, fg)
+            return
         key = icon_key(self.cfg, st)
         anim = key if key in ANIM_ICONS else None
         self.set_badge(self.badge_for(st))
@@ -318,7 +339,7 @@ class Item:
             except (TypeError, ValueError):
                 pass
         elif not attr:
-            text = STATE_TEXT.get(text, text)
+            text = WEATHER_TEXT.get(text, text) if self.domain == "weather" else STATE_TEXT.get(text, text)
 
         if self.domain == "light" and st.get("state") == "on" and attrs.get("brightness") and not attr:
             text = "%d%%" % round(attrs["brightness"] * 100 / 255)
@@ -346,6 +367,10 @@ class Item:
             icon_fg = c["on"]
         else:
             fg = icon_fg = c["fg"]
+        if self.rules and state not in ("unavailable", "unknown") and not self.app.offline:
+            col = threshold_color(self.rules, raw)
+            if col:
+                fg = icon_fg = col
         self.show(resolve_icon(self.cfg, st), text, fg, icon_fg,
                   anim and (anim, anim_active(self.cfg, st) and not self.app.offline))
 
@@ -353,7 +378,11 @@ class Item:
         new = (glyph, text, fg, icon_fg, anim)
         if new == self.shown:          # rien n'a change : on ne touche a rien (evite le scintillement)
             return
+        old = self.shown
         self.shown = new
+        if self._flash_job is not None:
+            self.app.root.after_cancel(self._flash_job)
+            self._flash_job = None
         self.value.configure(text=text, fg=fg)
         if self.icon is not None:
             if anim:
@@ -366,6 +395,27 @@ class Item:
                 self.anim_frames = None
                 self.icon.configure(image="", text=glyph or "", fg=icon_fg)
         self.grow()
+        if old is not None and old[1] != text and self.app.cfg.get("flash_changes", True) and not self.app.offline:
+            self.flash(icon_fg if self.compact else fg)
+
+    def flash(self, fg):
+        """La valeur qui vient de changer brille un instant puis reprend sa couleur."""
+        w = self.icon if self.compact else self.value
+        if w is None or (self.compact and self.anim_frames is not None):
+            return
+        c = self.app.colors
+        start = c["fg"] if str(fg).lower() == str(c["on"]).lower() else c["on"]
+        steps = 14
+
+        def step(i):
+            self._flash_job = None
+            try:
+                w.configure(fg=mix_color(start, fg, (i / float(steps)) ** 1.5))
+            except tk.TclError:
+                return
+            if i < steps:
+                self._flash_job = self.app.root.after(90, lambda: step(i + 1))
+        step(0)
 
     def anim_tick(self, n):
         fr = self.anim_frames
@@ -444,10 +494,12 @@ class Zone:
         self.hit_hwnd = user32.GetAncestor(self.hit.winfo_id(), GA_ROOT)
         tool_window(self.hit_hwnd)
         self.hit.bind("<ButtonPress-1>", lambda e: app._hit_dispatch(e, "on_press"))
-        self.hit.bind("<ButtonRelease-1>", lambda e: app.release())
+        self.hit.bind("<Control-ButtonPress-1>", lambda e: app._hit_drag(e))
+        self.hit.bind("<B1-Motion>", app.drag_motion)
+        self.hit.bind("<ButtonRelease-1>", app.release)
         self.hit.bind("<MouseWheel>", lambda e: app._hit_dispatch(e, "on_wheel"))
         self.hit.bind("<Button-2>", lambda e: app._hit_dispatch(e, "on_middle"))
-        self.hit.bind("<Button-3>", app.show_menu)
+        self.hit.bind("<Button-3>", lambda e: app.show_menu(e, app.item_at(e.x_root, e.y_root)))
         if not self.shown:
             self.hit.withdraw()
         self.geom = None          # force le placement au prochain tick
@@ -521,6 +573,18 @@ class App:
         self._wheel = {}         # molette : entity_id -> [valeur en attente, job after]
         self._vis_sig = None
         self.tray = None
+        self.rt = None           # connexion temps reel (ha_ws.Realtime)
+        self._rt_key = None
+        self.rt_connected = False
+        self.rt_detail = ""
+        self.areas = {}          # entity_id -> piece (Home Assistant)
+        self._areas_at = 0.0
+        self._areas_busy = False
+        self.palette = None      # palette de commandes ouverte
+        self.drag = None         # Ctrl + glisser : element en cours de deplacement
+        self._marker = None
+        self._card_job = None
+        self.notify_paused_until = 0.0
 
         self.root = tk.Tk()
         self.root.withdraw()
@@ -533,6 +597,8 @@ class App:
         self.icon_font = next((f for f in ICON_FONTS if f in families), None)
 
         self.items = []
+        from tooltip_ui import Tooltip
+        self.tip = Tooltip(self)
         # Deux zones : la fenetre principale a gauche, une 2e fenetre a droite. Les fenetres sont
         # affichees (hors ecran) avant d'y mettre quoi que ce soit : creer une Toplevel avant
         # l'affichage de la fenetre principale bloque le positionnement (bizarrerie Tk).
@@ -575,6 +641,9 @@ class App:
             self.tray = None
 
     def quit(self):
+        if self.rt is not None:
+            self.rt.stop()
+            self.rt = None
         if self.tray is not None:
             self.tray.remove()
             self.tray = None
@@ -588,6 +657,10 @@ class App:
         self.light = bar_light(cfg)
         self.colors = bar_colors(cfg, self.light)
         self.ha = HomeAssistant(cfg["ha_url"], cfg["token"], cfg.get("verify_ssl", True))
+        self.start_realtime()
+        self.tip.hide()
+        self.drag = None
+        self._marker = None
 
         zones = {z.side: z for z in self.zones}
         for z in self.zones:
@@ -627,6 +700,209 @@ class App:
         self.hovered = None
         self.register_hotkeys()
         self.wake.set()
+
+    def start_realtime(self):
+        """(Re)lance la connexion temps reel si l'adresse, le jeton ou les options ont change."""
+        cfg = self.cfg
+        key = (cfg.get("ha_url"), cfg.get("token"), cfg.get("verify_ssl", True), bool(cfg.get("realtime", True)),
+               bool(cfg.get("ha_notifications", True)))
+        if key == self._rt_key:
+            return
+        self._rt_key = key
+        if self.rt is not None:
+            self.rt.stop()
+            self.rt = None
+        self.rt_connected, self.rt_detail = False, ""
+        if key[3] and not needs_setup(cfg):
+            from ha_ws import Realtime
+            self.rt = Realtime(key[0], key[1], key[2], self.q, key[4])
+
+    def state_for(self, item):
+        if item.entity_id == BATTERIES:
+            return battery_state(self.last_states, self.cfg.get("battery_low", 20))
+        return self.last_states.get(item.entity_id)
+
+    def on_state(self, eid, new):
+        """Changement d'etat recu en temps reel."""
+        if not self.last_states:
+            return                     # pas encore d'etat complet : la lecture complete arrive
+        old = self.last_states.get(eid)
+        if new is None:
+            self.last_states.pop(eid, None)
+        else:
+            self.last_states[eid] = new
+        if old and new and not self.offline:
+            self.check_notifications({eid: old}, {eid: new})
+        battery = bool(new and new.get("attributes", {}).get("device_class") == "battery")
+        for it in self.items:
+            if eid in it.members or (battery and it.entity_id == BATTERIES):
+                try:
+                    it.refresh_from(self.last_states)
+                except tk.TclError:
+                    pass
+        card = self.card
+        if card is not None and self._card_job is None and (
+                eid == card.eid or eid in card.members or any(e == eid for e, _f in card.extra_updaters)
+                or (battery and card.eid == BATTERIES)):
+            self._card_job = self.root.after(120, self._card_refresh)
+
+    def _card_refresh(self):
+        self._card_job = None
+        if self.card is not None:
+            self.card.refresh()
+
+    def load_areas(self):
+        """Pieces de Home Assistant (palette, choix des entites), lues dans un thread."""
+        if self._areas_busy:
+            return
+        self._areas_busy = True
+        self._areas_at = time.time()
+        ha = self.ha
+
+        def run():
+            try:
+                self.q.put(("areas", ha.areas()))
+            except Exception:
+                self.q.put(("areas", None))
+        threading.Thread(target=run, daemon=True).start()
+
+    # ---------------- modification de la liste des elements depuis la barre
+    def item_index(self, item):
+        return next((i for i, c in enumerate(self.cfg.get("items", [])) if c is item.cfg), None)
+
+    def edit_items(self, fn, select=None):
+        """fn(liste des elements) la modifie en place. Reglages ouverts : on modifie leur copie (apercu
+        en direct, a enregistrer) ; sinon la config est enregistree tout de suite."""
+        sw = self.settings_win
+        if sw is not None and sw.win.winfo_exists():
+            fn(sw.cfg["items"])
+            sw.cur = None
+            sw.refresh_tree()
+            if select is not None:
+                sw.select_item(select)
+            else:
+                sw.load_item_fields()
+            sw.changed()
+            return
+        cfg = copy.deepcopy(self.cfg)
+        fn(cfg["items"])
+        try:
+            save_config(cfg)
+        except OSError as e:
+            self.last_error = "config : %s" % e
+        self.apply_config(cfg)
+
+    def set_hidden(self, i, hidden):
+        def fn(items):
+            if 0 <= i < len(items):
+                if hidden:
+                    items[i]["hidden"] = True
+                else:
+                    items[i].pop("hidden", None)
+        self.edit_items(fn)
+
+    # ---------------- Ctrl + glisser : reordonner, changer de zone
+    def drag_start(self, item):
+        if item not in self.items:
+            return "break"
+        self._cancel_press()
+        self.tip.hide()
+        self.drag = {"item": item}
+        for w in item.widgets:
+            try:
+                w.configure(cursor="fleur")
+            except tk.TclError:
+                pass
+        item.set_bg(self.colors["hover"])
+        return "break"
+
+    def _hit_drag(self, e):
+        it = self.item_at(e.x_root, e.y_root)
+        if it is not None:
+            self.drag_start(it)
+        return "break"
+
+    def drag_target(self):
+        x, y = self.root.winfo_pointerxy()
+        zone = next((z for z in self.zones if z.shown and z.contains(x, y)), None)
+        if zone is None:
+            tb = self.taskbar()
+            if not tb:
+                return None
+            r = get_rect(tb)
+            if not (r.top - 60 <= y <= r.bottom + 20 and r.left <= x <= r.right):
+                return None            # relache loin de la barre : annule
+            side = "left" if x < (r.left + r.right) / 2 else "right"
+            zone = next(z for z in self.zones if z.side == side)
+        idx = len(zone.items)
+        for i, it in enumerate(zone.items):
+            if x < it.frame.winfo_rootx() + it.frame.winfo_width() / 2:
+                idx = i
+                break
+        return zone, idx
+
+    def drag_motion(self, _e=None):
+        if self.drag is None:
+            return
+        t = self.drag_target()
+        m = self._marker
+        if t is None or not t[0].shown or not t[0].items:
+            if m is not None:
+                m.place_forget()
+            return
+        zone, idx = t
+        if m is None or m.master is not zone.container:
+            if m is not None:
+                m.destroy()
+            m = self._marker = tk.Frame(zone.container, bg=self.colors["on"], width=3)
+        x = zone.items[idx].frame.winfo_x() if idx < len(zone.items) else zone.container.winfo_width() - 3
+        m.place(x=max(0, x - 1), y=0, relheight=1.0, width=3)
+        m.lift()
+
+    def drag_end(self):
+        d, self.drag = self.drag, None
+        if self._marker is not None:
+            self._marker.destroy()
+            self._marker = None
+        item = d["item"]
+        if item not in self.items:
+            return
+        for w in item.widgets:
+            try:
+                w.configure(cursor="hand2")
+            except tk.TclError:
+                pass
+        item.set_hover(item is self.hovered)
+        t = self.drag_target()
+        src = self.item_index(item)
+        if t is None or src is None:
+            return
+        zone, idx = t
+        if zone.side == item.zone and item in zone.items and idx in (zone.items.index(item),
+                                                                      zone.items.index(item) + 1):
+            return                      # relache a sa place
+        before = self.item_index(zone.items[idx]) if idx < len(zone.items) else None
+        last = self.item_index(zone.items[-1]) if zone.items else None
+        side = zone.side
+
+        def fn(items):
+            if not 0 <= src < len(items):
+                return
+            if before is not None:
+                pos = before
+            elif last is not None:
+                pos = last + 1
+            else:
+                pos = len(items)
+            moved = items.pop(src)
+            if pos > src:
+                pos -= 1
+            items.insert(pos, moved)
+            if side == "right":
+                moved["zone"] = "right"
+            else:
+                moved.pop("zone", None)
+        self.edit_items(fn)
 
     @staticmethod
     def visibility_sig(cfg):
@@ -825,8 +1101,14 @@ class App:
                 self.hotkey_map[hid] = it
             else:
                 self.hotkey_errors.append(it.get("hotkey"))
+        hk = parse_hotkey(self.cfg.get("palette_hotkey"))
+        if hk and not self.tray.register_hotkey(PALETTE_HOTKEY_ID, *hk):
+            self.hotkey_errors.append("%s (palette de commandes)" % self.cfg.get("palette_hotkey"))
 
     def on_hotkey(self, hid):
+        if hid == PALETTE_HOTKEY_ID:
+            self.open_palette()
+            return
         it = self.hotkey_map.get(hid)
         if it is None:
             return
@@ -835,17 +1117,32 @@ class App:
             if item is not None:
                 self.open_card(item)
 
+    def open_palette(self):
+        if self.palette is not None and self.palette.alive:
+            self.palette.close()          # 2e appui sur le raccourci : referme
+            return
+        from palette import Palette
+        self.close_card()
+        self.tip.hide()
+        self.palette = Palette(self)
+
     # ---------------- notifications Windows
     def friendly(self, eid):
         st = self.last_states.get(eid) or {}
         return st.get("attributes", {}).get("friendly_name") or eid
 
-    def notify(self, title, text, warning=False):
+    def notify(self, title, text, warning=False, force=False):
+        """force : meme pendant une pause ou la plage sans notification (bouton Tester)."""
+        if not force and (time.time() < self.notify_paused_until or in_quiet_hours(self.cfg)):
+            return
         if self.tray is not None:
             try:
                 self.tray.notify(title, text, warning)
             except Exception:
                 pass
+
+    def pause_notifications(self, seconds=None, until=None):
+        self.notify_paused_until = until if until is not None else time.time() + seconds
 
     def check_notifications(self, old, new):
         for rule in self.cfg.get("notifications", []) or []:
@@ -889,11 +1186,15 @@ class App:
 
     # ---------------- appui court / appui long
     def press(self, item):
+        self.tip.hide()
         self._cancel_press()
         self._press_item = item
         self._press_job = self.root.after(LONG_PRESS_MS, self._long_press)
 
-    def release(self):
+    def release(self, _e=None):
+        if self.drag is not None:
+            self.drag_end()
+            return
         item = self._press_item
         if self._press_job is not None:       # relache avant le delai : appui court
             self._cancel_press()
@@ -914,19 +1215,44 @@ class App:
             self.open_card(item)
 
     # ---------------- carte de controle
-    def open_card(self, item):
-        from card_ui import Card
-        self.close_card()
+    def anchor_for(self, item=None):
+        """(centre x, haut de la barre des taches, bords gauche et droit de l'ecran) pour placer une fenetre
+        au-dessus d'un element (ou au milieu de l'ecran)."""
         tb = self.taskbar()
         if not tb:
-            return
+            return None
         r = get_rect(tb)
         mi = MONITORINFO()
         mi.cbSize = ctypes.sizeof(MONITORINFO)
         user32.GetMonitorInfoW(user32.MonitorFromWindow(tb, MONITOR_DEFAULTTONEAREST), ctypes.byref(mi))
         work = mi.rcMonitor
-        cx = item.frame.winfo_rootx() + item.frame.winfo_width() // 2
-        self.card = Card(self, item.cfg, cx, r.top, work.left, work.right)
+        if item is not None:
+            cx = item.frame.winfo_rootx() + item.frame.winfo_width() // 2
+        else:
+            cx = (work.left + work.right) // 2
+        return cx, r.top, work.left, work.right
+
+    def monitor_rect(self):
+        """(gauche, haut, largeur, hauteur) de l'ecran de la barre."""
+        tb = self.taskbar()
+        mi = MONITORINFO()
+        mi.cbSize = ctypes.sizeof(MONITORINFO)
+        if tb and user32.GetMonitorInfoW(user32.MonitorFromWindow(tb, MONITOR_DEFAULTTONEAREST), ctypes.byref(mi)):
+            m = mi.rcMonitor
+            return m.left, m.top, m.right - m.left, m.bottom - m.top
+        return 0, 0, self.root.winfo_screenwidth(), self.root.winfo_screenheight()
+
+    def open_card(self, item):
+        """Carte de controle d'un element de la barre, ou d'une config d'element (palette)."""
+        from card_ui import Card
+        self.close_card()
+        self.tip.hide()
+        is_item = isinstance(item, Item)
+        a = self.anchor_for(item if is_item else None)
+        if a is None:
+            return
+        cx, top, left, right = a
+        self.card = Card(self, item.cfg if is_item else item, cx, top, left, right)
 
     def close_card(self):
         if self.card is not None:
@@ -946,6 +1272,8 @@ class App:
                 if it is not None:
                     it.set_hover(True)
                 self.hovered = it
+                if self.drag is None and not self.menu_open:
+                    self.tip.schedule(it)
         except tk.TclError:
             pass
         self.root.after(50, self.hover_loop)
@@ -1047,6 +1375,8 @@ class App:
                 interval = max(1.0, float(self.cfg.get("poll_interval", 5)))
             except (TypeError, ValueError):
                 interval = 5.0
+            if self.rt_connected:          # temps reel : les changements arrivent tout seuls
+                interval = max(interval, RT_POLL_S)
             self.wake.wait(interval)
             self.wake.clear()
 
@@ -1068,6 +1398,8 @@ class App:
             tip = "HA Taskbar %s" % __version__
             if self.offline:
                 tip += " — Home Assistant hors ligne"
+            elif self.rt_connected:
+                tip += " — temps réel"
             self.tray.set_tip(tip)
 
     def _show_status(self):
@@ -1083,7 +1415,15 @@ class App:
         try:
             while True:
                 kind, payload = self.q.get_nowait()
+                if kind == "rt_state":
+                    self.on_state(*payload)
+                    continue
                 if kind == "states":
+                    # un etat recu en temps reel pendant la lecture complete est plus recent : on le garde
+                    for eid, cur in self.last_states.items():
+                        new = payload.get(eid)
+                        if new is not None and (cur.get("last_updated") or "") > (new.get("last_updated") or ""):
+                            payload[eid] = cur
                     self.last_error = None
                     was_offline = self.offline
                     self.offline, self.fail_count, self.last_ok = False, 0, time.time()
@@ -1103,6 +1443,8 @@ class App:
                         self.set_tray_tip()
                         if self.cfg.get("notify_offline", True):
                             self.notify("Home Assistant", "Connexion rétablie.")
+                    if not self.areas and time.time() - self._areas_at > 60:
+                        self.load_areas()
                 elif kind == "error":
                     self.last_error = payload
                     self.fail_count += 1
@@ -1115,6 +1457,18 @@ class App:
                         if self.cfg.get("notify_offline", True) and self.last_ok:
                             self.notify("Home Assistant ne répond plus", payload[:200], warning=True)
                     self._show_status()
+                elif kind == "rt_status":
+                    self.rt_connected, self.rt_detail = payload
+                    self.wake.set()     # lecture complete tout de suite (resynchronisation ou retour a l'interrogation)
+                    self.set_tray_tip()
+                elif kind == "rt_notify":
+                    if self.cfg.get("ha_notifications", True):
+                        from update_ui import plain_notes
+                        self.notify(payload[0] or "Home Assistant", plain_notes(payload[1])[:250])
+                elif kind == "areas":
+                    self._areas_busy = False
+                    if payload is not None:
+                        self.areas = payload
                 else:
                     self.on_update_msg(kind, payload)
         except queue.Empty:
@@ -1123,6 +1477,8 @@ class App:
         self._theme_tick = getattr(self, "_theme_tick", 0) + 1
         if self._theme_tick % 25 == 0:          # ~10 s : minuteries, plages horaires d'affichage
             self.check_timers()
+            if self.last_ok and time.time() - self._areas_at > AREAS_EVERY_S:
+                self.load_areas()
             if self.visibility_sig(self.cfg) != self._vis_sig:
                 self.apply_config(self.cfg)
         if self._theme_tick % 5 == 0 and system_light() != self.sys_light:
@@ -1172,12 +1528,21 @@ class App:
         self.raise_now()
 
     # ---------------- menu clic droit
-    def show_menu(self, e):
-        self.popup_menu(e.x_root, e.y_root)
+    def show_menu(self, e, item=None):
+        self.popup_menu(e.x_root, e.y_root, item=item)
         return "break"
 
-    def popup_menu(self, x, y, from_tray=False):
+    def popup_menu(self, x, y, from_tray=False, item=None):
+        self.tip.hide()
         m = tk.Menu(self.root, tearoff=0)
+        i = self.item_index(item) if item is not None and item in self.items else None
+        if i is not None:
+            m.add_command(label=(item.cfg.get("label") or item.entity_id)[:50], state="disabled")
+            m.add_command(label="Modifier cet élément…", command=lambda: self.open_settings(select=i))
+            m.add_command(label="Ouvrir la carte", command=lambda: self.open_card(item))
+            m.add_command(label="Masquer de la barre", command=lambda: self.set_hidden(i, True))
+            m.add_command(label="Pour le déplacer : Ctrl + glisser", state="disabled")
+            m.add_separator()
         if self.last_error:
             m.add_command(label="Erreur : " + self.last_error[:80], state="disabled")
             if self.last_ok:
@@ -1199,6 +1564,30 @@ class App:
             m.add_command(label="⬆  Mettre à jour vers la version %s…" % self.update_info["version"],
                           command=self.show_update)
             m.add_separator()
+        hidden = [(n, it) for n, it in enumerate(self.cfg.get("items", [])) if it.get("hidden")]
+        if hidden:
+            sub = tk.Menu(m, tearoff=0)
+            for n, it in hidden:
+                sub.add_command(label=(it.get("label") or it.get("entity_id") or "?")[:50],
+                                command=lambda n=n: self.set_hidden(n, False))
+            m.add_cascade(label="Réafficher un élément masqué", menu=sub)
+        hk = self.cfg.get("palette_hotkey")
+        m.add_command(label="Palette de commandes" + ("   (%s)" % hk if parse_hotkey(hk) else ""),
+                      command=self.open_palette)
+        now = time.time()
+        if self.notify_paused_until > now:
+            m.add_command(label="Reprendre les notifications (suspendues jusqu'à %s)"
+                          % time.strftime("%H:%M", time.localtime(self.notify_paused_until)),
+                          command=lambda: self.pause_notifications(until=0.0))
+        else:
+            sub = tk.Menu(m, tearoff=0)
+            sub.add_command(label="Pendant 1 heure", command=lambda: self.pause_notifications(3600))
+            sub.add_command(label="Pendant 3 heures", command=lambda: self.pause_notifications(3 * 3600))
+            lt = time.localtime(now + 86400)
+            tomorrow = time.mktime((lt.tm_year, lt.tm_mon, lt.tm_mday, 8, 0, 0, 0, 0, -1))
+            sub.add_command(label="Jusqu'à demain 8 h", command=lambda: self.pause_notifications(until=tomorrow))
+            m.add_cascade(label="Suspendre les notifications", menu=sub)
+        m.add_separator()
         m.add_command(label="Réglages…", command=self.open_settings)
         m.add_command(label="Rafraîchir", command=self.wake.set)
         m.add_command(label="Recharger config.json", command=self.reload)
@@ -1220,14 +1609,19 @@ class App:
             self.last_error = "config : %s" % e
             self._show_status()
 
-    def open_settings(self):
-        if self.settings_win is not None and self.settings_win.win.winfo_exists():
-            self.settings_win.win.deiconify()
-            self.settings_win.win.lift()
-            self.settings_win.win.focus_force()
-            return
-        from settings_ui import SettingsWindow
-        self.settings_win = SettingsWindow(self)
+    def open_settings(self, select=None):
+        """Ouvre les reglages ; select = index de l'element a selectionner (onglet Elements)."""
+        sw = self.settings_win
+        if sw is not None and sw.win.winfo_exists():
+            sw.win.deiconify()
+            sw.win.lift()
+            sw.win.focus_force()
+        else:
+            from settings_ui import SettingsWindow
+            sw = self.settings_win = SettingsWindow(self)
+        if select is not None:
+            sw.nb.select(1)
+            sw.select_item(select)
 
 
 def main():

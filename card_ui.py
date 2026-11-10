@@ -12,8 +12,9 @@ import tkinter as tk
 from ctypes import wintypes
 from tkinter import font as tkfont
 
-from ha_core import (ACTIVE_STATES, STATE_TEXT, card_light, card_palette, group_state, item_members, load_config,
-                     parse_time, resolve_icon, resolve_service, save_config)
+from ha_core import (ACTIVE_STATES, BATTERIES, ICONS, STATE_TEXT, WEATHER_ICON, WEATHER_TEXT, battery_state,
+                     card_light, card_palette, group_state, item_members, load_config, parse_time, resolve_icon,
+                     resolve_service, save_config)
 
 user32 = ctypes.windll.user32
 user32.GetAncestor.restype = wintypes.HWND
@@ -68,6 +69,8 @@ VACUUM_TEXT = {"cleaning": "Nettoie", "docked": "Sur sa base", "returning": "Ret
 SIBLING_DOMAINS = ("light", "switch", "fan", "select", "number", "sensor", "binary_sensor", "button",
                    "input_boolean", "cover", "lock", "siren")
 MAX_SIBLINGS = 6
+DAYS = ["lun.", "mar.", "mer.", "jeu.", "ven.", "sam.", "dim."]
+FORECAST_DAYS = 5
 COVER_TEXT = {"open": "Ouvert", "closed": "Fermé", "opening": "Ouverture…", "closing": "Fermeture…"}
 MEDIA_TEXT = {"playing": "Lecture", "paused": "Pause", "idle": "Inactif", "off": "Éteint", "on": "Allumé",
               "standby": "Veille", "buffering": "Chargement…"}
@@ -120,6 +123,8 @@ def fnum(v, dec=None):
         s = "%d" % f
     else:
         s = ("%.2f" % f).rstrip("0").rstrip(".")
+    if s.lstrip("-").strip("0,.") == "":
+        s = s.lstrip("-")              # pas de « -0 »
     return s.replace(".", ",")
 
 
@@ -591,7 +596,8 @@ class Card:
         self._loop()
         if self.want_history:
             threading.Thread(target=self._fetch_history, args=(app.ha, 24), daemon=True).start()
-        if not self.is_group and self.domain not in ("scene", "script", "automation", "person", "zone", "sun"):
+        if not self.is_group and self.domain not in ("scene", "script", "automation", "person", "zone", "sun",
+                                                     "weather") and self.eid != BATTERIES:
             threading.Thread(target=self._fetch_device, args=(app.ha,), daemon=True).start()
         self._tick_1s()
 
@@ -619,6 +625,8 @@ class Card:
         self.ifont = self.app.icon_font or fam
 
     def state(self):
+        if self.eid == BATTERIES:
+            return battery_state(self.app.last_states, self.app.cfg.get("battery_low", 20))
         return self.app.last_states.get(self.eid)
 
     def call(self, service, **data):
@@ -681,6 +689,8 @@ class Card:
             sec = self.section("Membres du groupe")
             for eid in self.members:
                 self._entity_row(sec, eid)
+        elif self.eid == BATTERIES:
+            self._b_batteries()
         else:
             builder = getattr(self, "_b_" + self.domain, None)
             if builder is not None:
@@ -694,7 +704,8 @@ class Card:
         self.dev_sec = tk.Frame(self.body, bg=c["bg"])
         self.dev_sec.pack(fill="x")
 
-        self.want_history = self.domain not in ACTION_DOMAINS and not self.is_group
+        self.want_history = (self.domain not in ACTION_DOMAINS and not self.is_group
+                             and self.domain != "weather" and self.eid != BATTERIES)
         if self.want_history:
             sec = self.section(top=16)
             hrow = tk.Frame(sec, bg=c["bg"])
@@ -901,6 +912,145 @@ class Card:
                 txt = txt[:1].upper() + txt[1:] if isinstance(txt, str) else str(txt)
             big.configure(text=txt)
             unit.configure(text=u)
+        self.updaters.append(upd)
+
+    # -- meteo : conditions actuelles et previsions
+    def _b_weather(self, a):
+        c, s = self.c, self.s
+        sec = self.section(top=12)
+        row = tk.Frame(sec, bg=c["bg"])
+        row.pack(anchor="w")
+        big = tk.Label(row, text="", bg=c["bg"], fg=c["fg"], font=self.f_big)
+        big.pack(side="left")
+        unit = tk.Label(row, text="", bg=c["bg"], fg=c["dim"], font=self.f_title)
+        unit.pack(side="left", anchor="s", pady=(0, s(9)), padx=(s(4), 0))
+        info = tk.Label(sec, text="", bg=c["bg"], fg=c["dim"], font=self.f_text, anchor="w", justify="left")
+        info.pack(anchor="w")
+        self.fc_sec = self.section("Prévisions")
+        self.fc_msg = tk.Label(self.fc_sec, text="Chargement…", bg=c["bg"], fg=c["dim"], font=self.f_small)
+        self.fc_msg.pack(anchor="w")
+
+        def upd(st):
+            at = st.get("attributes", {})
+            t = at.get("temperature")
+            big.configure(text=fnum(t, 1) if t is not None else WEATHER_TEXT.get(st.get("state"), "—"))
+            unit.configure(text=at.get("temperature_unit", "°C") if t is not None else "")
+            parts = [WEATHER_TEXT.get(st.get("state"), st.get("state"))]
+            if at.get("humidity") is not None:
+                parts.append("humidité %s %%" % fnum(at["humidity"]))
+            if at.get("wind_speed") is not None:
+                parts.append("vent %s %s" % (fnum(at["wind_speed"], 0), at.get("wind_speed_unit", "km/h")))
+            info.configure(text=" · ".join(p for p in parts if p))
+        self.updaters.append(upd)
+        if a.get("forecast"):
+            self.root.after(10, lambda: self._build_forecast(a["forecast"]))
+        else:
+            threading.Thread(target=self._fetch_forecast, args=(self.app.ha,), daemon=True).start()
+
+    def _fetch_forecast(self, ha):
+        for kind in ("daily", "twice_daily", "hourly"):
+            try:
+                fc = ha.forecast(self.eid, kind)
+            except Exception:
+                fc = None
+            if fc:
+                self.q.put(("forecast", (kind, fc)))
+                return
+        self.q.put(("forecast", (None, [])))
+
+    def _build_forecast(self, fc, kind="daily"):
+        c, s = self.c, self.s
+        if not self.alive:
+            return
+        try:
+            self.fc_msg.destroy()
+        except tk.TclError:
+            pass
+        if kind == "twice_daily":
+            fc = [f for f in fc if f.get("is_daytime", True)]
+        if not fc:
+            tk.Label(self.fc_sec, text="Pas de prévisions pour cette entité.", bg=c["bg"], fg=c["dim"],
+                     font=self.f_small).pack(anchor="w")
+            return
+        grid = tk.Frame(self.fc_sec, bg=c["bg"])
+        grid.pack(fill="x")
+        today = datetime.date.today()
+        n = min(FORECAST_DAYS, len(fc))
+        for i, f in enumerate(fc[:n]):
+            grid.columnconfigure(i, weight=1, uniform="fc")
+            t = parse_time(f.get("datetime"))
+            if t is None:
+                day = ""
+            elif kind == "hourly":
+                day = t.astimezone().strftime("%H h")
+            else:
+                d = t.astimezone().date()
+                day = "Auj." if d == today else ("Dem." if (d - today).days == 1 else DAYS[d.weekday()])
+            key = WEATHER_ICON.get(f.get("condition"), "cloud")
+            hi, lo = f.get("temperature"), f.get("templow")
+            col = tk.Frame(grid, bg=c["surface"], padx=s(2), pady=s(6))
+            col.grid(row=0, column=i, sticky="nsew", padx=(0 if i == 0 else s(4), 0))
+            tk.Label(col, text=day, bg=c["surface"], fg=c["dim"], font=self.f_small).pack()
+            tk.Label(col, text=ICONS.get(key, ("",))[0], bg=c["surface"], fg=c["accent"],
+                     font=(self.ifont, 15)).pack(pady=(s(3), s(3)))
+            tk.Label(col, text="%s°" % fnum(hi, 0) if hi is not None else "—", bg=c["surface"], fg=c["fg"],
+                     font=self.f_text_b).pack()
+            if lo is not None:
+                tk.Label(col, text="%s°" % fnum(lo, 0), bg=c["surface"], fg=c["dim"], font=self.f_small).pack()
+            pr = f.get("precipitation_probability")
+            if pr is not None:
+                tk.Label(col, text="%d %%" % pr, bg=c["surface"], fg=c["dim"], font=self.f_small).pack()
+        self._place()
+
+    # -- resume des piles faibles
+    def _b_batteries(self):
+        c, s = self.c, self.s
+        thr = self.app.cfg.get("battery_low", 20)
+        self.bat_title = tk.Label(self.body, text="", bg=c["bg"], fg=c["dim"], font=self.f_text, anchor="w")
+        self.bat_title.pack(anchor="w", pady=(s(14), s(4)))
+        self.bat_box = tk.Frame(self.body, bg=c["bg"])
+        self.bat_box.pack(fill="x")
+        self._bat_sig = None
+
+        def upd(st):
+            low = st.get("attributes", {}).get("low") or []
+            rows = low
+            if low:
+                title = "Sous %s %%" % fnum(thr)
+            else:
+                from ha_core import battery_levels
+                rows = sorted([x for x in battery_levels(self.app.last_states) if x[2] is not None],
+                              key=lambda x: x[2])[:5]
+                title = ("Toutes les piles sont au-dessus de %s %%. Les plus basses :" % fnum(thr)) if rows else \
+                    "Aucune pile trouvée dans Home Assistant."
+            sig = (title, tuple((e, v) for e, _n, v in rows[:10]))
+            if sig == self._bat_sig:
+                return
+            self._bat_sig = sig
+            self.bat_title.configure(text=title, wraplength=self.iw)
+            for w in self.bat_box.winfo_children():
+                w.destroy()
+            for eid, name, v in rows[:10]:
+                line = tk.Frame(self.bat_box, bg=c["bg"])
+                line.pack(fill="x", pady=(0, s(6)))
+                head = tk.Frame(line, bg=c["bg"])
+                head.pack(fill="x")
+                tk.Label(head, text=name, bg=c["bg"], fg=c["fg"], font=self.f_text, anchor="w").pack(side="left")
+                binary = eid.startswith("binary_sensor.")
+                tk.Label(head, text="faible" if binary else "%d %%" % v, bg=c["bg"],
+                         fg="#e5534b" if v < float(thr) else c["fg"], font=self.f_text_b).pack(side="right")
+                if not binary:
+                    cv = tk.Canvas(line, width=self.iw, height=s(8), bg=c["bg"], highlightthickness=0)
+                    cv.pack()
+                    y = s(4)
+                    cv.create_line(s(3), y, self.iw - s(3), y, fill=c["track"], width=s(5), capstyle="round")
+                    if v > 0:
+                        cv.create_line(s(3), y, s(3) + (self.iw - s(6)) * min(100, v) / 100.0, y,
+                                       fill=c["accent"] if v >= float(thr) else "#e5534b", width=s(5),
+                                       capstyle="round")
+            if len(low) > 10:
+                tk.Label(self.bat_box, text="… et %d autres" % (len(low) - 10), bg=c["bg"], fg=c["dim"],
+                         font=self.f_small).pack(anchor="w")
         self.updaters.append(upd)
 
     # -- lumiere
@@ -1380,6 +1530,9 @@ class Card:
         if self.is_group:
             _g, on, total = group_state(self.cfg, self.app.last_states)
             return "Groupe · %d allumé%s sur %d" % (on, "s" if on > 1 else "", total)
+        if self.eid == BATTERIES:
+            n = len(a.get("low") or [])
+            return "%d pile%s faible%s" % (n, "s" if n > 1 else "", "s" if n > 1 else "") if n else "Piles chargées"
         if s == "unavailable":
             return "Indisponible"
         if s == "unknown":
@@ -1421,6 +1574,8 @@ class Card:
             return "En cours" if s == "on" else "Script"
         if d in ("button", "input_button"):
             return "Dernier appui " + ago(s) if parse_time(s) else "Bouton"
+        if d == "weather":
+            return WEATHER_TEXT.get(s, "Météo")
         if d in ("sensor", "binary_sensor", "weather", "sun", "person", "device_tracker"):
             return {"binary_sensor": "Détecteur", "weather": "Météo", "sun": "Soleil", "person": "Personne",
                     "device_tracker": "Localisation"}.get(d, "Capteur")
@@ -1598,6 +1753,8 @@ class Card:
                         self.chart.set_data(*data)
                 elif kind == "device":
                     self._build_device(data)
+                elif kind == "forecast":
+                    self._build_forecast(data[1], data[0] or "daily")
                 elif data[1] == self.hist_hours:
                     self.chart.message("Historique indisponible")
         except queue.Empty:
@@ -1622,7 +1779,9 @@ class Card:
 
     def _open_ha(self):
         url = (self.app.cfg.get("ha_url") or "").rstrip("/")
-        if url:
+        if url and self.eid == BATTERIES:
+            webbrowser.open("%s/config/entities" % url)
+        elif url:
             webbrowser.open("%s/history?entity_id=%s" % (url, urllib.parse.quote(self.eid)))
         self.close()
 

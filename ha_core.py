@@ -3,6 +3,7 @@ import copy
 import datetime
 import json
 import os
+import re
 import ssl
 import sys
 import urllib.parse
@@ -10,7 +11,7 @@ import urllib.request
 
 from anim_icons import ANIM_ICONS
 
-__version__ = "1.7.1"
+__version__ = "1.8.0"
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 # Version installee (exe PyInstaller) : la config va dans %APPDATA%\HATaskbar,
@@ -60,6 +61,15 @@ DEFAULT_CONFIG = {
     "card_mode": "bar",              # carte : "bar" (comme la barre), "dark" ou "light"
     "notifications": [],             # regles {entity_id, to, message} -> notification Windows
     "notify_offline": True,          # prevenir quand Home Assistant ne repond plus / revient
+    "ha_notifications": True,        # notifications persistantes de HA + evenement ha_taskbar_notify
+    "quiet_from": "",                # plage sans notification (HH:MM), peut passer minuit
+    "quiet_to": "",
+    "realtime": True,                # connexion permanente (WebSocket) : mises a jour instantanees
+    "palette_hotkey": "Ctrl+Alt+Space",   # palette de commandes ("" = desactivee)
+    "compact": False,                # barre compacte : icones seules, valeur au survol
+    "tooltips": True,                # infobulle au survol (etat, mini-courbe)
+    "flash_changes": True,           # une valeur qui change brille un instant
+    "battery_low": 20,               # seuil des piles faibles (%) pour l'element "@batteries"
     "items": [],
 }
 
@@ -284,13 +294,134 @@ def parse_hhmm(v):
 
 def item_visible(item, now=None):
     """Plage horaire d'affichage ("show_from" / "show_to", HH:MM). Sans plage : toujours visible.
-    La plage peut passer minuit (ex. 22:00 -> 07:00)."""
-    a, b = parse_hhmm(item.get("show_from")), parse_hhmm(item.get("show_to"))
+    La plage peut passer minuit (ex. 22:00 -> 07:00). Un element "masque" n'est jamais affiche."""
+    if item.get("hidden"):
+        return False
+    return in_range(item.get("show_from"), item.get("show_to"), now, True)
+
+
+def in_range(start, end, now=None, empty=False):
+    """L'heure actuelle est-elle dans la plage HH:MM -> HH:MM (qui peut passer minuit) ?
+    Plage vide ou invalide : `empty`."""
+    a, b = parse_hhmm(start), parse_hhmm(end)
     if a is None or b is None or a == b:
-        return True
+        return empty
     now = now or datetime.datetime.now()
     t = now.hour * 60 + now.minute
     return a <= t < b if a < b else (t >= a or t < b)
+
+
+def in_quiet_hours(cfg, now=None):
+    """Plage horaire sans notification (Reglages -> Notifications)."""
+    return in_range(cfg.get("quiet_from"), cfg.get("quiet_to"), now, False)
+
+
+# --------------------------------------------------------------------------- couleurs selon la valeur
+# "> 25 orange ; > 30 rouge ; < 15 bleu" : la regle la plus precise gagne
+COLOR_WORDS = {"rouge": "#e74856", "red": "#e74856", "orange": "#f7630c", "jaune": "#e8b900",
+               "yellow": "#e8b900", "vert": "#16c60c", "green": "#16c60c", "bleu": "#3a96dd",
+               "blue": "#3a96dd", "violet": "#b146c2", "purple": "#b146c2", "rose": "#e3008c",
+               "pink": "#e3008c", "gris": "#9a9a9a", "grey": "#9a9a9a", "gray": "#9a9a9a",
+               "blanc": "#ffffff", "white": "#ffffff", "noir": "#000000", "black": "#000000"}
+_THRESH_RE = re.compile(r"^\s*(<=|>=|<|>|=)\s*(-?\d+(?:[.,]\d+)?)\s*(\S+)\s*$")
+_HEX_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
+
+
+def parse_thresholds(text):
+    """Texte des seuils -> ([(operateur, valeur, couleur)], [morceaux incompris])."""
+    rules, bad = [], []
+    for part in str(text or "").split(";"):
+        if not part.strip():
+            continue
+        m = _THRESH_RE.match(part)
+        col = None
+        if m:
+            w = m.group(3).strip().lower()
+            col = COLOR_WORDS.get(w) or (w if _HEX_RE.match(w) else None)
+        if not m or not col:
+            bad.append(part.strip())
+            continue
+        rules.append((m.group(1), float(m.group(2).replace(",", ".")), col))
+    return rules, bad
+
+
+def threshold_color(rules, value):
+    """Couleur de la regle la plus precise satisfaite (le seuil le plus haut pour ">", le plus bas pour "<"),
+    ou None."""
+    if not rules:
+        return None
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return None
+    best = None
+    for op, t, col in rules:
+        if op == ">":
+            ok, score = v > t, t
+        elif op == ">=":
+            ok, score = v >= t, t
+        elif op == "<":
+            ok, score = v < t, -t
+        elif op == "<=":
+            ok, score = v <= t, -t
+        else:
+            ok, score = v == t, float("inf")
+        if ok and (best is None or score > best[0]):
+            best = (score, col)
+    return best[1] if best else None
+
+
+def mix_color(a, b, t):
+    """Melange de deux couleurs #rrggbb (t = 0 -> a, 1 -> b)."""
+    try:
+        ra = [int(a[i:i + 2], 16) for i in (1, 3, 5)]
+        rb = [int(b[i:i + 2], 16) for i in (1, 3, 5)]
+    except (TypeError, ValueError, IndexError):
+        return b
+    return "#%02x%02x%02x" % tuple(int(round(x + (y - x) * t)) for x, y in zip(ra, rb))
+
+
+# --------------------------------------------------------------------------- piles faibles
+BATTERIES = "@batteries"        # element virtuel : resume des piles faibles
+
+
+def battery_levels(states):
+    """[(entity_id, nom, niveau % ou None si binaire "faible")] de toutes les piles connues."""
+    out = []
+    for eid, st in states.items():
+        a = st.get("attributes", {})
+        if a.get("device_class") != "battery":
+            continue
+        s = st.get("state")
+        name = a.get("friendly_name") or eid
+        if eid.startswith("sensor.") and a.get("unit_of_measurement") == "%":
+            try:
+                out.append((eid, name, float(s)))
+            except (TypeError, ValueError):
+                pass
+        elif eid.startswith("binary_sensor.") and s in ("on", "off"):
+            out.append((eid, name, 0.0 if s == "on" else None))
+    return out
+
+
+def low_batteries(states, threshold=20):
+    """Piles sous le seuil (et capteurs binaires "pile faible"), de la plus vide a la moins vide."""
+    try:
+        thr = float(threshold)
+    except (TypeError, ValueError):
+        thr = 20.0
+    low = [(e, n, v) for e, n, v in battery_levels(states) if v is not None and v < thr]
+    low.sort(key=lambda x: x[2])
+    return low
+
+
+def battery_state(states, threshold=20):
+    """Etat factice de l'element "@batteries" : nombre de piles faibles, niveau de la plus vide."""
+    low = low_batteries(states, threshold)
+    levels = [v for _e, _n, v in battery_levels(states) if v is not None]
+    return {"entity_id": BATTERIES, "state": str(len(low)),
+            "attributes": {"friendly_name": "Piles faibles", "battery_level": min(levels) if levels else None,
+                           "low": low}}
 
 
 # Raccourcis clavier globaux : "Ctrl+Alt+1"
@@ -422,8 +553,83 @@ TOGGLE_OFF = ""
 UNLOCKED = ""
 
 
+# Variantes selon la valeur : pile 0..100 %, Wi-Fi, barres de signal, volume
+G_BATTERY = ["\ue850", "\ue851", "\ue852", "\ue853", "\ue854", "\ue855", "\ue856", "\ue857", "\ue858",
+             "\ue859", "\ue83f"]
+G_WIFI = ["\ue872", "\ue873", "\ue874", "\ue701"]
+G_SIGNAL = ["\ue86c", "\ue86d", "\ue86e", "\ue86f", "\ue870"]
+G_VOLUME = ["\ue992", "\ue993", "\ue994", "\ue995"]
+G_MUTED = "\ue74f"
+
+# Meteo : texte et icone selon la condition (entites weather.*)
+WEATHER_TEXT = {"clear-night": "Nuit claire", "cloudy": "Nuageux", "exceptional": "Exceptionnel",
+                "fog": "Brouillard", "hail": "Grêle", "lightning": "Orages", "lightning-rainy": "Orages et pluie",
+                "partlycloudy": "Éclaircies", "pouring": "Averses", "rainy": "Pluie", "snowy": "Neige",
+                "snowy-rainy": "Neige et pluie", "sunny": "Ensoleillé", "windy": "Venteux",
+                "windy-variant": "Venteux et nuageux"}
+WEATHER_ICON = {"clear-night": "moon", "cloudy": "cloud", "exceptional": "warning", "fog": "cloud",
+                "hail": "snow", "lightning": "bolt", "lightning-rainy": "bolt", "partlycloudy": "cloud",
+                "pouring": "drop", "rainy": "drop", "snowy": "snow", "snowy-rainy": "snow", "sunny": "sun",
+                "windy": "wind", "windy-variant": "wind"}
+
+
+def _num(v):
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def value_glyph(item, st, key):
+    """Glyphe qui suit la valeur (pile, signal, volume, meteo), ou None."""
+    if not st:
+        return None
+    a = st.get("attributes", {})
+    attr = item.get("attribute")
+    raw = a.get(attr) if attr else st.get("state")
+    domain = item.get("entity_id", "").split(".", 1)[0]
+    if key == "battery":
+        v = _num(a.get("battery_level"))
+        if v is None:
+            v = _num(a.get("battery")) if not attr else None
+        if v is None and (attr or a.get("unit_of_measurement") == "%" or a.get("device_class") == "battery"):
+            v = _num(raw)
+        if v is None:
+            return None
+        return G_BATTERY[int(round(max(0.0, min(100.0, v)) / 10.0))]
+    if key in ("wifi", "antenna"):
+        v = _num(raw)
+        if v is None:
+            return None
+        unit = "" if attr else (a.get("unit_of_measurement") or "")
+        if unit == "dBm" or (v < 0 and not unit):
+            pct = (v + 100) * 2          # -50 dBm -> 100 %, -100 dBm -> 0 %
+        elif unit == "%":
+            pct = v
+        elif "link" in (attr or item.get("entity_id", "")) or unit == "lqi":
+            pct = v * 100 / 255.0
+        else:
+            return None
+        pct = max(0.0, min(100.0, pct))
+        levels = G_WIFI if key == "wifi" else G_SIGNAL
+        return levels[min(len(levels) - 1, int(pct * len(levels) / 100.0))]
+    if key == "speaker" and domain == "media_player":
+        if a.get("is_volume_muted"):
+            return G_MUTED
+        v = _num(a.get("volume_level"))
+        if v is None:
+            return None
+        return G_VOLUME[0] if v <= 0 else G_VOLUME[min(3, 1 + int(v * 3))]
+    if domain == "weather" and not attr and (item.get("icon") or "auto") == "auto":
+        k = WEATHER_ICON.get(st.get("state"))
+        return ICONS[k][0] if k in ICONS else None
+    return None
+
+
 def auto_icon(entity_id, st):
     """Icone par defaut selon le domaine / device_class / unite de l'entite."""
+    if entity_id == BATTERIES:
+        return "battery"
     d = entity_id.split(".", 1)[0]
     attrs = (st or {}).get("attributes", {})
     dc = attrs.get("device_class", "") or ""
@@ -508,6 +714,10 @@ def resolve_icon(item, st):
     if key in ANIM_ICONS:
         key = ANIM_ICONS[key][0]
     state = (st or {}).get("state")
+    if state not in ("unavailable", "unknown"):
+        g = value_glyph(item, st, key)
+        if g:
+            return g
     if key == "toggle" and state != "on":
         return TOGGLE_OFF
     if key == "lock" and state in ("unlocked", "open", "opening", "unlocking"):
@@ -569,6 +779,24 @@ class HomeAssistant:
                                               "Content-Type": "application/json"})
         with urllib.request.urlopen(req, timeout=timeout, context=self.ctx) as resp:
             return resp.read().decode("utf-8", "replace")
+
+    def forecast(self, entity_id, kind="daily"):
+        """Previsions meteo (service weather.get_forecasts, Home Assistant 2023.9+)."""
+        r = self._request("POST", "/api/services/weather/get_forecasts?return_response",
+                          {"entity_id": entity_id, "type": kind}, timeout=15)
+        resp = ((r or {}).get("service_response") or {}).get(entity_id) or {}
+        return resp.get("forecast") or []
+
+    def areas(self):
+        """{entity_id: nom de la piece} (entites sans piece absentes)."""
+        tpl = ("{% for s in states %}{% set a = area_name(s.entity_id) %}"
+               "{% if a %}{{ s.entity_id }}\t{{ a }}\n{% endif %}{% endfor %}")
+        out = {}
+        for line in self.template(tpl, timeout=20).splitlines():
+            eid, _, area = line.partition("\t")
+            if eid and area:
+                out[eid.strip()] = area.strip()
+        return out
 
     def device_entities(self, entity_id):
         """Autres entites du meme appareil (lumiere d'un ventilateur, minuteur, capteurs...)."""

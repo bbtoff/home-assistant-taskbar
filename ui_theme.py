@@ -89,7 +89,7 @@ class SideNav(ttk.Frame):
         side = self.side = tk.Frame(win, bg=pal["nav"], width=px(230))
         side.grid_propagate(False)
         side.columnconfigure(0, weight=1)
-        head = tk.Frame(side, bg=pal["nav"])
+        head = self.head = tk.Frame(side, bg=pal["nav"])
         head.grid(row=0, column=0, sticky="ew", padx=px(16), pady=(px(18), px(22)))
         tk.Label(head, text=title, bg=pal["nav"], fg=pal["fg"], font="SunValleyBodyStrongFont").pack(anchor="w")
         tk.Label(head, text=subtitle, bg=pal["nav"], fg=pal["hint"], font="SunValleyCaptionFont").pack(anchor="w")
