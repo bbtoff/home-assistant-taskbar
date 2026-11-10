@@ -18,9 +18,17 @@ Affiche des **capteurs** et des **boutons Home Assistant** directement sur la **
   <img src="docs/screenshots/clic.gif" alt="Clic pour allumer, molette pour la luminosité, clic pour éteindre">
 </p>
 
-Un **programme d'installation** est fourni : rien d'autre à installer, pas même Python. Depuis les sources, il suffit de Python et de sa bibliothèque standard (tkinter, ctypes, urllib). Le thème des fenêtres est inclus dans le dépôt.
+Un **programme d'installation** et une **version portable** (sans installation) sont fournis : rien d'autre à installer, pas même Python. Depuis les sources, il suffit de Python et de sa bibliothèque standard (tkinter, ctypes, urllib). Le thème des fenêtres est inclus dans le dépôt.
 
 ---
+
+## ✨ Nouveautés de la version 1.7.1
+
+- 📦 **Version portable** : un simple `.zip` à décompresser, sans installation. Les réglages restent dans son dossier, rien n'est écrit ailleurs sur le PC : le supprimer suffit à tout effacer. Idéal pour essayer HA Taskbar sans rien installer. Voir [Version portable](#version-portable-sans-installation).
+- 🔒 **Section [Sécurité et confidentialité](#-sécurité-et-confidentialité)** : ce que fait exactement le programme (connexions, fichiers, jeton), et comment vérifier un téléchargement (empreinte SHA-256, analyse VirusTotal).
+- 🪪 **Informations d'identité** dans le programme et l'installateur (éditeur, description, version, dans **Propriétés → Détails**). Elles aident les antivirus à ne pas le prendre pour un programme suspect.
+
+Rien ne change dans l'utilisation : si tu as déjà la 1.7.0 installée, cette mise à jour est facultative.
 
 ## ✨ Nouveautés de la version 1.7
 
@@ -250,7 +258,7 @@ Aucun droit administrateur, aucun service, aucun pilote. Les mises à jour autom
 
 1. **Empreinte SHA-256** : elle est indiquée dans les notes de chaque version, et à côté du fichier sur la page Releases. Pour la comparer, dans PowerShell :
    ```powershell
-   Get-FileHash .\HATaskbar-Setup-1.7.0.exe
+   Get-FileHash .\HATaskbar-Setup-1.7.1.exe
    ```
    Majuscules ou minuscules, peu importe : les 64 caractères doivent être identiques.
 2. **Analyse VirusTotal** : chaque version donne le lien de son rapport (par exemple [celui de la 1.7.0](https://www.virustotal.com/gui/file/fc9aa967ec70136170b0f20e3b1fb22be36b73e6a594a49a870e022d4e8a6001)). Les programmes construits avec PyInstaller sont parfois signalés à tort par quelques antivirus peu connus (souvent 1 à 5 sur plus de 70) : c'est un faux positif connu, dû au lanceur que PyInstaller ajoute à tous les programmes Python.
