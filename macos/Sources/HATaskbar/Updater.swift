@@ -248,6 +248,8 @@ final class Updater: ObservableObject {
         let a = NSAlert()
         a.messageText = "HA Taskbar \(r.version) est disponible"
         var notes = r.notes.replacingOccurrences(of: "**", with: "")
+            .replacingOccurrences(of: #"<!--.*?-->\s*"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: "## ", with: "")
         if notes.count > 900 { notes = String(notes.prefix(900)) + "…" }
         a.informativeText = "Tu as la version \(Self.currentVersion).\n\n" + notes
         a.addButton(withTitle: Self.canInstall ? "Installer et redémarrer" : "Ouvrir la page de téléchargement")
