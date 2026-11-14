@@ -238,6 +238,8 @@ final class Updater: ObservableObject {
 
     /// Test automatique (GitHub Actions) : --update-test --fake-version 0.0.1 installe la derniere version.
     func runSelfTest() {
+        onAvailable = nil                     // pas de fenetre de confirmation pendant le test
+        Demo.log("update test from \(Self.currentVersion)")
         Task { @MainActor in
             await check(manual: true)
             Demo.log("update state \(String(describing: state))")
