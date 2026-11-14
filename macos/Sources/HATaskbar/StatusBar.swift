@@ -77,6 +77,14 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             v.apply(d, compact: c.compact, animate: c.animIcons, flash: c.flashChanges && !model.offline)
             v.toolTip = tooltip(v.item, d)
         }
+        if Demo.enabled, let screenH = NSScreen.screens.first?.frame.height {
+            // Position des elements (coordonnees d'ecran, origine en haut a gauche) pour les tests
+            for v in entries {
+                if let f = v.statusItem.button?.window?.frame {
+                    Demo.log("frame \(v.item.entityId) \(Int(f.midX)) \(Int(screenH - f.midY))", key: v.item.entityId)
+                }
+            }
+        }
         if let b = appItem?.button {
             let off = model.offline && !model.needsSetup
             b.image = Icons.image(off ? "wifi.exclamationmark" : "house.fill", size: 14)
@@ -96,17 +104,34 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         if let left = model.timerLeft(item.entityId) {
             lines.append("arrêt dans \(max(1, Int((left / 60).rounded()))) min")
         }
-        lines.append(resolveService(item) != nil
-                     ? "Clic : action · Appui long ou ⌥-clic : carte · Molette : régler"
-                     : "Clic : carte · Clic droit : menu")
+        if resolveService(item) == nil {
+            lines.append("Clic : carte · Clic droit : menu")
+        } else if model.config.clickOpensCard {
+            lines.append("Clic : carte · ⌥-clic : action · Molette : régler")
+        } else {
+            lines.append("Clic : action · Appui long ou ⌥-clic : carte · Molette : régler")
+        }
         return lines.joined(separator: "\n")
     }
 
     // MARK: gestes (appeles par ItemView)
 
+    /// Clic simple : l'action (allumer / eteindre...), ou la carte si c'est le reglage choisi.
     func click(_ v: ItemView) {
+        Demo.log("click \(v.item.entityId)")
         if model.needsSetup { openSettings(nil); return }
-        if !model.click(v.item) { openCard(v) }
+        if model.config.clickOpensCard || !model.click(v.item) { openCard(v) }
+    }
+
+    /// ⌥-clic : l'inverse du clic simple.
+    func altClick(_ v: ItemView) {
+        Demo.log("altclick \(v.item.entityId)")
+        if model.needsSetup { openSettings(nil); return }
+        if model.config.clickOpensCard {
+            if !model.click(v.item) { openCard(v) }
+        } else {
+            openCard(v)
+        }
     }
 
     func wheel(_ v: ItemView, _ d: Int) {
@@ -133,6 +158,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         NSApp.activate(ignoringOtherApps: true)
         p.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         popover = p
+        Demo.log("card \(v.item.entityId) shown=\(p.isShown)")
     }
 
     /// Ouvre la carte du n-ieme element affiche (mode demonstration).
@@ -259,7 +285,6 @@ final class ItemView: NSView {
     private var shown: ItemDisplay?
     private var compact = false
     private var holdUntil = Date.distantPast
-    private var pressTask: Task<Void, Never>?
     private var holdTask: Task<Void, Never>?
     private var flashTask: Task<Void, Never>?
     private var longFired = false
@@ -425,28 +450,26 @@ final class ItemView: NSView {
             controller?.showMenu(self)
             return
         }
+        if e.modifierFlags.contains(.option) {
+            controller?.altClick(self)
+            return
+        }
+        // Appui long : on attend le relachement au plus 0,45 s, dans la boucle de suivi de la souris
+        // (une minuterie ordinaire ne se declenche pas toujours pendant que le bouton est enfonce).
         statusItem.button?.highlight(true)
-        longFired = false
-        pressTask?.cancel()
-        pressTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 450_000_000)
-            guard let self = self, !Task.isCancelled else { return }
-            self.longFired = true
-            self.statusItem.button?.highlight(false)
-            self.controller?.openCard(self)
+        let up = window?.nextEvent(matching: [.leftMouseUp], until: Date().addingTimeInterval(0.45),
+                                   inMode: .eventTracking, dequeue: true)
+        statusItem.button?.highlight(false)
+        if let up = up {
+            if bounds.contains(convert(up.locationInWindow, from: nil)) { controller?.click(self) }
+        } else {
+            longFired = true                  // le relachement arrivera plus tard : a ignorer
+            controller?.openCard(self)
         }
     }
 
     override func mouseUp(with e: NSEvent) {
-        pressTask?.cancel()
-        statusItem.button?.highlight(false)
-        if longFired { return }
-        guard bounds.contains(convert(e.locationInWindow, from: nil)) else { return }
-        if e.modifierFlags.contains(.option) {
-            controller?.openCard(self)
-        } else {
-            controller?.click(self)
-        }
+        longFired = false
     }
 
     override func rightMouseDown(with e: NSEvent) {
