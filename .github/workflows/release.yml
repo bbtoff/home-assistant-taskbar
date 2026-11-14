@@ -98,7 +98,12 @@ jobs:
         run: |
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" files/* --clobber
-            gh release edit "$TAG" --notes-file notes.md
+            # brouillon : le tag (cree a la publication) suit le dernier commit construit
+            if [ "$(gh release view "$TAG" --json isDraft --jq .isDraft)" = "true" ]; then
+              gh release edit "$TAG" --notes-file notes.md --target "$GITHUB_SHA"
+            else
+              gh release edit "$TAG" --notes-file notes.md
+            fi
           else
             gh release create "$TAG" files/* --draft --target "$GITHUB_SHA" \
               --title "HA Taskbar ${TAG#v}" --notes-file notes.md
