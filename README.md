@@ -20,6 +20,8 @@ Affiche des **capteurs** et des **boutons Home Assistant** directement sur la **
 
 Un **programme d'installation** et une **version portable** (sans installation) sont fournis : rien d'autre à installer, pas même Python. Depuis les sources, il suffit de Python et de sa bibliothèque standard (tkinter, ctypes, urllib). Le thème des fenêtres est inclus dans le dépôt.
 
+> 🍎 **Nouveau : une version macOS** (aperçu), dans la **barre des menus** du Mac. Voir [HA Taskbar sur Mac](#-ha-taskbar-sur-mac).
+
 ---
 
 ## ✨ Nouveautés de la version 1.8
@@ -166,6 +168,7 @@ Le programme d'installation remplace l'ancienne version et garde tes réglages. 
 9. [Structure du projet](#-structure-du-projet)
 10. [Limites connues](#-limites-connues)
 11. [Dépannage](#-dépannage)
+12. [HA Taskbar sur Mac](#-ha-taskbar-sur-mac)
 
 ---
 
@@ -659,3 +662,16 @@ Windows 11 ne permet plus d'ajouter des « deskbands » (barres d'outils) à la 
 ## 💬 À propos de ce projet
 
 Je ne suis pas développeur 😄 J'ai apporté les idées, les tests et les retours au fil de l'eau. Toute la partie technique (code, programme d'installation, documentation et captures) a été réalisée par **Claude**, l'assistant IA d'Anthropic, à partir de mes demandes.
+
+---
+
+## 🍎 HA Taskbar sur Mac
+
+Depuis la 1.8, HA Taskbar existe aussi pour **macOS 13 ou plus récent** (Apple Silicon et Intel). C'est une application native : les éléments s'affichent dans la **barre des menus**, en haut à droite de l'écran.
+
+- **Installation** : télécharge `HATaskbar-macOS-<version>.dmg` depuis les [**Releases**](https://github.com/bbtoff/home-assistant-taskbar/releases), ouvre-le et glisse **HA Taskbar** dans **Applications**.
+- **Premier lancement** : l'application n'est pas signée par Apple. Fais un clic droit sur l'app → **Ouvrir**, puis **Ouvrir**. Sur macOS 15 ou plus : **Réglages Système → Confidentialité et sécurité → Ouvrir quand même**.
+- **Utilisation** : clic pour l'action, appui long ou ⌥-clic pour la carte, molette pour régler, clic droit pour le menu.
+- **Depuis Windows** : **Réglages → Général → Importer…** reprend ton `config.json` (éléments, icônes, seuils, notifications).
+
+La palette de commandes, les raccourcis clavier globaux et les favoris de lumière ne sont pas encore disponibles sur Mac. Tout le détail, et comment la construire soi-même avec Xcode : [macos/README.md](macos/README.md).
