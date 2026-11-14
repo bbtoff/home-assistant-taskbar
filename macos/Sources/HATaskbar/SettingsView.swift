@@ -483,6 +483,16 @@ struct GeneralTab: View {
                     Text("Action : allumer, éteindre, lancer…").tag(false)
                     Text("Ouvrir la carte").tag(true)
                 }
+                Picker("Survol d'un élément", selection: model.bind(\.hoverCardDelay)) {
+                    Text("Ne rien ouvrir (infobulle)").tag(0.0)
+                    Text("Ouvrir la carte après ½ s").tag(0.5)
+                    Text("Ouvrir la carte après 0,8 s").tag(0.8)
+                    Text("Ouvrir la carte après 1,2 s").tag(1.2)
+                    if ![0.0, 0.5, 0.8, 1.2].contains(model.config.hoverCardDelay) {
+                        Text("Ouvrir la carte après \(JSONValue.format(model.config.hoverCardDelay)) s")
+                            .tag(model.config.hoverCardDelay)
+                    }
+                }
                 Text(model.config.clickOpensCard
                      ? "⌥-clic fait l'action. Les capteurs ouvrent toujours leur carte."
                      : "Pour la carte : appui long, ⌥-clic ou clic droit → Ouvrir la carte. Les capteurs l'ouvrent d'un simple clic.")
