@@ -4,15 +4,10 @@ name: macOS (captures)
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - ".github/workflows/macos-screenshots.yml"
 
 jobs:
   screenshots:
     runs-on: macos-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
       - name: Construction
@@ -60,13 +55,3 @@ jobs:
         with:
           name: captures-macos
           path: shots/*.png
-      - name: Envoi des captures brutes sur la branche
-        if: github.event_name == 'push' && github.ref_name != 'main'
-        run: |
-          mkdir -p docs/screenshots/macos-brut
-          cp shots/*.png docs/screenshots/macos-brut/
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/screenshots/macos-brut
-          git commit -m "Captures macOS brutes (a recadrer)"
-          git push origin HEAD:${{ github.ref_name }}
