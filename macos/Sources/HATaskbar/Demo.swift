@@ -7,8 +7,29 @@ import Foundation
 ///   --demo-settings [onglet]  ouvre les reglages (items, connection, notifications, general)
 ///   --demo-picker             ouvre la fenetre « Ajouter des entites »
 ///   --demo-items 0,2,3        n'affiche que ces elements dans la barre (petits ecrans)
+///   --demo-click-card         reglage « le clic ouvre la carte »
+///   --demo-log <fichier>      journal des gestes (tests automatiques de l'interface)
 enum Demo {
     static let enabled = CommandLine.arguments.contains("--demo")
+
+    private static var lastLogged: [String: String] = [:]
+
+    /// Ajoute une ligne au journal de --demo-log (une seule fois par cle si `key` est donne).
+    static func log(_ line: String, key: String? = nil) {
+        guard enabled, let path = arg("--demo-log"), !path.isEmpty else { return }
+        if let k = key {
+            if lastLogged[k] == line { return }
+            lastLogged[k] = line
+        }
+        let data = Data((line + "\n").utf8)
+        if let h = FileHandle(forWritingAtPath: path) {
+            h.seekToEndOfFile()
+            h.write(data)
+            h.closeFile()
+        } else {
+            FileManager.default.createFile(atPath: path, contents: data)
+        }
+    }
 
     static func arg(_ name: String) -> String? {
         let a = CommandLine.arguments
@@ -38,6 +59,7 @@ enum Demo {
         c.notifications = [NotifyRule(entityId: "binary_sensor.porte_entree", to: "on", message: "La porte d'entrée est ouverte")]
         c.quietFrom = "22:00"
         c.quietTo = "07:00"
+        if CommandLine.arguments.contains("--demo-click-card") { c.clickOpensCard = true }
         return c
     }
 

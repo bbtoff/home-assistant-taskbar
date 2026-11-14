@@ -479,6 +479,14 @@ struct GeneralTab: View {
     var body: some View {
         Form {
             Section("Barre des menus") {
+                Picker("Clic sur un élément", selection: model.bind(\.clickOpensCard)) {
+                    Text("Action : allumer, éteindre, lancer…").tag(false)
+                    Text("Ouvrir la carte").tag(true)
+                }
+                Text(model.config.clickOpensCard
+                     ? "⌥-clic fait l'action. Les capteurs ouvrent toujours leur carte."
+                     : "Pour la carte : appui long, ⌥-clic ou clic droit → Ouvrir la carte. Les capteurs l'ouvrent d'un simple clic.")
+                    .font(.caption).foregroundStyle(.secondary)
                 Toggle("Barre compacte : icônes seules (la valeur est dans l'infobulle et la carte)", isOn: model.bind(\.compact))
                 Toggle("Icônes animées quand l'élément est actif (macOS 14 et plus)", isOn: model.bind(\.animIcons))
                 Toggle("Une valeur qui change clignote un instant", isOn: model.bind(\.flashChanges))

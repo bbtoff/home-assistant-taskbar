@@ -131,6 +131,7 @@ struct AppConfig: Codable, Equatable {
     var showAppIcon = true           // icone HA Taskbar dans la barre des menus
     var animIcons = true             // icones animees quand l'element est actif (macOS 14+)
     var flashChanges = true          // une valeur qui change clignote brievement
+    var clickOpensCard = false       // clic simple = carte (l'action passe sur ⌥-clic)
     var notifyOffline = true
     var haNotifications = true       // notifications persistantes + evenement ha_taskbar_notify
     var quietFrom = ""
@@ -143,6 +144,7 @@ struct AppConfig: Codable, Equatable {
     enum CodingKeys: String, CodingKey {
         case haURL = "ha_url", verifySSL = "verify_ssl", pollInterval = "poll_interval", realtime, compact
         case showAppIcon = "show_app_icon", animIcons = "anim_icons", flashChanges = "flash_changes"
+        case clickOpensCard = "click_opens_card"
         case notifyOffline = "notify_offline", haNotifications = "ha_notifications"
         case quietFrom = "quiet_from", quietTo = "quiet_to", batteryLow = "battery_low"
         case checkUpdates = "check_updates", notifications, items
@@ -164,6 +166,7 @@ struct AppConfig: Codable, Equatable {
         showAppIcon = get(.showAppIcon, d.showAppIcon)
         animIcons = get(.animIcons, d.animIcons)
         flashChanges = get(.flashChanges, d.flashChanges)
+        clickOpensCard = get(.clickOpensCard, d.clickOpensCard)
         notifyOffline = get(.notifyOffline, d.notifyOffline)
         haNotifications = get(.haNotifications, d.haNotifications)
         quietFrom = get(.quietFrom, d.quietFrom)

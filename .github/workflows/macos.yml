@@ -30,6 +30,14 @@ jobs:
           swift --version
       - name: Construction
         run: ./macos/build.sh
+      - name: Test de l'interface (clic, appui long, carte)
+        run: ./macos/Tests/ui-test.sh macos/dist/ui-test
+      - name: Captures du test
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-interface
+          path: macos/dist/ui-test/*.png
       - uses: actions/upload-artifact@v4
         with:
           name: HATaskbar-macOS
