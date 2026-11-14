@@ -1,5 +1,8 @@
 # Construit HA Taskbar pour macOS sur un Mac de GitHub, a chaque modification du dossier macos/.
 # L'application (.zip et .dmg) est disponible dans les « Artifacts » de l'execution.
+#
+# Publication : Actions -> macOS -> Run workflow, avec le tag d'une release existante (ex. v1.8.0).
+# Le .dmg et le .zip sont ajoutes a cette release, et une section macOS est ajoutee a ses notes.
 name: macOS
 
 on:
@@ -9,6 +12,11 @@ on:
       - "assets/ha_taskbar.png"
       - ".github/workflows/macos.yml"
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Tag de la release ou ajouter l'application Mac (ex. v1.8.0). Vide = construire seulement."
+        required: false
+        default: ""
 
 jobs:
   build:
@@ -28,3 +36,67 @@ jobs:
           path: |
             macos/dist/*.zip
             macos/dist/*.dmg
+
+  publish:
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && inputs.release_tag != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ inputs.release_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: HATaskbar-macOS
+          path: dist
+      - name: Verification de la version
+        run: |
+          VERSION=$(sed -n 's/^let appVersion = "\(.*\)"/\1/p' macos/Sources/HATaskbar/Version.swift)
+          if [ "v$VERSION" != "$TAG" ]; then
+            echo "::error::La version Mac ($VERSION) ne correspond pas au tag $TAG"
+            exit 1
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          ls -l dist
+      - name: Ajout des fichiers a la release
+        run: gh release upload "$TAG" dist/HATaskbar-macOS-*.dmg dist/HATaskbar-macOS-*.zip --clobber
+      - name: Notes de la release
+        run: |
+          gh release view "$TAG" --json body --jq .body > body.md
+          DMG_SHA=$(sha256sum "dist/HATaskbar-macOS-$VERSION.dmg" | cut -d' ' -f1)
+          ZIP_SHA=$(sha256sum "dist/HATaskbar-macOS-$VERSION.zip" | cut -d' ' -f1)
+          python3 - "$VERSION" "$DMG_SHA" "$ZIP_SHA" <<'PY'
+          import re, sys
+          version, dmg, zip_ = sys.argv[1:4]
+          body = open("body.md", encoding="utf-8").read()
+          start, end = "<!-- macos -->", "<!-- /macos -->"
+          section = f"""{start}
+          ## 🍎 Nouveau : HA Taskbar pour macOS (aperçu)
+
+          Tes capteurs et boutons Home Assistant dans la **barre des menus** du Mac (macOS 13 ou plus, Apple Silicon et Intel).
+
+          - Valeurs en temps réel, clic pour allumer / éteindre, molette pour régler
+          - Appui long ou ⌥-clic : carte de contrôle (lumière, thermostat, volet, média, météo, historique…)
+          - Notifications macOS, jeton rangé dans le trousseau
+          - Import du `config.json` de la version Windows
+
+          **Installation** : télécharge `HATaskbar-macOS-{version}.dmg`, ouvre-le et glisse HA Taskbar dans Applications. L'app n'est pas signée par Apple : au premier lancement, clic droit → **Ouvrir** (sur macOS 15 et plus : Réglages Système → Confidentialité et sécurité → Ouvrir quand même).
+
+          Pas encore sur Mac : palette de commandes, raccourcis clavier globaux, favoris de lumière. Détails : [macos/README.md](https://github.com/bbtoff/home-assistant-taskbar/blob/main/macos/README.md).
+
+          - SHA-256 de `HATaskbar-macOS-{version}.dmg` : `{dmg}`
+          - SHA-256 de `HATaskbar-macOS-{version}.zip` : `{zip_}`
+          - Pour comparer, dans le Terminal : `shasum -a 256 HATaskbar-macOS-{version}.dmg`
+          {end}"""
+          if start in body:
+              body = re.sub(re.escape(start) + ".*?" + re.escape(end), lambda m: section, body, flags=re.S)
+          else:
+              body = section + "\n\n---\n\n" + body
+          open("body.md", "w", encoding="utf-8").write(body)
+          PY
+          gh release edit "$TAG" --notes-file body.md
+          gh release view "$TAG" --json assets --jq '.assets[].name'
