@@ -1,0 +1,106 @@
+# Construit une version complete et cree sa release GitHub en BROUILLON :
+#   Windows : HATaskbar-Setup-<v>.exe et HATaskbar-Portable-<v>.zip (build.ps1)
+#   macOS   : HATaskbar-macOS-<v>.dmg et .zip (macos/build.sh)
+# Les notes viennent de docs/notes/<tag>.md, les empreintes SHA-256 sont ajoutees automatiquement.
+# Lancement : Actions -> Release -> Run workflow, avec le tag (ex. v1.8.1). Il reste a publier le brouillon.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag de la nouvelle version (ex. v1.8.1)"
+        required: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Versions
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          WIN=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' ha_core.py)
+          MAC=$(sed -n 's/^let appVersion = "\(.*\)"/\1/p' macos/Sources/HATaskbar/Version.swift)
+          echo "Windows $WIN, macOS $MAC, tag $TAG"
+          [ "v$WIN" = "$TAG" ] || { echo "::error::ha_core.py est en $WIN"; exit 1; }
+          [ "v$MAC" = "$TAG" ] || { echo "::error::Version.swift est en $MAC"; exit 1; }
+          [ -f "docs/notes/$TAG.md" ] || { echo "::error::docs/notes/$TAG.md manquant"; exit 1; }
+
+  windows:
+    needs: check
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Inno Setup
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
+      - name: Tests
+        run: python tests/test_token.py
+      - name: Construction
+        shell: pwsh
+        run: ./build.ps1 -Python python -BuildRoot "$env:RUNNER_TEMP\hatb"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: |
+            dist/HATaskbar-Setup-*.exe
+            dist/HATaskbar-Portable-*.zip
+
+  macos:
+    needs: check
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Construction
+        run: ./macos/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: |
+            macos/dist/*.dmg
+            macos/dist/*.zip
+
+  release:
+    needs: [windows, macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ inputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: files
+          merge-multiple: true
+      - name: Notes et empreintes
+        run: |
+          V="${TAG#v}"
+          cp "docs/notes/$TAG.md" notes.md
+          {
+            echo
+            echo "**🔒 Vérifier le téléchargement** (SHA-256)"
+            for f in files/*; do echo "- \`$(basename "$f")\` : \`$(sha256sum "$f" | cut -d' ' -f1)\`"; done
+            echo "- Windows (PowerShell) : \`Get-FileHash .\\HATaskbar-Setup-$V.exe\` ; Mac (Terminal) : \`shasum -a 256 HATaskbar-macOS-$V.dmg\`"
+            echo "- Ce que fait le programme (connexions, fichiers, jeton) : section [Sécurité et confidentialité](https://github.com/${GH_REPO}#-sécurité-et-confidentialité) du README."
+          } >> notes.md
+          cat notes.md
+          ls -l files
+      - name: Release en brouillon
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" files/* --clobber
+            gh release edit "$TAG" --notes-file notes.md
+          else
+            gh release create "$TAG" files/* --draft --target "$GITHUB_SHA" \
+              --title "HA Taskbar ${TAG#v}" --notes-file notes.md
+          fi
+          gh release view "$TAG" --json isDraft,assets --jq '{isDraft, assets: [.assets[].name]}'

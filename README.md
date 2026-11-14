@@ -26,6 +26,11 @@ Un **programme d'installation** et une **version portable** (sans installation) 
 
 ---
 
+## ✨ Nouveautés de la version 1.8.1
+
+- 🔒 **Jeton d'accès chiffré** : il n'est plus écrit en clair dans `config.json`, mais chiffré avec la protection des données de Windows (DPAPI). Seul ton compte Windows, sur ce PC, peut le relire. Ta configuration actuelle est chiffrée automatiquement au premier lancement. Voir [Le jeton d'accès](#le-jeton-daccès).
+- 🍎 **Version macOS** : corrections de la carte (curseurs, dates de l'historique).
+
 ## ✨ Nouveautés de la version 1.8
 
 **Plus réactif**
@@ -211,7 +216,7 @@ Pour essayer HA Taskbar sans rien installer :
 2. Décompresse-le dans un dossier où tu peux écrire : Documents, Bureau, clé USB… (pas dans `Program Files`).
 3. Lance `HATaskbar.exe` dans le dossier `HA Taskbar`.
 
-Tes réglages, jeton compris, restent dans ce dossier (`config.json`) : rien n'est écrit dans `%APPDATA%`, ni dans le registre, sauf si tu coches **Lancer au démarrage de Windows**. Pour tout supprimer, décoche cette case si besoin, quitte HA Taskbar et supprime le dossier. C'est le fichier `portable.txt` qui active ce mode : ne le supprime pas.
+Tes réglages, jeton compris (chiffré pour ton compte Windows), restent dans ce dossier (`config.json`) : rien n'est écrit dans `%APPDATA%`, ni dans le registre, sauf si tu coches **Lancer au démarrage de Windows**. Pour tout supprimer, décoche cette case si besoin, quitte HA Taskbar et supprime le dossier. C'est le fichier `portable.txt` qui active ce mode : ne le supprime pas.
 
 La version portable signale les nouvelles versions, mais ne se met pas à jour toute seule : télécharge le nouveau `.zip` et remplace le contenu du dossier en gardant ton `config.json`.
 
@@ -267,7 +272,10 @@ C'est tout : **pas de télémétrie**, pas de statistiques, pas de publicité, p
 
 ### Le jeton d'accès
 
-- Il est enregistré **en clair** dans `config.json` : `%APPDATA%\HATaskbar\` pour la version installée, à côté du script depuis les sources. Comme beaucoup de réglages d'applications, il est donc lisible par les programmes qui tournent sous ton compte Windows.
+- Il est **chiffré** dans `config.json` (`%APPDATA%\HATaskbar\` pour la version installée, à côté du programme pour la version portable et les sources), avec la **protection des données de Windows** (DPAPI). Seul ton compte Windows, sur ce PC, peut le déchiffrer : le fichier ne contient plus le jeton en clair (clé `token_protected`), et une copie du fichier ne suffit pas à le relire sur un autre ordinateur.
+- Les anciennes configurations, avec le jeton en clair, sont chiffrées automatiquement au premier lancement.
+- Un programme qui tourne **sous ton compte**, sur ce PC, peut quand même demander à Windows de le déchiffrer : c'est la limite de toute application qui doit se reconnecter seule, sans te demander de mot de passe.
+- Sur un autre PC ou un autre compte Windows (version portable copiée sur une clé USB, par exemple), le jeton ne peut pas être déchiffré : HA Taskbar te demande simplement de le coller à nouveau.
 - Crée un **jeton dédié** nommé « HA Taskbar » : en cas de doute, tu le supprimes dans Home Assistant (**profil → Sécurité**) sans toucher à tes autres accès.
 - La désinstallation propose d'effacer les réglages, jeton compris.
 - Laisse **Vérifier le certificat HTTPS** coché (**Réglages → Connexion**). Décoche-le seulement pour un Home Assistant en HTTPS avec un certificat auto-signé, sur ton réseau local.
@@ -538,7 +546,9 @@ Tous les changements sont **prévisualisés en direct** sur la barre. **Applique
 
 Les réglages sont stockés dans `config.json`, créé automatiquement :
 - version installée : `%APPDATA%\HATaskbar\config.json`
-- depuis les sources : à côté du script. Ce fichier **n'est pas versionné**, car il contient ton jeton (voir `.gitignore`).
+- depuis les sources : à côté du script. Ce fichier **n'est pas versionné**, car il contient ton jeton, chiffré (voir `.gitignore`).
+
+Le jeton n'y apparaît pas en clair : `"token"` reste vide et `"token_protected"` contient sa version chiffrée (voir [Le jeton d'accès](#le-jeton-daccès)). Pour sauvegarder ou partager tes réglages, utilise plutôt **Réglages → Confort → Sauvegarde → Exporter…** : le fichier exporté ne contient jamais le jeton.
 
 Un exemple est fourni dans [`config.example.json`](config.example.json).
 

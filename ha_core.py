@@ -1,4 +1,5 @@
 """Partie commune : configuration, client Home Assistant, demarrage auto."""
+import base64
 import copy
 import datetime
 import json
@@ -11,7 +12,7 @@ import urllib.request
 
 from anim_icons import ANIM_ICONS
 
-__version__ = "1.8.0"
+__version__ = "1.8.1"
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 # Version installee (exe PyInstaller) : la config va dans %APPDATA%\HATaskbar,
@@ -75,6 +76,7 @@ DEFAULT_CONFIG = {
 
 
 def load_config():
+    global TOKEN_UNREADABLE
     cfg = copy.deepcopy(DEFAULT_CONFIG)
     if os.path.exists(CONFIG_PATH):
         with open(CONFIG_PATH, encoding="utf-8") as f:
@@ -83,7 +85,86 @@ def load_config():
         cfg["colors"] = dict(DARK_COLORS, **data.get("colors", {}))
         cfg["colors_light"] = dict(LIGHT_COLORS, **data.get("colors_light", {}))
         migrate_zones(cfg, data)
+        # Jeton chiffre (DPAPI) -> en clair, en memoire seulement
+        protected = cfg.pop(TOKEN_PROTECTED_KEY, None)
+        TOKEN_UNREADABLE = False
+        if protected:
+            token = unprotect_token(protected)
+            if token is None:
+                TOKEN_UNREADABLE = True       # autre PC ou autre compte Windows : jeton a ressaisir
+                cfg["token"] = ""
+            else:
+                cfg["token"] = token
+        elif cfg.get("token") and cfg["token"] != PLACEHOLDER_TOKEN and token_protection_available():
+            # Ancienne config avec le jeton en clair : on la reecrit tout de suite, jeton chiffre
+            try:
+                save_config(cfg)
+            except OSError:
+                pass
     return cfg
+
+
+# --------------------------------------------------------------------------- jeton chiffre (DPAPI)
+# Le jeton est chiffre avec la protection des donnees de Windows (CryptProtectData) : seul le meme compte
+# Windows, sur le meme PC, peut le dechiffrer. config.json ne contient plus le jeton en clair.
+TOKEN_PROTECTED_KEY = "token_protected"
+TOKEN_UNREADABLE = False              # True si le jeton du fichier n'a pas pu etre dechiffre
+_DPAPI_PREFIX = "dpapi:"
+_DPAPI_ENTROPY = b"HATaskbar/token"
+
+
+def token_protection_available():
+    return sys.platform == "win32"
+
+
+def _dpapi(data, protect):
+    import ctypes
+    from ctypes import wintypes
+
+    class BLOB(ctypes.Structure):
+        _fields_ = [("cbData", wintypes.DWORD), ("pbData", ctypes.POINTER(ctypes.c_char))]
+
+    def blob(b):
+        buf = ctypes.create_string_buffer(b, len(b))
+        return BLOB(len(b), ctypes.cast(buf, ctypes.POINTER(ctypes.c_char))), buf
+
+    crypt32, kernel32 = ctypes.windll.crypt32, ctypes.windll.kernel32
+    kernel32.LocalFree.argtypes = [ctypes.c_void_p]
+    kernel32.LocalFree.restype = ctypes.c_void_p
+    inp, _keep1 = blob(data)
+    ent, _keep2 = blob(_DPAPI_ENTROPY)
+    out = BLOB()
+    CRYPTPROTECT_UI_FORBIDDEN = 0x1
+    fn = crypt32.CryptProtectData if protect else crypt32.CryptUnprotectData
+    fn.argtypes = [ctypes.POINTER(BLOB), ctypes.c_void_p, ctypes.POINTER(BLOB), ctypes.c_void_p,
+                   ctypes.c_void_p, wintypes.DWORD, ctypes.POINTER(BLOB)]
+    fn.restype = wintypes.BOOL
+    if not fn(ctypes.byref(inp), None, ctypes.byref(ent), None, None, CRYPTPROTECT_UI_FORBIDDEN, ctypes.byref(out)):
+        raise OSError("CryptProtectData a échoué (%d)" % ctypes.GetLastError())
+    try:
+        return ctypes.string_at(out.pbData, out.cbData)
+    finally:
+        kernel32.LocalFree(ctypes.cast(out.pbData, ctypes.c_void_p))
+
+
+def protect_token(token):
+    """Jeton -> "dpapi:<base64>", ou None si le chiffrement n'est pas disponible."""
+    if not token or not token_protection_available():
+        return None
+    try:
+        return _DPAPI_PREFIX + base64.b64encode(_dpapi(token.encode("utf-8"), True)).decode("ascii")
+    except (OSError, AttributeError, ValueError):
+        return None
+
+
+def unprotect_token(value):
+    """Inverse de protect_token. None si le jeton ne peut pas etre dechiffre (autre PC / autre compte)."""
+    if not isinstance(value, str) or not value.startswith(_DPAPI_PREFIX) or not token_protection_available():
+        return None
+    try:
+        return _dpapi(base64.b64decode(value[len(_DPAPI_PREFIX):]), False).decode("utf-8")
+    except (OSError, AttributeError, ValueError, UnicodeDecodeError):
+        return None
 
 
 def migrate_zones(cfg, data):
@@ -217,10 +298,19 @@ def card_palette(cfg, bar_cols, light, themes=None):
 
 
 def save_config(cfg):
+    """Enregistre la configuration. Sous Windows, le jeton est chiffre (DPAPI) : il n'est jamais ecrit en clair."""
+    data = dict(cfg)
+    data.pop(TOKEN_PROTECTED_KEY, None)
+    token = data.get("token") or ""
+    if token and token != PLACEHOLDER_TOKEN:
+        protected = protect_token(token)
+        if protected:
+            data["token"] = ""
+            data[TOKEN_PROTECTED_KEY] = protected
     os.makedirs(CONFIG_DIR, exist_ok=True)
     tmp = CONFIG_PATH + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(cfg, f, indent=2, ensure_ascii=False)
+        json.dump(data, f, indent=2, ensure_ascii=False)
     os.replace(tmp, CONFIG_PATH)
 
 

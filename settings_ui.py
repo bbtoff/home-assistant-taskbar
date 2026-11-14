@@ -347,6 +347,10 @@ class SettingsWindow:
         ttk.Button(bar, text="OK", style="Accent.TButton", width=10, command=self.ok).pack(side="right")
 
         self.win.after(150, self.poll_queue)
+        import ha_core
+        if ha_core.TOKEN_UNREADABLE and not self.cfg.get("token"):
+            self.status.configure(text="Le jeton enregistré a été chiffré sur un autre PC ou un autre compte "
+                                       "Windows : colle-le à nouveau (onglet Connexion).", style="Err.TLabel")
         if self.cfg.get("token"):
             self.test_connection()
             if self.cfg["items"]:
@@ -419,7 +423,9 @@ class SettingsWindow:
                         command=lambda: self.token_entry.configure(show="" if self.v_show.get() else "•")
                         ).grid(row=2, column=2, padx=(8, 0))
         self.hint(f, "Dans Home Assistant : clique sur ton profil (en bas à gauche) → onglet « Sécurité » → "
-                     "« Jetons d'accès longue durée » → « Créer un jeton », puis colle-le ici.",
+                     "« Jetons d'accès longue durée » → « Créer un jeton », puis colle-le ici.\n"
+                     "🔒 Il est chiffré dans config.json (protection des données de Windows) : seul ton compte, "
+                     "sur ce PC, peut le relire.",
                   row=3, column=1, columnspan=2, sticky="w", pady=(2, 12))
 
         self.v_verify = self.track(tk.BooleanVar(value=self.cfg.get("verify_ssl", True)), self.key("verify_ssl"))
@@ -1711,6 +1717,7 @@ class SettingsWindow:
             return
         data = copy.deepcopy(self.cfg)
         data["token"] = ""
+        data.pop("token_protected", None)
         data.pop("skip_version", None)
         try:
             with open(path, "w", encoding="utf-8") as fh:
@@ -1738,6 +1745,7 @@ class SettingsWindow:
                                                  "(%d élément%s) ?\n\nTon jeton d'accès est conservé."
                                    % (n, "s" if n > 1 else ""), parent=self.win):
             return
+        data.pop("token_protected", None)       # jeton chiffre d'un autre PC : illisible ici
         if not data.get("token"):
             data["token"] = self.cfg.get("token", "")
         if not data.get("ha_url"):

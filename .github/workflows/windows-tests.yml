@@ -1,0 +1,23 @@
+# Tests de la version Windows (chiffrement du jeton avec DPAPI).
+name: Windows (tests)
+
+on:
+  push:
+    paths:
+      - "*.py"
+      - "tests/**"
+      - ".github/workflows/windows-tests.yml"
+  workflow_dispatch:
+
+jobs:
+  tests:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Chiffrement du jeton
+        run: python tests/test_token.py
+      - name: Compilation de tous les modules
+        run: python -m py_compile ha_core.py ha_taskbar.py settings_ui.py card_ui.py tray.py palette.py ha_ws.py tooltip_ui.py update_ui.py screens.py anim_icons.py ui_theme.py
