@@ -26,6 +26,11 @@ Un **programme d'installation** et une **version portable** (sans installation) 
 
 ---
 
+## ✨ Nouveautés de la version 1.8.1
+
+- 🔒 **Jeton d'accès chiffré** : il n'est plus écrit en clair dans `config.json`, mais chiffré avec la protection des données de Windows (DPAPI). Seul ton compte Windows, sur ce PC, peut le relire. Ta configuration actuelle est chiffrée automatiquement au premier lancement. Voir [Le jeton d'accès](#le-jeton-daccès).
+- 🍎 **Version macOS** : corrections de la carte (curseurs, dates de l'historique).
+
 ## ✨ Nouveautés de la version 1.8
 
 **Plus réactif**
