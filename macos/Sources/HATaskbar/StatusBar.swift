@@ -399,10 +399,10 @@ final class ItemView: NSView {
         target.alphaValue = 0.35
         flashTask = Task { @MainActor [weak target] in
             try? await Task.sleep(nanoseconds: 120_000_000)
-            NSAnimationContext.runAnimationGroup { ctx in
+            NSAnimationContext.runAnimationGroup({ ctx in
                 ctx.duration = 0.6
                 target?.animator().alphaValue = 1
-            }
+            }, completionHandler: nil)
         }
     }
 
