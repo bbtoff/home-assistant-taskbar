@@ -92,13 +92,44 @@ final class Updater: ObservableObject {
         }
     }
 
+    /// Derniere version : par l'API de GitHub, ou a defaut (limite de requetes atteinte...) par la page
+    /// « latest » des Releases et le fichier SHA256SUMS.txt.
     static func latest() async throws -> Release? {
+        if let r = try? await latestFromAPI() { return r }
+        return try await latestFromPage()
+    }
+
+    static func latestFromPage() async throws -> Release? {
+        var req = URLRequest(url: URL(string: "https://github.com/\(githubRepo)/releases/latest")!, timeoutInterval: 15)
+        req.httpMethod = "HEAD"
+        let (_, resp) = try await URLSession.shared.data(for: req)
+        guard let final = resp.url, final.path.contains("/releases/tag/") else { throw UpdateError.github }
+        let tag = final.lastPathComponent
+        let version = tag.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
+        guard Int(version.prefix(1)) != nil else { throw UpdateError.github }
+        let base = "https://github.com/\(githubRepo)/releases/download/\(tag)/"
+        let name = "HATaskbar-macOS-\(version).zip"
+        var sha: String?
+        if let sums = try? await URLSession.shared.data(from: URL(string: base + "SHA256SUMS.txt")!),
+           (sums.1 as? HTTPURLResponse)?.statusCode == 200 {
+            for line in String(decoding: sums.0, as: UTF8.self).split(separator: "\n") {
+                let p = line.split(separator: " ", omittingEmptySubsequences: true)
+                if p.count >= 2, p[1].trimmingCharacters(in: CharacterSet(charactersIn: "*")) == name {
+                    sha = p[0].lowercased()
+                }
+            }
+        }
+        return Release(version: version, notes: "", page: final, asset: URL(string: base + name)!,
+                       sha256: sha, size: nil)
+    }
+
+    static func latestFromAPI() async throws -> Release? {
         var req = URLRequest(url: URL(string: "https://api.github.com/repos/\(githubRepo)/releases/latest")!,
                              timeoutInterval: 15)
         req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         req.setValue("HATaskbar-macOS/\(appVersion)", forHTTPHeaderField: "User-Agent")
         let (data, resp) = try await URLSession.shared.data(for: req)
-        guard (resp as? HTTPURLResponse)?.statusCode == 200 else { throw HAError.invalid }
+        guard (resp as? HTTPURLResponse)?.statusCode == 200 else { throw UpdateError.github }
         let rel = try JSONDecoder().decode(JSONValue.self, from: data)
         let version = (rel["tag_name"]?.string ?? "").trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
         guard !version.isEmpty else { return nil }
@@ -198,9 +229,10 @@ final class Updater: ObservableObject {
     private func quote(_ s: String) -> String { "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'" }
 
     enum UpdateError: LocalizedError {
-        case download, incomplete, checksum, invalid
+        case download, incomplete, checksum, invalid, github
         var errorDescription: String? {
             switch self {
+            case .github: return "GitHub ne répond pas, réessaie plus tard"
             case .download: return "téléchargement impossible"
             case .incomplete: return "fichier incomplet"
             case .checksum: return "empreinte SHA-256 incorrecte : fichier abîmé ou modifié"

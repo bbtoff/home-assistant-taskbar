@@ -20,10 +20,13 @@ fail() { printf '\033[31mErreur : %s\033[0m\n' "$*" >&2; exit 1; }
 
 say "== HA Taskbar pour macOS : recherche de la dernière version"
 API="https://api.github.com/repos/$REPO/releases/latest"
-JSON="$(curl -fsSL -H "Accept: application/vnd.github+json" "$API")" || fail "GitHub ne répond pas."
+AUTH=()
+[ -n "${GITHUB_TOKEN:-}" ] && AUTH=(-H "Authorization: Bearer $GITHUB_TOKEN")
+JSON="$(curl -fsSL ${AUTH[@]+"${AUTH[@]}"} -H "Accept: application/vnd.github+json" "$API" 2>/dev/null)" || JSON=""
 
 # Lecture du JSON avec JavaScript for Automation (toujours present sur macOS)
-INFO="$(osascript -l JavaScript -e '
+INFO=""
+[ -n "$JSON" ] && INFO="$(osascript -l JavaScript -e '
 function run(argv) {
   var r = JSON.parse(argv[0]);
   var v = String(r.tag_name || "").replace(/^v/i, "");
@@ -31,8 +34,20 @@ function run(argv) {
   if (!a) return "";
   var sha = String(a.digest || "").replace(/^sha256:/, "");
   return [v, a.browser_download_url, sha, a.size].join("\n");
-}' "$JSON")" || fail "réponse de GitHub illisible."
-[ -n "$INFO" ] || fail "la dernière version publiée ne contient pas encore l'application Mac."
+}' "$JSON" 2>/dev/null)" || INFO=""
+
+# Sans l'API (limite de requetes atteinte...) : la page « latest » redirige vers le tag de la derniere
+# version, et les empreintes sont dans le fichier SHA256SUMS.txt de la release.
+if [ -z "$INFO" ]; then
+  TAG_URL="$(curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/$REPO/releases/latest")" \
+    || fail "GitHub ne répond pas."
+  TAG="${TAG_URL##*/}"
+  case "$TAG" in v[0-9]*) ;; *) fail "dernière version introuvable ($TAG_URL)." ;; esac
+  V="${TAG#v}"
+  BASE="https://github.com/$REPO/releases/download/$TAG"
+  SUM="$(curl -fsSL "$BASE/SHA256SUMS.txt" 2>/dev/null | awk -v f="HATaskbar-macOS-$V.zip" '$2 == f || $2 == "*"f { print $1 }')" || SUM=""
+  INFO="$(printf '%s\n%s\n%s\n' "$V" "$BASE/HATaskbar-macOS-$V.zip" "$SUM")"
+fi
 
 VERSION="$(sed -n 1p <<<"$INFO")"
 URL="$(sed -n 2p <<<"$INFO")"
@@ -45,7 +60,7 @@ esac
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 say "== Téléchargement de la version $VERSION"
-curl -fL --progress-bar -o "$TMP/app.zip" "$URL" || fail "téléchargement impossible."
+curl -fL --progress-bar -o "$TMP/app.zip" "$URL" || fail "téléchargement impossible (la dernière version contient-elle l'application Mac ?)."
 
 if [ -n "$SHA" ]; then
   GOT="$(shasum -a 256 "$TMP/app.zip" | cut -d' ' -f1)"

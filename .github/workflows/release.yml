@@ -90,10 +90,11 @@ jobs:
         run: |
           V="${TAG#v}"
           cp "docs/notes/$TAG.md" notes.md
+          (cd files && sha256sum HATaskbar-* > SHA256SUMS.txt && cat SHA256SUMS.txt)
           {
             echo
             echo "**🔒 Vérifier le téléchargement** (SHA-256)"
-            for f in files/*; do echo "- \`$(basename "$f")\` : \`$(sha256sum "$f" | cut -d' ' -f1)\`"; done
+            for f in files/HATaskbar-*; do echo "- \`$(basename "$f")\` : \`$(sha256sum "$f" | cut -d' ' -f1)\`"; done
             echo "- Windows (PowerShell) : \`Get-FileHash .\\HATaskbar-Setup-$V.exe\` ; Mac (Terminal) : \`shasum -a 256 HATaskbar-macOS-$V.dmg\`"
             echo "- Ce que fait le programme (connexions, fichiers, jeton) : section [Sécurité et confidentialité](https://github.com/${GH_REPO}#-sécurité-et-confidentialité) du README."
           } >> notes.md
