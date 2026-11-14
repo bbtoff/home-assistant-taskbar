@@ -20,7 +20,7 @@ Affiche des **capteurs** et des **boutons Home Assistant** directement sur la **
 
 Un **programme d'installation** et une **version portable** (sans installation) sont fournis : rien d'autre à installer, pas même Python. Depuis les sources, il suffit de Python et de sa bibliothèque standard (tkinter, ctypes, urllib). Le thème des fenêtres est inclus dans le dépôt.
 
-> 🍎 **Nouveau : une version macOS** (aperçu), dans la **barre des menus** du Mac. Voir [HA Taskbar sur Mac](#-ha-taskbar-sur-mac).
+> 🍎 **Nouveau : une version macOS** (aperçu), dans la **barre des menus** du Mac. Installation en une commande dans le Terminal : `curl -fsSL https://raw.githubusercontent.com/bbtoff/home-assistant-taskbar/main/macos/install.sh | bash`. Voir [HA Taskbar sur Mac](#-ha-taskbar-sur-mac).
 >
 > ![HA Taskbar dans la barre des menus du Mac, en clair et en sombre](docs/screenshots/mac-barre.png)
 
@@ -29,7 +29,7 @@ Un **programme d'installation** et une **version portable** (sans installation) 
 ## ✨ Nouveautés de la version 1.8.1
 
 - 🔒 **Jeton d'accès chiffré** : il n'est plus écrit en clair dans `config.json`, mais chiffré avec la protection des données de Windows (DPAPI). Seul ton compte Windows, sur ce PC, peut le relire. Ta configuration actuelle est chiffrée automatiquement au premier lancement. Voir [Le jeton d'accès](#le-jeton-daccès).
-- 🍎 **Version macOS** : la carte s'ouvre **au survol** (0,8 s, réglable), appui long plus fiable, nouveau réglage « le clic ouvre la carte » (Réglages → Général), corrections de la carte (curseurs, dates de l'historique).
+- 🍎 **Version macOS** : **installation en une commande** et **mises à jour automatiques**, sans blocage de Gatekeeper ; la carte s'ouvre **au survol** (0,8 s, réglable), appui long plus fiable, nouveau réglage « le clic ouvre la carte » (Réglages → Général), corrections de la carte (curseurs, dates de l'historique).
 
 ## ✨ Nouveautés de la version 1.8
 
@@ -696,8 +696,15 @@ Les réglages et le choix des entités, avec la pièce de chacune :
   <img src="docs/screenshots/mac-ajout-clair.png" width="49%" alt="Ajouter des entités : recherche par nom, pièce ou type">
 </p>
 
-- **Installation** : télécharge `HATaskbar-macOS-<version>.dmg` depuis les [**Releases**](https://github.com/bbtoff/home-assistant-taskbar/releases), ouvre-le et glisse **HA Taskbar** dans **Applications**.
-- **Premier lancement** : l'application n'est pas signée par Apple. Fais un clic droit sur l'app → **Ouvrir**, puis **Ouvrir**. Sur macOS 15 ou plus : **Réglages Système → Confidentialité et sécurité → Ouvrir quand même**.
+- **Installation (recommandée)** : colle cette commande dans le **Terminal** (Applications → Utilitaires) :
+
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/bbtoff/home-assistant-taskbar/main/macos/install.sh | bash
+  ```
+
+  Elle télécharge la dernière version depuis les Releases, vérifie son empreinte SHA-256, l'installe dans **Applications** et la lance. Aucun message « Apple n'a pas pu confirmer… » : macOS ne bloque que les fichiers téléchargés par un navigateur. Le script est lisible ici : [`macos/install.sh`](macos/install.sh).
+- **Mises à jour** : automatiques. HA Taskbar vérifie GitHub au démarrage puis une fois par jour, propose la nouvelle version, la télécharge, vérifie son empreinte et redémarre (menu 🏠 → **Mettre à jour**, ou **Réglages → Général → Mises à jour**).
+- **Avec le `.dmg`** (téléchargé depuis les [**Releases**](https://github.com/bbtoff/home-assistant-taskbar/releases)) : l'application n'est pas signée par Apple, donc macOS la bloque au premier lancement. Ouvre **Réglages Système → Confidentialité et sécurité**, puis **Ouvrir quand même** (une seule fois : les mises à jour suivantes se font depuis l'application).
 - **Utilisation** : clic pour l'action, survol (0,8 s), appui long ou ⌥-clic pour la carte, molette pour régler, clic droit pour le menu. Si tu préfères que le clic ouvre la carte : **Réglages → Général → Clic sur un élément**.
 - **Depuis Windows** : **Réglages → Général → Importer…** reprend ton `config.json` (éléments, icônes, seuils, notifications).
 

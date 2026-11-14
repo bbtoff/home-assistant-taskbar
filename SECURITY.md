@@ -20,7 +20,8 @@ HA Taskbar est maintenu sur mon temps libre : je réponds dès que possible, en 
 ## Ce qui est concerné
 
 - Le programme HA Taskbar et son programme d'installation
-- La mise à jour automatique (téléchargement et vérification)
+- La mise à jour automatique (téléchargement et vérification), sous Windows et sous macOS
+- Le script d'installation macOS (`macos/install.sh`)
 - La conservation du jeton d'accès Home Assistant
 
 Les failles de Home Assistant lui-même sont à signaler au [projet Home Assistant](https://www.home-assistant.io/security/).
