@@ -61,7 +61,7 @@ jobs:
           name: captures-macos
           path: shots/*.png
       - name: Envoi des captures brutes sur la branche
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && github.ref_name != 'main'
         run: |
           mkdir -p docs/screenshots/macos-brut
           cp shots/*.png docs/screenshots/macos-brut/

@@ -2,6 +2,17 @@
 
 La version Mac de HA Taskbar : tes **capteurs** et **boutons Home Assistant** dans la **barre des menus**, en haut à droite de l'écran. Application native (Swift, AppKit + SwiftUI), sans aucune dépendance.
 
+![La barre des menus en mode clair et en mode sombre](../docs/screenshots/mac-barre.png)
+
+![Cartes de contrôle : lumière, thermostat et consommation](../docs/screenshots/mac-cartes.png)
+
+<p align="center">
+  <img src="../docs/screenshots/mac-reglages-sombre.png" width="49%" alt="Réglages des éléments">
+  <img src="../docs/screenshots/mac-ajout-clair.png" width="49%" alt="Ajouter des entités">
+</p>
+
+*Captures faites avec les données de démonstration (`--demo`, voir plus bas).*
+
 ## Ce qu'elle fait
 
 - 📊 **Valeurs en temps réel** (WebSocket), avec repli automatique sur l'interrogation régulière
@@ -43,6 +54,16 @@ Double-clique sur `macos/Package.swift` : Xcode ouvre le projet, ▶︎ lance l'
 ### Sans Mac de développement
 
 Chaque modification du dossier `macos/` est construite sur un Mac de GitHub (workflow **macOS**) : le `.zip` et le `.dmg` sont dans les **Artifacts** de l'exécution. L'application n'est pas notariée par Apple : au premier lancement, clic droit → **Ouvrir** (ou **Réglages Système → Confidentialité et sécurité → Ouvrir quand même**).
+
+## Mode démonstration
+
+Pour essayer sans Home Assistant, ou refaire les captures : lance l'application avec `--demo` (rien n'est enregistré ni envoyé).
+
+```bash
+"/Applications/HA Taskbar.app/Contents/MacOS/HATaskbar" --demo
+```
+
+Options : `--demo-card <n>` ouvre la carte du n-ième élément, `--demo-settings` les réglages, `--demo-picker` l'ajout d'entités, `--demo-items 0,2,3` limite les éléments affichés. Le workflow **macOS (captures)** de GitHub refait toutes les captures de cette façon.
 
 ## Différences avec Windows
 
