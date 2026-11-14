@@ -1,0 +1,30 @@
+# Construit HA Taskbar pour macOS sur un Mac de GitHub, a chaque modification du dossier macos/.
+# L'application (.zip et .dmg) est disponible dans les « Artifacts » de l'execution.
+name: macOS
+
+on:
+  push:
+    paths:
+      - "macos/**"
+      - "assets/ha_taskbar.png"
+      - ".github/workflows/macos.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Versions
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+      - name: Construction
+        run: ./macos/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HATaskbar-macOS
+          path: |
+            macos/dist/*.zip
+            macos/dist/*.dmg

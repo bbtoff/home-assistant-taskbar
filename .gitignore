@@ -11,3 +11,9 @@ __pycache__/
 build/
 dist/
 *.spec
+
+# macOS (macos/build.sh, Xcode)
+macos/.build/
+macos/dist/
+macos/.swiftpm/
+.DS_Store
