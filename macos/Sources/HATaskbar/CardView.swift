@@ -627,6 +627,7 @@ struct WeatherControls: View {
             }
         }
         .task(id: st.entityId) {
+            if Demo.enabled { forecast = Demo.forecast; return }
             if let c = model.client, let f = try? await c.forecast(st.entityId) { forecast = f }
         }
     }
@@ -791,6 +792,10 @@ struct HistoryView: View {
     }
 
     private func load() async {
+        if Demo.enabled {
+            raw = Demo.history(entityId, hours: hours)
+            return
+        }
         guard let c = model.client else { failed = true; return }
         loading = true
         defer { loading = false }

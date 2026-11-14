@@ -216,6 +216,7 @@ enum ConfigStore {
     }
 
     static func save(_ cfg: AppConfig) {
+        if Demo.enabled { return }
         do {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             try encode(cfg).write(to: configURL, options: .atomic)
@@ -246,6 +247,7 @@ enum TokenStore {
     }
 
     static func save(_ token: String) {
+        if Demo.enabled { return }
         let base: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
                                    kSecAttrService as String: service,
                                    kSecAttrAccount as String: account]

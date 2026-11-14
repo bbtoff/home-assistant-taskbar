@@ -27,6 +27,11 @@ final class AppModel: ObservableObject {
     private var everConnected = false
 
     init() {
+        if Demo.enabled {
+            config = Demo.config
+            token = "demo"
+            return
+        }
         var cfg = ConfigStore.load()
         var tok = TokenStore.load()
         // Ancienne config (ou import Windows) avec le jeton dans le fichier : il passe dans le trousseau
@@ -49,6 +54,14 @@ final class AppModel: ObservableObject {
 
     func start() {
         stop()
+        if Demo.enabled {
+            states = Demo.states
+            areas = Demo.areas
+            lastOK = Date()
+            realtimeConnected = true
+            onStatesChanged?()
+            return
+        }
         guard !token.isEmpty else { return }
         let c = HAClient(url: config.haURL, token: token, verifySSL: config.verifySSL)
         client = c
@@ -403,12 +416,12 @@ enum Notifier {
     static var available: Bool { Bundle.main.bundleURL.pathExtension == "app" }
 
     static func requestAuthorization() {
-        guard available else { return }
+        guard available, !Demo.enabled else { return }
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
     }
 
     static func send(title: String, body: String) {
-        guard available else {
+        guard available, !Demo.enabled else {
             NSLog("HA Taskbar : \(title) — \(body)")
             return
         }
