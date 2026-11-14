@@ -7,6 +7,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     let model: AppModel
     var openSettings: (_ itemId: UUID?) -> Void = { _ in }
     var openPicker: () -> Void = {}
+    var updater: Updater?
 
     private var appItem: NSStatusItem?
     private var entries: [ItemView] = []
@@ -289,6 +290,10 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             menu.addItem(l)
         }
         menu.addItem(.separator())
+        if let u = updater, let r = u.available {
+            menu.addItem(menuItem("⬆︎ Mettre à jour vers la version \(r.version)…") { u.ask(r) })
+            menu.addItem(.separator())
+        }
         let hidden = model.config.items.filter { $0.hidden == true }
         if !hidden.isEmpty {
             menu.addItem(menuItem("Réafficher les éléments masqués (\(hidden.count))") { [weak self] in

@@ -38,6 +38,7 @@ func optional(_ b: Binding<String?>) -> Binding<String> {
 struct SettingsView: View {
     @ObservedObject var model: AppModel
     @ObservedObject var nav: SettingsNav
+    @ObservedObject var updater: Updater
 
     var body: some View {
         TabView(selection: $nav.tab) {
@@ -50,7 +51,7 @@ struct SettingsView: View {
             NotificationsTab(model: model)
                 .tabItem { Label("Notifications", systemImage: "bell") }
                 .tag(SettingsTab.notifications)
-            GeneralTab(model: model)
+            GeneralTab(model: model, updater: updater)
                 .tabItem { Label("Général", systemImage: "gearshape") }
                 .tag(SettingsTab.general)
         }
@@ -473,6 +474,7 @@ struct NotificationsTab: View {
 
 struct GeneralTab: View {
     @ObservedObject var model: AppModel
+    @ObservedObject var updater: Updater
     @State private var loginItem = SMAppService.mainApp.status == .enabled
     @State private var message: String?
 
@@ -528,12 +530,41 @@ struct GeneralTab: View {
                     .font(.caption).foregroundStyle(.secondary)
                 if let m = message { Text(m).font(.caption) }
             }
+            Section("Mises à jour") {
+                Toggle("Rechercher les nouvelles versions (au démarrage, puis une fois par jour)",
+                       isOn: model.bind(\.checkUpdates))
+                HStack {
+                    Button("Rechercher maintenant") { Task { await updater.check(manual: true) } }
+                        .disabled(updater.state == .checking || updater.state == .downloading
+                                  || updater.state == .installing)
+                    if let r = updater.available {
+                        Button("Installer la version \(r.version)") { updater.ask(r) }
+                            .keyboardShortcut(.defaultAction)
+                    }
+                    Spacer()
+                    Text(updateText).foregroundStyle(.secondary)
+                }
+                Text("La mise à jour est téléchargée depuis GitHub, son empreinte SHA-256 est vérifiée, puis HA Taskbar redémarre. Pas besoin de repasser par « Ouvrir quand même ».")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             Section("À propos") {
                 LabeledContent("Version", value: appVersion)
                 Link("Page du projet sur GitHub", destination: URL(string: "https://github.com/\(githubRepo)")!)
             }
         }
         .formStyle(.grouped)
+    }
+
+    private var updateText: String {
+        switch updater.state {
+        case .idle: return ""
+        case .checking: return "Recherche…"
+        case .upToDate: return "✔ HA Taskbar est à jour"
+        case .available(let r): return "Version \(r.version) disponible"
+        case .downloading: return "Téléchargement…"
+        case .installing: return "Installation…"
+        case .failed(let m): return "Impossible : \(m)"
+        }
     }
 
     private func importConfig() {

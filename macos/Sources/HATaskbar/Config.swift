@@ -139,6 +139,7 @@ struct AppConfig: Codable, Equatable {
     var quietTo = ""
     var batteryLow: Double = 20
     var checkUpdates = true
+    var skipVersion = ""             // version que l'utilisateur a choisi d'ignorer
     var notifications: [NotifyRule] = []
     var items: [ItemConfig] = []
 
@@ -148,7 +149,7 @@ struct AppConfig: Codable, Equatable {
         case clickOpensCard = "click_opens_card", hoverCardDelay = "hover_card_delay"
         case notifyOffline = "notify_offline", haNotifications = "ha_notifications"
         case quietFrom = "quiet_from", quietTo = "quiet_to", batteryLow = "battery_low"
-        case checkUpdates = "check_updates", notifications, items
+        case checkUpdates = "check_updates", skipVersion = "skip_version", notifications, items
     }
 
     init() {}
@@ -175,6 +176,7 @@ struct AppConfig: Codable, Equatable {
         quietTo = get(.quietTo, d.quietTo)
         batteryLow = get(.batteryLow, d.batteryLow)
         checkUpdates = get(.checkUpdates, d.checkUpdates)
+        skipVersion = get(.skipVersion, d.skipVersion)
         notifications = get(.notifications, d.notifications)
         items = get(.items, d.items)
     }

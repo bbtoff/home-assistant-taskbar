@@ -19,6 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     let model = AppModel()
     let nav = SettingsNav()
+    lazy var updater = Updater(model: model)
     private var bar: StatusBarController?
     private var settingsWindow: NSWindow?
     private let notificationDelegate = NotificationDelegate()
@@ -30,6 +31,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Notifier.requestAuthorization()
         }
         let bar = StatusBarController(model: model)
+        bar.updater = updater
+        updater.onAvailable = { [weak self] r in self?.updater.ask(r) }
         bar.openSettings = { [weak self] id in self?.showSettings(item: id) }
         bar.openPicker = { [weak self] in self?.showSettings(picker: true) }
         self.bar = bar
@@ -41,6 +44,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             showSettings(tab: .connection)
         }
         if Demo.enabled { runDemo() }
+        if CommandLine.arguments.contains("--update-test") {
+            updater.runSelfTest()
+        } else {
+            updater.start()
+        }
     }
 
     private func runDemo() {
@@ -88,7 +96,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                              backing: .buffered, defer: false)
             w.title = "HA Taskbar — Réglages"
             w.isReleasedWhenClosed = false
-            w.contentView = NSHostingView(rootView: SettingsView(model: model, nav: nav))
+            w.contentView = NSHostingView(rootView: SettingsView(model: model, nav: nav, updater: updater))
             w.setContentSize(NSSize(width: 820, height: 580))
             w.center()
             w.setFrameAutosaveName("HATaskbarSettings")
