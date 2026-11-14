@@ -42,7 +42,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     }
 
     private func rebuild() {
-        popover?.close()
+        closeCard()
         let bar = NSStatusBar.system
         for v in entries { bar.removeStatusItem(v.statusItem) }
         entries.removeAll()
@@ -75,7 +75,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             let d = displayFor(v.item, states: model.states, offline: model.offline, batteryLow: c.batteryLow,
                                timerLeft: model.timerLeft(v.item.entityId))
             v.apply(d, compact: c.compact, animate: c.animIcons, flash: c.flashChanges && !model.offline)
-            v.toolTip = tooltip(v.item, d)
+            v.toolTip = c.hoverCardDelay > 0 ? nil : tooltip(v.item, d)   // la carte remplace l'infobulle
         }
         if let b = appItem?.button {
             let off = model.offline && !model.needsSetup
@@ -141,12 +141,77 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     }
 
     func openCard(_ v: ItemView) {
-        guard let button = v.statusItem.button else { return }
         if let p = popover, p.isShown {
-            p.close()
-            popover = nil
-            return
+            if hoverOpened && popoverOwner === v {
+                pinCard()                     // carte ouverte au survol : on la garde
+                return
+            }
+            let same = popoverOwner === v
+            closeCard()
+            if same { return }                // deuxieme appui sur le meme element : fermeture
         }
+        showCard(v, activate: true)
+    }
+
+    /// Survol prolonge d'un element : la carte s'ouvre sans prendre le focus, et se referme
+    /// quand la souris quitte l'element et la carte.
+    func hoverCard(_ v: ItemView) {
+        guard model.config.hoverCardDelay > 0, NSEvent.pressedMouseButtons == 0, !model.needsSetup else { return }
+        if let p = popover, p.isShown {
+            if !hoverOpened || popoverOwner === v { return }   // une carte ouverte au clic reste en place
+            closeCard()
+        }
+        Demo.log("hover \(v.item.entityId)")
+        showCard(v, activate: false)
+        hoverOpened = true
+        watchHover(v)
+    }
+
+    private var popoverOwner: ItemView?
+    private var hoverOpened = false
+    private var hoverWatch: Task<Void, Never>?
+
+    private func pinCard() {
+        hoverOpened = false
+        hoverWatch?.cancel()
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    private func closeCard() {
+        hoverWatch?.cancel()
+        hoverOpened = false
+        popover?.close()
+        popover = nil
+        popoverOwner = nil
+    }
+
+    private func watchHover(_ v: ItemView) {
+        hoverWatch?.cancel()
+        hoverWatch = Task { @MainActor [weak self, weak v] in
+            var lastInside = Date()
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 150_000_000)
+                guard let self = self, let v = v, self.hoverOpened, let p = self.popover, p.isShown else { return }
+                // Un clic dans la carte : elle devient une carte « normale », qui reste ouverte
+                if let w = p.contentViewController?.view.window, w.isKeyWindow {
+                    self.pinCard()
+                    return
+                }
+                var zone = v.window?.frame ?? .zero
+                if let w = p.contentViewController?.view.window { zone = zone.union(w.frame) }
+                if zone.insetBy(dx: -12, dy: -12).contains(NSEvent.mouseLocation) {
+                    lastInside = Date()
+                } else if Date().timeIntervalSince(lastInside) > 0.5 {
+                    Demo.log("close \(v.item.entityId)")
+                    self.closeCard()
+                    return
+                }
+            }
+        }
+    }
+
+    private func showCard(_ v: ItemView, activate: Bool) {
+        guard let button = v.statusItem.button else { return }
         let host = NSHostingController(rootView: CardView(model: model, itemId: v.item.id,
                                                           edit: { [weak self] in
                                                               self?.popover?.close()
@@ -157,9 +222,11 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         p.behavior = .transient
         p.animates = true
         p.contentViewController = host
-        NSApp.activate(ignoringOtherApps: true)
+        if activate { NSApp.activate(ignoringOtherApps: true) }
         p.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         popover = p
+        popoverOwner = v
+        hoverOpened = false
         Demo.log("card \(v.item.entityId) shown=\(p.isShown)")
     }
 
@@ -447,7 +514,33 @@ final class ItemView: NSView {
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
+    // MARK: survol
+
+    private var hoverTask: Task<Void, Never>?
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        for t in trackingAreas { removeTrackingArea(t) }
+        addTrackingArea(NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+                                       owner: self, userInfo: nil))
+    }
+
+    override func mouseEntered(with e: NSEvent) {
+        hoverTask?.cancel()
+        guard let delay = controller?.model.config.hoverCardDelay, delay > 0 else { return }
+        hoverTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            guard let self = self, !Task.isCancelled else { return }
+            self.controller?.hoverCard(self)
+        }
+    }
+
+    override func mouseExited(with e: NSEvent) {
+        hoverTask?.cancel()
+    }
+
     override func mouseDown(with e: NSEvent) {
+        hoverTask?.cancel()
         if e.modifierFlags.contains(.control) {
             controller?.showMenu(self)
             return
@@ -475,6 +568,7 @@ final class ItemView: NSView {
     }
 
     override func rightMouseDown(with e: NSEvent) {
+        hoverTask?.cancel()
         controller?.showMenu(self)
     }
 

@@ -8,6 +8,7 @@ import Foundation
 ///   --demo-picker             ouvre la fenetre « Ajouter des entites »
 ///   --demo-items 0,2,3        n'affiche que ces elements dans la barre (petits ecrans)
 ///   --demo-click-card         reglage « le clic ouvre la carte »
+///   --demo-hover <s>          delai d'ouverture de la carte au survol (0 = jamais)
 ///   --demo-log <fichier>      journal des gestes (tests automatiques de l'interface)
 enum Demo {
     static let enabled = CommandLine.arguments.contains("--demo")
@@ -60,6 +61,7 @@ enum Demo {
         c.quietFrom = "22:00"
         c.quietTo = "07:00"
         if CommandLine.arguments.contains("--demo-click-card") { c.clickOpensCard = true }
+        if let h = arg("--demo-hover"), let v = Double(h) { c.hoverCardDelay = v }
         return c
     }
 
