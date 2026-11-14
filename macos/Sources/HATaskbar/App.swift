@@ -45,6 +45,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func runDemo() {
         Task { @MainActor in
+            for _ in 0..<20 {               // positions des elements, une fois places par macOS
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                bar?.logFrames()
+            }
+        }
+        Task { @MainActor in
             try? await Task.sleep(nanoseconds: 1_500_000_000)
             if let s = Demo.arg("--demo-card"), let n = Int(s) {
                 bar?.openCard(at: n)

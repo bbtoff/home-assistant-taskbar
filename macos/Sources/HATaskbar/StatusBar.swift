@@ -77,19 +77,21 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             v.apply(d, compact: c.compact, animate: c.animIcons, flash: c.flashChanges && !model.offline)
             v.toolTip = tooltip(v.item, d)
         }
-        if Demo.enabled, let screenH = NSScreen.screens.first?.frame.height {
-            // Position des elements (coordonnees d'ecran, origine en haut a gauche) pour les tests
-            for v in entries {
-                if let f = v.statusItem.button?.window?.frame {
-                    Demo.log("frame \(v.item.entityId) \(Int(f.midX)) \(Int(screenH - f.midY))", key: v.item.entityId)
-                }
-            }
-        }
         if let b = appItem?.button {
             let off = model.offline && !model.needsSetup
             b.image = Icons.image(off ? "wifi.exclamationmark" : "house.fill", size: 14)
             b.image?.isTemplate = true
             b.toolTip = "HA Taskbar\n" + model.statusLine
+        }
+    }
+
+    /// Position des elements (coordonnees d'ecran, origine en haut a gauche), pour les tests de l'interface.
+    func logFrames() {
+        guard let screenH = NSScreen.screens.first?.frame.height else { return }
+        for v in entries {
+            if let f = v.statusItem.button?.window?.frame, f.midY > 1 {
+                Demo.log("frame \(v.item.entityId) \(Int(f.midX)) \(Int(screenH - f.midY))", key: v.item.entityId)
+            }
         }
     }
 
