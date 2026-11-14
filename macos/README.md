@@ -17,7 +17,7 @@ La version Mac de HA Taskbar : tes **capteurs** et **boutons Home Assistant** da
 
 - 📊 **Valeurs en temps réel** (WebSocket), avec repli automatique sur l'interrogation régulière
 - 💡 **Clic** : allumer / éteindre, lancer une scène ou un script… (sur un capteur : ouvre la carte)
-- 🧩 **Appui long**, **⌥-clic** ou clic du milieu : **carte de contrôle** — luminosité, blanc, couleurs, ambiances, vitesse et sens d'un ventilateur, position d'un volet, consigne et mode d'un thermostat, lecteur multimédia, verrou, aspirateur, liste déroulante, météo sur 5 jours, **historique 24 h / 7 j / 30 j** avec courbe
+- 🧩 **Appui long**, **⌥-clic** ou clic du milieu : **carte de contrôle** (ou d'un simple clic, avec **Réglages → Général → Clic sur un élément : Ouvrir la carte**) — luminosité, blanc, couleurs, ambiances, vitesse et sens d'un ventilateur, position d'un volet, consigne et mode d'un thermostat, lecteur multimédia, verrou, aspirateur, liste déroulante, météo sur 5 jours, **historique 24 h / 7 j / 30 j** avec courbe
 - 🖱️ **Molette ou deux doigts** sur un élément : luminosité, vitesse, volume, position, consigne, valeur
 - 📋 **Clic droit** (ou ⌃-clic) : menu de l'élément, **arrêt programmé** (15 min à 2 h), modifier, masquer
 - 🎨 Plus de 100 icônes **SF Symbols** qui suivent l'état (jaune = allumé), pile / Wi-Fi / volume selon la valeur, **icônes animées** (macOS 14+), **couleur selon la valeur** (`> 25 orange ; > 30 rouge`)

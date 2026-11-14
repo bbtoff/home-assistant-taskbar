@@ -29,7 +29,7 @@ Un **programme d'installation** et une **version portable** (sans installation) 
 ## ✨ Nouveautés de la version 1.8.1
 
 - 🔒 **Jeton d'accès chiffré** : il n'est plus écrit en clair dans `config.json`, mais chiffré avec la protection des données de Windows (DPAPI). Seul ton compte Windows, sur ce PC, peut le relire. Ta configuration actuelle est chiffrée automatiquement au premier lancement. Voir [Le jeton d'accès](#le-jeton-daccès).
-- 🍎 **Version macOS** : corrections de la carte (curseurs, dates de l'historique).
+- 🍎 **Version macOS** : appui long plus fiable pour ouvrir la carte, nouveau réglage « le clic ouvre la carte » (Réglages → Général), corrections de la carte (curseurs, dates de l'historique).
 
 ## ✨ Nouveautés de la version 1.8
 
@@ -698,7 +698,7 @@ Les réglages et le choix des entités, avec la pièce de chacune :
 
 - **Installation** : télécharge `HATaskbar-macOS-<version>.dmg` depuis les [**Releases**](https://github.com/bbtoff/home-assistant-taskbar/releases), ouvre-le et glisse **HA Taskbar** dans **Applications**.
 - **Premier lancement** : l'application n'est pas signée par Apple. Fais un clic droit sur l'app → **Ouvrir**, puis **Ouvrir**. Sur macOS 15 ou plus : **Réglages Système → Confidentialité et sécurité → Ouvrir quand même**.
-- **Utilisation** : clic pour l'action, appui long ou ⌥-clic pour la carte, molette pour régler, clic droit pour le menu.
+- **Utilisation** : clic pour l'action, appui long ou ⌥-clic pour la carte, molette pour régler, clic droit pour le menu. Si tu préfères que le clic ouvre la carte : **Réglages → Général → Clic sur un élément**.
 - **Depuis Windows** : **Réglages → Général → Importer…** reprend ton `config.json` (éléments, icônes, seuils, notifications).
 
 La palette de commandes, les raccourcis clavier globaux et les favoris de lumière ne sont pas encore disponibles sur Mac. Tout le détail, et comment la construire soi-même avec Xcode : [macos/README.md](macos/README.md).
