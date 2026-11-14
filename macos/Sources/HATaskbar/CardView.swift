@@ -160,12 +160,13 @@ struct CommitSlider: View {
             HStack {
                 Text(title).foregroundStyle(.secondary)
                 Spacer()
-                Text(JSONValue.format(local) + unit).monospacedDigit()
+                Text(JSONValue.format(rounded(local)) + unit).monospacedDigit()
             }
             .font(.callout)
-            Slider(value: $local, in: range, step: step, onEditingChanged: { e in
+            // Sans « step » : SwiftUI dessinerait une graduation par pas sous le curseur
+            Slider(value: $local, in: range, onEditingChanged: { e in
                 editing = e
-                if !e { commit(local) }
+                if !e { commit(rounded(local)) }
             })
         }
         .onAppear { local = clamp(value) }
@@ -173,6 +174,7 @@ struct CommitSlider: View {
     }
 
     private func clamp(_ v: Double) -> Double { min(range.upperBound, max(range.lowerBound, v)) }
+    private func rounded(_ v: Double) -> Double { clamp(step > 0 ? (v / step).rounded() * step : v) }
 }
 
 struct LightControls: View {
@@ -653,7 +655,7 @@ struct TimerRow: View {
                 Spacer()
                 Button("Annuler") { model.cancelTimer(entityId) }
             } else {
-                Text("Éteindre dans").foregroundStyle(.secondary)
+                Text("Arrêt dans").foregroundStyle(.secondary).lineLimit(1).fixedSize()
                 Spacer()
                 ForEach([(15, "15 min"), (30, "30 min"), (60, "1 h"), (120, "2 h")], id: \.0) { m in
                     Button(m.1) { model.startTimer(entityId, minutes: m.0) }
@@ -740,6 +742,16 @@ struct HistoryView: View {
                             .interpolationMethod(.monotone)
                     }
                     .chartYScale(domain: .automatic(includesZero: false))
+                    .chartXAxis {
+                        AxisMarks(values: .automatic(desiredCount: 4)) { _ in
+                            AxisGridLine()
+                            if hours <= 24 {
+                                AxisValueLabel(format: .dateTime.hour())
+                            } else {
+                                AxisValueLabel(format: .dateTime.day().month(.abbreviated))
+                            }
+                        }
+                    }
                     .frame(height: 120)
                     let vals = pts.map(\.value)
                     HStack {

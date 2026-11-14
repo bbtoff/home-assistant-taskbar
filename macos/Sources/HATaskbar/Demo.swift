@@ -6,6 +6,7 @@ import Foundation
 ///   --demo-card <n>           ouvre la carte du n-ieme element (0 = le premier)
 ///   --demo-settings [onglet]  ouvre les reglages (items, connection, notifications, general)
 ///   --demo-picker             ouvre la fenetre « Ajouter des entites »
+///   --demo-items 0,2,3        n'affiche que ces elements dans la barre (petits ecrans)
 enum Demo {
     static let enabled = CommandLine.arguments.contains("--demo")
 
@@ -30,6 +31,10 @@ enum Demo {
         ext.thresholds = "< 5 bleu ; > 25 orange ; > 30 rouge"
         let scene = ItemConfig(entityId: "scene.cinema", label: "Ciné")
         c.items = [light, plug, heat, power, ext, scene]
+        if let keep = arg("--demo-items") {
+            let idx = Set(keep.split(separator: ",").compactMap { Int($0) })
+            for i in c.items.indices where !idx.contains(i) { c.items[i].hidden = true }
+        }
         c.notifications = [NotifyRule(entityId: "binary_sensor.porte_entree", to: "on", message: "La porte d'entrée est ouverte")]
         c.quietFrom = "22:00"
         c.quietTo = "07:00"
