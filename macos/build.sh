@@ -16,7 +16,7 @@ echo "== HA Taskbar pour macOS $VERSION"
 # --- 1. compilation
 ARCHS=(--arch arm64 --arch x86_64)
 if [[ "${1:-}" == "--native" ]]; then ARCHS=(); fi
-if ! swift build -c release "${ARCHS[@]}"; then
+if ! swift build -c release ${ARCHS[@]+"${ARCHS[@]}"}; then
     if [[ ${#ARCHS[@]} -gt 0 ]]; then
         echo "== Compilation universelle impossible, compilation pour ce Mac seulement"
         ARCHS=()
@@ -25,7 +25,7 @@ if ! swift build -c release "${ARCHS[@]}"; then
         exit 1
     fi
 fi
-BIN="$(swift build -c release "${ARCHS[@]}" --show-bin-path)/HATaskbar"
+BIN="$(swift build -c release ${ARCHS[@]+"${ARCHS[@]}"} --show-bin-path)/HATaskbar"
 
 # --- 2. paquet .app
 rm -rf "$APP"
