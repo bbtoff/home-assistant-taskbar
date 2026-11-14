@@ -40,6 +40,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if model.needsSetup {
             showSettings(tab: .connection)
         }
+        if Demo.enabled { runDemo() }
+    }
+
+    private func runDemo() {
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            if let s = Demo.arg("--demo-card"), let n = Int(s) {
+                bar?.openCard(at: n)
+            }
+            if let t = Demo.arg("--demo-settings") {
+                let tab: SettingsTab = ["connection": .connection, "notifications": .notifications,
+                                        "general": .general][t] ?? .items
+                showSettings(item: tab == .items ? model.config.items.first?.id : nil, tab: tab)
+            }
+            if Demo.arg("--demo-picker") != nil {
+                showSettings(picker: true)
+            }
+        }
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {

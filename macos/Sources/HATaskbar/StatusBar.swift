@@ -135,6 +135,12 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         popover = p
     }
 
+    /// Ouvre la carte du n-ieme element affiche (mode demonstration).
+    func openCard(at index: Int) {
+        guard entries.indices.contains(index) else { return }
+        openCard(entries[index])
+    }
+
     func showMenu(_ v: ItemView) {
         let m = NSMenu()
         let item = v.item

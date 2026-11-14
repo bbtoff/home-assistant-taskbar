@@ -21,6 +21,8 @@ Affiche des **capteurs** et des **boutons Home Assistant** directement sur la **
 Un **programme d'installation** et une **version portable** (sans installation) sont fournis : rien d'autre à installer, pas même Python. Depuis les sources, il suffit de Python et de sa bibliothèque standard (tkinter, ctypes, urllib). Le thème des fenêtres est inclus dans le dépôt.
 
 > 🍎 **Nouveau : une version macOS** (aperçu), dans la **barre des menus** du Mac. Voir [HA Taskbar sur Mac](#-ha-taskbar-sur-mac).
+>
+> ![HA Taskbar dans la barre des menus du Mac, en clair et en sombre](docs/screenshots/mac-barre.png)
 
 ---
 
@@ -668,6 +670,21 @@ Je ne suis pas développeur 😄 J'ai apporté les idées, les tests et les reto
 ## 🍎 HA Taskbar sur Mac
 
 Depuis la 1.8, HA Taskbar existe aussi pour **macOS 13 ou plus récent** (Apple Silicon et Intel). C'est une application native : les éléments s'affichent dans la **barre des menus**, en haut à droite de l'écran.
+
+![La barre des menus en mode clair et en mode sombre](docs/screenshots/mac-barre.png)
+
+*Lumière allumée à 70 % (en jaune), chauffage en marche (la flamme s'anime), consommation et température extérieure. Données de démonstration.*
+
+Un **appui long** (ou ⌥-clic) ouvre la carte de contrôle, comme sur Windows : lumière, thermostat, historique d'un capteur…
+
+![Cartes de contrôle : lumière, thermostat (mode sombre) et consommation avec son historique](docs/screenshots/mac-cartes.png)
+
+Les réglages et le choix des entités, avec la pièce de chacune :
+
+<p align="center">
+  <img src="docs/screenshots/mac-reglages-sombre.png" width="49%" alt="Réglages : liste des éléments et options de l'élément choisi">
+  <img src="docs/screenshots/mac-ajout-clair.png" width="49%" alt="Ajouter des entités : recherche par nom, pièce ou type">
+</p>
 
 - **Installation** : télécharge `HATaskbar-macOS-<version>.dmg` depuis les [**Releases**](https://github.com/bbtoff/home-assistant-taskbar/releases), ouvre-le et glisse **HA Taskbar** dans **Applications**.
 - **Premier lancement** : l'application n'est pas signée par Apple. Fais un clic droit sur l'app → **Ouvrir**, puis **Ouvrir**. Sur macOS 15 ou plus : **Réglages Système → Confidentialité et sécurité → Ouvrir quand même**.

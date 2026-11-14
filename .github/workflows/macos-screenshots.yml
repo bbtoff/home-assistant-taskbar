@@ -1,0 +1,57 @@
+# Captures d'ecran de la version macOS pour le README (donnees de demonstration).
+# Lancement : Actions -> macOS (captures) -> Run workflow. Les images sont dans les Artifacts.
+name: macOS (captures)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  screenshots:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Construction
+        run: ./macos/build.sh --native
+      - name: Captures
+        run: |
+          APP="macos/dist/HA Taskbar.app/Contents/MacOS/HATaskbar"
+          mkdir -p shots
+          system_profiler SPDisplaysDataType | grep -i resolution || true
+          appearance() {
+            osascript -e "tell application \"System Events\" to tell appearance preferences to set dark mode to $1" || true
+            sleep 2
+          }
+          shoot() {
+            name=$1; shift
+            "$APP" --demo "$@" &
+            pid=$!
+            sleep 7
+            screencapture -x "shots/$name.png" || true
+            kill $pid || true
+            sleep 2
+          }
+          # Fond d'ecran uni (s'il existe sur ce macOS)
+          ls "/System/Library/Desktop Pictures/Solid Colors/" || true
+          for wp in "Stone.png" "Silver.png" "Space Gray.png"; do
+            f="/System/Library/Desktop Pictures/Solid Colors/$wp"
+            if [ -f "$f" ]; then
+              osascript -e "tell application \"System Events\" to tell every desktop to set picture to \"$f\"" || true
+              break
+            fi
+          done
+          BAR="--demo-items 0,2,3,4"
+          for mode in clair sombre; do
+            if [ $mode = clair ]; then appearance false; else appearance true; fi
+            shoot "barre-$mode" $BAR
+            shoot "carte-lumiere-$mode" $BAR --demo-card 0
+            shoot "carte-thermostat-$mode" $BAR --demo-card 1
+            shoot "carte-capteur-$mode" $BAR --demo-card 2
+            shoot "carte-exterieur-$mode" $BAR --demo-card 3
+            shoot "reglages-$mode" --demo-settings items
+            shoot "ajout-$mode" --demo-picker
+          done
+          ls -l shots
+      - uses: actions/upload-artifact@v4
+        with:
+          name: captures-macos
+          path: shots/*.png
