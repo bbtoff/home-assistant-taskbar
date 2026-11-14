@@ -397,7 +397,7 @@ final class ItemView: NSView {
         flashTask?.cancel()
         let target: NSView = compact ? imageView : label
         target.alphaValue = 0.35
-        flashTask = Task { [weak target] in
+        flashTask = Task { @MainActor [weak target] in
             try? await Task.sleep(nanoseconds: 120_000_000)
             NSAnimationContext.runAnimationGroup { ctx in
                 ctx.duration = 0.6
