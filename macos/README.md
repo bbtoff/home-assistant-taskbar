@@ -26,6 +26,22 @@ La version Mac de HA Taskbar : tes **capteurs** et **boutons Home Assistant** da
 - 🔒 Le jeton est rangé dans le **trousseau macOS**
 - 💾 **Import du `config.json` de la version Windows** (éléments, icônes, seuils, notifications) et export sans le jeton
 
+## Installer
+
+Dans le **Terminal** (Applications → Utilitaires) :
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/bbtoff/home-assistant-taskbar/main/macos/install.sh | bash
+```
+
+La commande télécharge la dernière version publiée, vérifie son empreinte SHA-256, l'installe dans **Applications** et la lance, sans le message « Apple n'a pas pu confirmer… » (macOS ne bloque que les fichiers téléchargés par un navigateur). Le script : [`install.sh`](install.sh).
+
+Ensuite, les **mises à jour sont automatiques** : HA Taskbar vérifie GitHub au démarrage puis chaque jour, propose la nouvelle version (menu 🏠 → **Mettre à jour**), la télécharge, vérifie son empreinte, se remplace et redémarre. Réglage : **Réglages → Général → Mises à jour**.
+
+Avec le `.dmg` des [Releases](https://github.com/bbtoff/home-assistant-taskbar/releases), macOS bloque l'application au premier lancement : **Réglages Système → Confidentialité et sécurité → Ouvrir quand même** (une seule fois).
+
+> Une fois mise à jour, macOS peut redemander l'accès au trousseau (jeton Home Assistant) : choisis **Toujours autoriser**. C'est dû à la signature locale de l'application ; une signature Apple (Developer ID) le supprimerait.
+
 ## Construire l'application
 
 Il faut **Xcode** (ou seulement les outils en ligne de commande : `xcode-select --install`). Dans le Terminal :

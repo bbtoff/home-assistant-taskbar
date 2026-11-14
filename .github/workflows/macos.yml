@@ -32,6 +32,10 @@ jobs:
         run: ./macos/build.sh
       - name: Test de l'interface (clic, appui long, carte)
         run: ./macos/Tests/ui-test.sh macos/dist/ui-test
+      - name: Test de l'installation et de la mise a jour automatique
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: ./macos/Tests/update-test.sh macos/dist/update-test
       - name: Captures du test
         if: always()
         uses: actions/upload-artifact@v4
