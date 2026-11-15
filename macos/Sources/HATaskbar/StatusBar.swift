@@ -229,6 +229,11 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         popoverOwner = v
         hoverOpened = false
         Demo.log("card \(v.item.entityId) shown=\(p.isShown)")
+        if Demo.enabled {
+            // Largeur ideale du contenu, sans la contrainte de la carte : sert a verifier que rien ne deborde
+            let probe = NSHostingController(rootView: CardView(model: model, itemId: v.item.id, edit: {}, fixedWidth: false).fixedSize())
+            Demo.log("cardwidth \(v.item.entityId) \(Int(probe.view.fittingSize.width))")
+        }
     }
 
     /// Ouvre la carte du n-ieme element affiche (mode demonstration).

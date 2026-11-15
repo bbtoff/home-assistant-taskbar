@@ -57,6 +57,15 @@ P2=$(grep "^frame sensor.consommation " "$LOG" | tail -1 | cut -d' ' -f3,4)
 check "capteur = carte" "^click sensor.consommation" "^hover"
 stop
 
+echo "== 4b. Clim a 6 modes : la carte ne deborde pas"
+start --demo-items 0,6
+P3=$(grep "^frame climate.clim_salon " "$LOG" | tail -1 | cut -d' ' -f3,4)
+"$OUT/mouse" $P3 1.0; sleep 2
+screencapture -x "$OUT/carte-clim.png"
+W=$(grep "^cardwidth climate.clim_salon " "$LOG" | tail -1 | cut -d' ' -f3)
+if [ -n "$W" ] && [ "$W" -le 340 ]; then echo "OK    carte de la clim : largeur $W"; else echo "ECHEC carte de la clim : largeur '$W' (> 340)"; FAIL=1; fi
+stop
+
 echo "== 5. Survol : la carte s'ouvre apres le delai, puis se referme quand la souris s'en va"
 start --demo-hover 0.8
 "$OUT/mouse" 600 400 0 move; sleep 1

@@ -52,7 +52,8 @@ enum Demo {
         ext.decimals = 1
         ext.thresholds = "< 5 bleu ; > 25 orange ; > 30 rouge"
         let scene = ItemConfig(entityId: "scene.cinema", label: "Ciné")
-        c.items = [light, plug, heat, power, ext, scene]
+        let clim = ItemConfig(entityId: "climate.clim_salon", label: "Clim", icon: "snow_anim")
+        c.items = [light, plug, heat, power, ext, scene, clim]
         if let keep = arg("--demo-items") {
             let idx = Set(keep.split(separator: ",").compactMap { Int($0) })
             for i in c.items.indices where !idx.contains(i) { c.items[i].hidden = true }
@@ -88,6 +89,10 @@ enum Demo {
                 lastChanged: ago(4)),
             EntityState(entityId: "scene.cinema", state: ISO8601DateFormatter().string(from: ago(1500)), attributes: [
                 "friendly_name": "Soirée cinéma"], lastChanged: ago(1500)),
+            EntityState(entityId: "climate.clim_salon", state: "cool", attributes: [
+                "friendly_name": "Clim Salon", "current_temperature": 24.5, "temperature": 22,
+                "hvac_action": "cooling", "hvac_modes": ["auto", "cool", "dry", "fan_only", "heat", "off"],
+                "min_temp": 16, "max_temp": 30, "target_temp_step": 1], lastChanged: ago(1080)),
             EntityState(entityId: "fan.plafond", state: "on", attributes: [
                 "friendly_name": "Ventilateur de plafond", "percentage": 66, "percentage_step": 33.333333,
                 "direction": "forward", "oscillating": false], lastChanged: ago(30)),

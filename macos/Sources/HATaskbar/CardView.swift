@@ -6,6 +6,7 @@ struct CardView: View {
     @ObservedObject var model: AppModel
     let itemId: UUID
     var edit: () -> Void
+    var fixedWidth = true          // false : largeur ideale du contenu (tests)
 
     private var item: ItemConfig? { model.config.items.first { $0.id == itemId } }
 
@@ -17,7 +18,7 @@ struct CardView: View {
                 Text("Cet élément n'existe plus.").padding()
             }
         }
-        .frame(width: 330)
+        .frame(width: fixedWidth ? 330 : nil)
     }
 
     @ViewBuilder
@@ -243,7 +244,7 @@ struct FanControls: View {
             if st.attributes["percentage"] != nil {
                 let step = max(1, st.num("percentage_step") ?? 1)
                 let speeds = Int((100 / step).rounded())
-                if speeds >= 2 && speeds <= 10 {
+                if speeds >= 2 && speeds <= 6 {      // au-dela, les boutons depasseraient de la carte
                     HStack {
                         Text("Vitesse").foregroundStyle(.secondary)
                         Spacer()
@@ -390,13 +391,17 @@ struct ClimateControls: View {
             .font(.callout)
             let modes = st.attributes["hvac_modes"]?.stringArray ?? st.attributes["operation_list"]?.stringArray ?? []
             if !modes.isEmpty && st.domain == "climate" {
-                Picker("", selection: Binding(get: { st.state }, set: {
+                let picker = Picker("Mode", selection: Binding(get: { st.state }, set: {
                     model.call("climate.set_hvac_mode", entity: st.entityId, ["hvac_mode": .string($0)])
                 })) {
                     ForEach(modes, id: \.self) { Text(hvacNames[$0] ?? $0).tag($0) }
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
+                // Jusqu'a 4 modes : boutons cote a cote ; au-dela ils depasseraient de la carte -> menu
+                if modes.count <= 4 {
+                    picker.pickerStyle(.segmented).labelsHidden()
+                } else {
+                    picker.pickerStyle(.menu)
+                }
             } else if !modes.isEmpty {
                 Picker("Mode", selection: Binding(get: { st.str("operation_mode") ?? st.state }, set: {
                     model.call("water_heater.set_operation_mode", entity: st.entityId, ["operation_mode": .string($0)])
