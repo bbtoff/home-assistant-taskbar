@@ -76,6 +76,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 let tab: SettingsTab = ["connection": .connection, "notifications": .notifications,
                                         "general": .general, "widgets": .widgets][t] ?? .items
                 if tab == .widgets {
+                    nav.tab = .widgets
                     showSettings(widget: model.config.widgets.first?.id)
                 } else {
                     showSettings(item: tab == .items ? model.config.items.first?.id : nil, tab: tab)

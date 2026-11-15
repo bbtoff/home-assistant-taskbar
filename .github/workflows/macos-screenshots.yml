@@ -57,7 +57,7 @@ jobs:
             shoot "reglages-$mode" --demo-settings items
             shoot "ajout-$mode" --demo-picker
             shoot "widgets-$mode" $BAR
-            shoot "reglages-widgets-$mode" --demo-no-widgets --demo-settings widgets
+            shoot "reglages-widgets-$mode" --demo-settings widgets
           done
           ls -l shots
       - uses: actions/upload-artifact@v4

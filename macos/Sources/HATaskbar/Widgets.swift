@@ -351,7 +351,18 @@ struct WidgetView: View {
             }
             .chartYScale(domain: .automatic(includesZero: false))
             .chartLegend(.hidden)
-            .chartXAxis(w.style == "value" ? .hidden : .automatic)
+            .chartXAxis {
+                if w.style != "value" {
+                    AxisMarks(values: .automatic(desiredCount: 3)) { _ in
+                        AxisGridLine()
+                        if hours <= 24 {
+                            AxisValueLabel(format: .dateTime.hour())
+                        } else {
+                            AxisValueLabel(format: .dateTime.day().month(.abbreviated))
+                        }
+                    }
+                }
+            }
             .chartYAxis(w.style == "value" ? .hidden : .automatic)
             .frame(maxHeight: .infinity)
         }
