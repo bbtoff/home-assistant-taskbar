@@ -30,6 +30,9 @@ check() {   # check <nom> <motif attendu> [motif interdit]
     echo "      journal : $(grep -v '^frame' "$LOG" | tr '\n' ' ')"
 }
 
+echo "== 0. Icones : tous les symboles existent"
+if "$APP" --check-icons; then echo "OK    icones"; else echo "ECHEC icones introuvables (voir ci-dessus)"; FAIL=1; fi
+
 echo "== 1. Clic simple sur une lumiere : action, pas de carte"
 start
 "$OUT/mouse" $POS 0.08; sleep 2

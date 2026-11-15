@@ -9,6 +9,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private static var instance: AppDelegate?
 
     static func main() {
+        if CommandLine.arguments.contains("--check-icons") {
+            // Test : tous les symboles de la liste existent-ils dans cette version de macOS ?
+            func exists(_ s: String) -> Bool { NSImage(systemSymbolName: s, accessibilityDescription: nil) != nil }
+            let all = Set(Icons.all.map(\.symbol) + Array(weatherSymbol.values))
+            // introuvable, et sans remplacement qui existe
+            let missing = all.filter { !exists($0) && !(Icons.fallbacks[$0].map(exists) ?? false) }.sorted()
+            let replaced = all.filter { !exists($0) && (Icons.fallbacks[$0].map(exists) ?? false) }.sorted()
+            print("icones : \(all.count) symboles, \(replaced.count) remplaces (\(replaced.joined(separator: ", "))), \(missing.count) introuvables")
+            for m in missing { print("INTROUVABLE \(m)") }
+            exit(missing.isEmpty ? 0 : 1)
+        }
         let app = NSApplication.shared
         let delegate = AppDelegate()
         instance = delegate

@@ -247,19 +247,7 @@ struct ItemEditor: View {
                 LabeledContent("Entité", value: item.entityId)
                 TextField("Libellé (pour la carte et l'infobulle)", text: optional($item.label),
                           prompt: Text(st?.name ?? ""))
-                Picker("Icône", selection: Binding(get: { item.icon ?? "auto" },
-                                                   set: { item.icon = $0 == "auto" ? nil : $0 })) {
-                    Text("Automatique").tag("auto")
-                    Text("Aucune").tag("none")
-                    Divider()
-                    ForEach(Icons.all, id: \.key) { i in
-                        Label(i.name, systemImage: i.symbol).tag(i.key)
-                    }
-                    Divider()
-                    ForEach(Icons.animated, id: \.key) { a in
-                        Label(a.name + " ✦", systemImage: Icons.symbol(a.base)).tag(a.key)
-                    }
-                }
+                IconPicker(title: "Icône", icon: $item.icon, animated: true)
                 Toggle("Masqué", isOn: Binding(get: { item.hidden == true }, set: { item.hidden = $0 ? true : nil }))
             } header: {
                 Text(itemName(item, st))
