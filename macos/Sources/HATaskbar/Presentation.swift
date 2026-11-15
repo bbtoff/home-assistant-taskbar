@@ -122,7 +122,7 @@ enum Icons {
         IconDef(key: "lamp_ceiling", symbol: "lamp.ceiling", name: "Plafonnier"),
         IconDef(key: "chandelier", symbol: "chandelier", name: "Lustre"),
         IconDef(key: "light_recessed", symbol: "light.recessed", name: "Spot encastré"),
-        IconDef(key: "led_strip", symbol: "light.strip.leftthird.filled", name: "Ruban LED"),
+        IconDef(key: "led_strip", symbol: "light.strip.2", name: "Ruban LED"),
         IconDef(key: "fan_ceiling", symbol: "fan.ceiling", name: "Ventilateur de plafond"),
         IconDef(key: "fan_desk", symbol: "fan.desk", name: "Ventilateur de table"),
         IconDef(key: "air_purifier", symbol: "air.purifier", name: "Purificateur d'air"),
@@ -249,7 +249,7 @@ enum Icons {
         "blinds.vertical.open": "rectangle.split.3x1", "door.left.hand.closed": "door.left.hand.open",
         "door.garage.closed": "car", "door.garage.open": "car", "sensor": "dot.radiowaves.left.and.right",
         "washer": "arrow.triangle.2.circlepath", "dishwasher": "drop", "oven": "flame", "spigot": "drop",
-        "powerplug": "bolt",
+        "powerplug": "bolt", "light.strip.2": "lightbulb.2",
     ]
 }
 
