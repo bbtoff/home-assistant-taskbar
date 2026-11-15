@@ -27,6 +27,11 @@ Un **programme d'installation** et une **version portable** (sans installation) 
 
 ---
 
+## ✨ Nouveautés de la version 1.9.1
+
+- 🖼️ **Icône ou logo dans les widgets** : l'icône du capteur, une icône au choix, ou ta propre image (clic droit sur le widget → **Icône** / **Choisir un logo…** ; sur Mac aussi dans **Réglages → Widgets**).
+- 🍎 **80 icônes de plus sur Mac** (luminaires, électroménager, énergie, jardin, animaux…) et mini-graphique qui suit la couleur de la barre des menus.
+
 ## ✨ Nouveautés de la version 1.9
 
 **📊 Widgets de bureau** (Windows et Mac) : des graphiques de tes capteurs, posés sur le bureau.
