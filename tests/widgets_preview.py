@@ -32,6 +32,16 @@ class FakeApp:
     def __init__(self, light):
         self.root = tk.Tk()
         self.root.withdraw()
+        from tkinter import font as tkfont
+        fams = set(tkfont.families(self.root))
+        self.icon_font = next((f for f in ha_core.ICON_FONTS if f in fams), None)
+        # logo de test : un carre colore enregistre dans images/ (dossier des reglages)
+        folder = os.path.join(ha_core.CONFIG_DIR, "images")
+        os.makedirs(folder, exist_ok=True)
+        logo = tk.PhotoImage(master=self.root, width=64, height=64)
+        logo.put("#03a9f4", to=(0, 0, 64, 64))
+        logo.put("#ffffff", to=(20, 20, 44, 44))
+        logo.write(os.path.join(folder, "test-logo.png"), format="png")
         self.cfg = dict(ha_core.DEFAULT_CONFIG)
         self.cfg["theme_mode"] = "light" if light else "dark"
         self.cfg["items"] = [{"entity_id": "sensor.consommation", "label": "Consommation"}]
@@ -42,6 +52,7 @@ class FakeApp:
                                                               "sensor.temperature_chambre"],
              "style": "graph", "hours": 24, "size": "medium", "win_x": 40, "win_y": 260},
             {"id": "w3", "entities": ["sensor.humidite_salle_de_bain"], "style": "value", "size": "small",
+             "image": "test-logo.png",
              "win_x": 380, "win_y": 40},
         ]
         for w in self.cfg["widgets"]:
