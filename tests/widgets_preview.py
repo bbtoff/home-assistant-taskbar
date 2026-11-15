@@ -80,7 +80,12 @@ def main():
         time.sleep(1.5)
         app.root.update()
         n = len(mgr.widgets)
-        drawn = all(len(dw.canvas.find_all()) > 5 for dw in mgr.widgets.values())
+        # chaque widget : au moins le titre, la valeur et une courbe
+        drawn = all(len(dw.canvas.find_all()) >= 4 and dw.canvas.find_withtag("all") and
+                    any(dw.canvas.type(i) == "line" for i in dw.canvas.find_all())
+                    for dw in mgr.widgets.values())
+        for dw in mgr.widgets.values():
+            print("   %s : %d elements" % (dw.id, len(dw.canvas.find_all())))
         print("%s : %d widgets, dessines : %s" % ("clair" if light else "sombre", n, drawn))
         ok = ok and n == 3 and drawn
         try:

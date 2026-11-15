@@ -193,7 +193,7 @@ class DesktopWidget:
         if single:
             big = 30 if value_style and w.get("size") == "large" else 24 if value_style else 17
             cv.create_text(x0, y, text=self.value(ents[0]), anchor="nw", fill=c["fg"], font=(fam, big))
-            y += self.s(big * 1.6)
+            y += self.s(big * (1.35 if value_style else 1.6))
         else:
             for i, e in enumerate(ents[:6]):
                 cv.create_oval(x0, y + self.s(5), x0 + self.s(7), y + self.s(12), fill=self.color(i, c), outline="")
