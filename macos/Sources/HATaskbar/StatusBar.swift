@@ -423,6 +423,7 @@ final class ItemView: NSView {
                 imageView.image = img
             }
             imageView.contentTintColor = color
+            sparkView.contentTintColor = color
             imageView.isHidden = false
         } else {
             imageView.image = nil
@@ -516,10 +517,13 @@ final class ItemView: NSView {
 
     /// Mini-courbe a droite de la valeur (nil = aucune).
     func setSpark(_ values: [Double]?) {
-        let color = shown.map(colorFor) ?? .labelColor
+        // Image « modele » teinte par la vue, comme les icones : la couleur suit la barre des menus
+        // (claire ou sombre), qui peut differer du theme de l'application.
+        sparkView.contentTintColor = shown.map(colorFor) ?? .labelColor
         guard values != sparkValues || (values != nil && sparkView.image == nil) else { return }
         sparkValues = values
-        if let v = values, let img = Sparkline.image(v, color: color.withAlphaComponent(0.85)) {
+        if let v = values, let img = Sparkline.image(v, color: .black) {
+            img.isTemplate = true
             sparkView.image = img
             sparkView.isHidden = false
         } else {
