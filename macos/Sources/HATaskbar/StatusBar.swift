@@ -100,6 +100,10 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         for v in entries {
             if let f = v.statusItem.button?.window?.frame, f.midY > 1 {
                 Demo.log("frame \(v.item.entityId) \(Int(f.midX)) \(Int(screenH - f.midY))", key: v.item.entityId)
+                if let s = v.sparkScreenFrame {
+                    Demo.log("spark \(v.item.entityId) \(Int(s.minX)) \(Int(screenH - s.maxY)) \(Int(s.width)) \(Int(s.height))",
+                             key: "spark " + v.item.entityId)
+                }
             }
         }
     }
@@ -502,6 +506,12 @@ final class ItemView: NSView {
         x += pad
         frame = NSRect(x: 0, y: 0, width: x, height: h)
         statusItem.length = x
+    }
+
+    /// Position du mini-graphique a l'ecran (tests de l'interface).
+    var sparkScreenFrame: NSRect? {
+        guard !sparkView.isHidden, let w = window else { return nil }
+        return w.convertToScreen(sparkView.convert(sparkView.bounds, to: nil))
     }
 
     /// Mini-courbe a droite de la valeur (nil = aucune).

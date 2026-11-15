@@ -61,6 +61,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func runDemo() {
+        if CommandLine.arguments.contains("--demo-app-light") {
+            NSApp.appearance = NSAppearance(named: .aqua)   // application claire, barre des menus sombre
+        }
         Task { @MainActor in
             for _ in 0..<20 {               // positions des elements, une fois places par macOS
                 try? await Task.sleep(nanoseconds: 500_000_000)
