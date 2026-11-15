@@ -14,7 +14,7 @@ PID=""
 start() {
     rm -f "$LOG"
     "$OUT/mouse" 600 450 0 move        # pointeur a l'ecart : pas de survol avant le geste teste
-    "$APP" --demo --demo-items 0,2,3,4 --demo-log "$LOG" "$@" &
+    "$APP" --demo --demo-items "${ITEMS:-0,2,3,4}" --demo-log "$LOG" "$@" &
     PID=$!
     sleep 6
     POS=$(grep "^frame light.salon " "$LOG" | tail -1 | cut -d' ' -f3,4)
@@ -58,7 +58,7 @@ check "capteur = carte" "^click sensor.consommation" "^hover"
 stop
 
 echo "== 4b. Clim a 6 modes : la carte ne deborde pas"
-start --demo-items 0,6
+ITEMS=0,6 start
 P3=$(grep "^frame climate.clim_salon " "$LOG" | tail -1 | cut -d' ' -f3,4)
 "$OUT/mouse" $P3 1.0; sleep 2
 screencapture -x "$OUT/carte-clim.png"
