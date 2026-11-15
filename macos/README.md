@@ -6,6 +6,8 @@ La version Mac de HA Taskbar : tes **capteurs** et **boutons Home Assistant** da
 
 ![Cartes de contrôle : lumière, thermostat et consommation](../docs/screenshots/mac-cartes.png)
 
+![Widgets de bureau : consommation, humidité, températures comparées](../docs/screenshots/mac-widgets.png)
+
 <p align="center">
   <img src="../docs/screenshots/mac-reglages-sombre.png" width="49%" alt="Réglages des éléments">
   <img src="../docs/screenshots/mac-ajout-clair.png" width="49%" alt="Ajouter des entités">
@@ -20,6 +22,8 @@ La version Mac de HA Taskbar : tes **capteurs** et **boutons Home Assistant** da
 - 🧩 **Survol** (0,8 s, réglable), **appui long**, **⌥-clic** ou clic du milieu : **carte de contrôle** (ou d'un simple clic, avec **Réglages → Général → Clic sur un élément : Ouvrir la carte**) — luminosité, blanc, couleurs, ambiances, vitesse et sens d'un ventilateur, position d'un volet, consigne et mode d'un thermostat, lecteur multimédia, verrou, aspirateur, liste déroulante, météo sur 5 jours, **historique 24 h / 7 j / 30 j** avec courbe
 - 🖱️ **Molette ou deux doigts** sur un élément : luminosité, vitesse, volume, position, consigne, valeur
 - 📋 **Clic droit** (ou ⌃-clic) : menu de l'élément, **arrêt programmé** (15 min à 2 h), modifier, masquer
+- 📊 **Widgets de bureau** : graphiques d'un ou plusieurs capteurs (24 h, 7 j, 30 j) ou valeur en grand, posés sur le bureau ou au premier plan (**Réglages → Widgets**, clic droit sur un widget pour le régler)
+- 〰️ **Mini-graphique** des 6 dernières heures à côté de la valeur (**Éléments → Valeur affichée**)
 - 🎨 Plus de 100 icônes **SF Symbols** qui suivent l'état (jaune = allumé), pile / Wi-Fi / volume selon la valeur, **icônes animées** (macOS 14+), **couleur selon la valeur** (`> 25 orange ; > 30 rouge`)
 - 👥 Groupes, plages horaires d'affichage, badges, résumé des **piles faibles**
 - 🔔 **Notifications macOS** : règles par entité, Home Assistant hors ligne / de retour, notifications persistantes et événement `ha_taskbar_notify`, plage sans notification et pause
