@@ -14,7 +14,7 @@ PID=""
 start() {
     rm -f "$LOG"
     "$OUT/mouse" 600 450 0 move        # pointeur a l'ecart : pas de survol avant le geste teste
-    "$APP" --demo --demo-items 0,2,3,4 --demo-log "$LOG" "$@" &
+    "$APP" --demo --demo-items "${ITEMS:-0,2,3,4}" --demo-log "$LOG" "$@" &
     PID=$!
     sleep 6
     POS=$(grep "^frame light.salon " "$LOG" | tail -1 | cut -d' ' -f3,4)
@@ -55,6 +55,15 @@ start
 P2=$(grep "^frame sensor.consommation " "$LOG" | tail -1 | cut -d' ' -f3,4)
 "$OUT/mouse" $P2 0.08; sleep 2
 check "capteur = carte" "^click sensor.consommation" "^hover"
+stop
+
+echo "== 4b. Clim a 6 modes : la carte ne deborde pas"
+ITEMS=0,6 start
+P3=$(grep "^frame climate.clim_salon " "$LOG" | tail -1 | cut -d' ' -f3,4)
+"$OUT/mouse" $P3 1.0; sleep 2
+screencapture -x "$OUT/carte-clim.png"
+W=$(grep "^cardwidth climate.clim_salon " "$LOG" | tail -1 | cut -d' ' -f3)
+if [ -n "$W" ] && [ "$W" -le 340 ]; then echo "OK    carte de la clim : largeur $W"; else echo "ECHEC carte de la clim : largeur '$W' (> 340)"; FAIL=1; fi
 stop
 
 echo "== 5. Survol : la carte s'ouvre apres le delai, puis se referme quand la souris s'en va"

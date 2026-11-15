@@ -26,6 +26,10 @@ Un **programme d'installation** et une **version portable** (sans installation) 
 
 ---
 
+## ✨ Nouveautés de la version 1.8.2
+
+- 🍎 **macOS** : la carte d'une climatisation à plus de 4 modes ne déborde plus (le choix du mode passe dans un menu). Rien ne change sous Windows.
+
 ## ✨ Nouveautés de la version 1.8.1
 
 - 🔒 **Jeton d'accès chiffré** : il n'est plus écrit en clair dans `config.json`, mais chiffré avec la protection des données de Windows (DPAPI). Seul ton compte Windows, sur ce PC, peut le relire. Ta configuration actuelle est chiffrée automatiquement au premier lancement. Voir [Le jeton d'accès](#le-jeton-daccès).
