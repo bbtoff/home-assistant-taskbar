@@ -646,7 +646,7 @@ class SettingsWindow:
         self.build_item_advanced(adv)
         for v in (self.v_eid, self.v_label, self.v_attr, self.v_unit, self.v_dec, self.v_service, self.v_icon,
                   self.v_ctitle, self.v_zone, self.v_middle, self.v_badge, self.v_group, self.v_hotkey,
-                  self.v_from, self.v_to, self.v_thresh, self.v_hidden):
+                  self.v_from, self.v_to, self.v_thresh, self.v_hidden, self.v_spark):
             v.trace_add("write", self.on_item_field)
         self.t_data.bind("<KeyRelease>", self.on_item_field)
         self.item_widgets = [self.cb_eid, self.e_label, self.cb_attr, self.e_unit, self.cb_dec,
@@ -720,6 +720,13 @@ class SettingsWindow:
         self.cb_hidden.grid(row=12, column=1, sticky="w", pady=(8, 0))
         self.hint(adv, "Il reste dans la liste. Aussi depuis la barre : clic droit sur l'élément → Masquer.",
                   wrap=300, row=13, column=1, sticky="w")
+
+        self.v_spark = tk.BooleanVar(value=False)
+        ttk.Checkbutton(adv, text="Mini-graphique des 6 dernières heures", variable=self.v_spark
+                        ).grid(row=14, column=1, sticky="w", pady=(8, 0))
+        self.hint(adv, "Une petite courbe à droite de la valeur (capteurs à valeur numérique). Pour un grand "
+                       "graphique : clic droit sur l'élément → Créer un widget de bureau.",
+                  wrap=300, row=15, column=1, sticky="w")
 
     def filter_group(self):
         text = self.v_group.get().split(",")[-1].strip()
@@ -836,6 +843,7 @@ class SettingsWindow:
         self.v_to.set(it.get("show_to", ""))
         self.v_thresh.set(it.get("thresholds", ""))
         self.v_hidden.set(bool(it.get("hidden")))
+        self.v_spark.set(bool(it.get("sparkline")))
         self.show_thresh_info(it.get("thresholds", ""))
         self.t_data.configure(state="normal")
         self.t_data.delete("1.0", "end")
@@ -1002,6 +1010,10 @@ class SettingsWindow:
             it["hidden"] = True
         else:
             it.pop("hidden", None)
+        if self.v_spark.get():
+            it["sparkline"] = True
+        else:
+            it.pop("sparkline", None)
 
         raw = self.t_data.get("1.0", "end").strip()
         if not raw:
