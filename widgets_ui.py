@@ -25,7 +25,7 @@ user32.SetWindowPos.argtypes = [wintypes.HWND, ctypes.c_ssize_t, ctypes.c_int, c
 HWND_BOTTOM = 1
 SWP_FLAGS = 0x0001 | 0x0002 | 0x0010          # NOSIZE | NOMOVE | NOACTIVATE
 
-SIZES = {"small": (220, 140, 110), "medium": (300, 185, 130), "large": (420, 250, 170)}   # l, h, h (valeur)
+SIZES = {"small": (220, 140, 125), "medium": (300, 185, 140), "large": (420, 250, 185)}   # l, h, h (valeur)
 PERIODS = [("24 heures", 24), ("7 jours", 168), ("30 jours", 720)]
 SERIES = ["accent", "#3a96dd", "#16c60c", "#e3008c", "#b146c2", "#f7630c"]
 
@@ -210,7 +210,7 @@ class DesktopWidget:
             self.app.history.request(e, hours)
             series.append((i, self.app.history.points(e, hours)))
         series = [(i, p) for i, p in series if len(p) >= 2]
-        if bot - top < self.s(20):
+        if bot - top < self.s(14):
             return
         if not series:
             if not value_style:
