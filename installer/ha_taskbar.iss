@@ -1,4 +1,4 @@
-; Programme d'installation HA Taskbar (Inno Setup 6)
+﻿; Programme d'installation HA Taskbar (Inno Setup 6)
 ; Ne pas compiler directement : utiliser build.ps1, qui fournit AppVersion et DistDir.
 
 #ifndef AppVersion
@@ -42,12 +42,27 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0
 
+; Francais si Windows est en francais, anglais sinon (comme l'application) : la 1re langue sert par defaut
+ShowLanguageDialog=no
+LanguageDetectionMethod=uilanguage
+
 [Languages]
+Name: "en"; MessagesFile: "compiler:Default.isl"
 Name: "fr"; MessagesFile: "compiler:Languages\French.isl"
 
+[CustomMessages]
+fr.StartupTask=Lancer HA Taskbar au démarrage de Windows
+en.StartupTask=Start HA Taskbar with Windows
+fr.DesktopTask=Créer une icône sur le Bureau
+en.DesktopTask=Create a desktop icon
+fr.RunApp=Lancer HA Taskbar
+en.RunApp=Start HA Taskbar
+fr.DeleteSettings=Supprimer aussi vos réglages (adresse, jeton d'accès et éléments) ?
+en.DeleteSettings=Also delete your settings (address, access token and items)?
+
 [Tasks]
-Name: "startup"; Description: "Lancer HA Taskbar au démarrage de Windows"
-Name: "desktopicon"; Description: "Créer une icône sur le Bureau"; Flags: unchecked
+Name: "startup"; Description: "{cm:StartupTask}"
+Name: "desktopicon"; Description: "{cm:DesktopTask}"; Flags: unchecked
 
 [Files]
 Source: "{#DistDir}\HATaskbar\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -62,7 +77,7 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
   ValueName: "HATaskbar"; ValueData: """{app}\HATaskbar.exe"""; Tasks: startup
 
 [Run]
-Filename: "{app}\HATaskbar.exe"; Description: "Lancer HA Taskbar"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\HATaskbar.exe"; Description: "{cm:RunApp}"; Flags: nowait postinstall skipifsilent
 ; Mise a jour automatique (installation silencieuse) : on relance la barre a la fin
 Filename: "{app}\HATaskbar.exe"; Flags: nowait; Check: WizardSilent
 
@@ -105,8 +120,8 @@ begin
   begin
     CfgDir := ExpandConstant('{userappdata}\HATaskbar');
     if DirExists(CfgDir) and not UninstallSilent() then
-      if MsgBox('Supprimer aussi vos réglages (adresse, jeton d''accès et éléments) ?' + #13#10 +
-                CfgDir, mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES then
+      if MsgBox(CustomMessage('DeleteSettings') + #13#10 + CfgDir,
+                mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES then
         DelTree(CfgDir, True, True, True);
   end;
 end;

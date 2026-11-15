@@ -20,6 +20,7 @@ from card_ui import derive_palette, fnum
 from ha_core import (ACTIVE_STATES, CONFIG_DIR, ICONS, STATE_TEXT, card_light, card_palette, mix_color, resolve_icon,
                      save_config)
 from history import as_float
+from i18n import _
 
 user32 = ctypes.windll.user32
 user32.GetAncestor.restype = wintypes.HWND
@@ -30,12 +31,12 @@ HWND_BOTTOM = 1
 SWP_FLAGS = 0x0001 | 0x0002 | 0x0010          # NOSIZE | NOMOVE | NOACTIVATE
 
 SIZES = {"small": (220, 140, 125), "medium": (300, 185, 140), "large": (420, 250, 185)}   # l, h, h (valeur)
-PERIODS = [("24 heures", 24), ("7 jours", 168), ("30 jours", 720)]
+PERIODS = [(_("24 heures"), 24), (_("7 jours"), 168), (_("30 jours"), 720)]
 SERIES = ["accent", "#3a96dd", "#16c60c", "#e3008c", "#b146c2", "#f7630c"]
 
 
 def period_label(h):
-    return "24 h" if h <= 24 else "7 jours" if h <= 168 else "30 jours"
+    return _("24 h") if h <= 24 else _("7 jours") if h <= 168 else _("30 jours")
 
 
 class DesktopWidget:
@@ -226,13 +227,13 @@ class DesktopWidget:
         pad = self.s(14)
         x0, x1 = pad, W - pad
         y = pad
-        title = w.get("title") or (self.name(ents[0]) if single else "Capteurs")
+        title = w.get("title") or (self.name(ents[0]) if single else _("Capteurs"))
         tx0 = x0 + self.draw_badge(cv, x0, y, c)
         cv.create_text(tx0, y, text=title[:40], anchor="nw", fill=c["fg"], font=(fam, 10, "bold"))
         if not value_style:
             cv.create_text(x1, y + self.s(2), text=period_label(hours), anchor="ne", fill=c["dim"], font=(fam, 8))
         if self.app.offline:
-            cv.create_text(x1, y + self.s(16), text="hors ligne", anchor="ne", fill=c["dim"], font=(fam, 8))
+            cv.create_text(x1, y + self.s(16), text=_("hors ligne"), anchor="ne", fill=c["dim"], font=(fam, 8))
         y += self.s(20)
         if single:
             big = 30 if value_style and w.get("size") == "large" else 24 if value_style else 17
@@ -257,7 +258,7 @@ class DesktopWidget:
             return
         if not series:
             if not value_style:
-                cv.create_text((x0 + x1) // 2, (top + bot) // 2, text="Pas encore de valeurs numériques",
+                cv.create_text((x0 + x1) // 2, (top + bot) // 2, text=_("Pas encore de valeurs numériques"),
                                fill=c["dim"], font=(fam, 8))
             return
         now = datetime.datetime.now(datetime.timezone.utc)
@@ -295,10 +296,10 @@ class DesktopWidget:
             unit = ((self.app.last_states.get(ents[0]) or {}).get("attributes", {}).get("unit_of_measurement") or "")
             u = " " + unit if unit else ""
             yy = H - pad
-            cv.create_text(x0, yy, text="min %s%s" % (fnum(min(p), 1), u), anchor="sw", fill=c["dim"], font=(fam, 7))
-            cv.create_text((x0 + x1) // 2, yy, text="moy. %s%s" % (fnum(sum(p) / len(p), 1), u), anchor="s",
+            cv.create_text(x0, yy, text=_("min %s%s") % (fnum(min(p), 1), u), anchor="sw", fill=c["dim"], font=(fam, 7))
+            cv.create_text((x0 + x1) // 2, yy, text=_("moy. %s%s") % (fnum(sum(p) / len(p), 1), u), anchor="s",
                            fill=c["dim"], font=(fam, 7))
-            cv.create_text(x1, yy, text="max %s%s" % (fnum(max(p), 1), u), anchor="se", fill=c["dim"], font=(fam, 7))
+            cv.create_text(x1, yy, text=_("max %s%s") % (fnum(max(p), 1), u), anchor="se", fill=c["dim"], font=(fam, 7))
 
 
 class WidgetManager:
@@ -359,7 +360,7 @@ class WidgetManager:
         try:
             save_config(self.app.cfg)
         except OSError as e:
-            self.app.last_error = "config : %s" % e
+            self.app.last_error = _("config : %s") % e
         sw = self.app.settings_win
         if sw is not None and sw.win.winfo_exists():   # reglages ouverts : leur copie suit
             sw.cfg["widgets"] = copy.deepcopy(self.config())
@@ -382,8 +383,8 @@ class WidgetManager:
     def choose_logo(self, wid):
         """Copie une image choisie dans le dossier images/ des reglages et l'utilise comme logo."""
         from tkinter import filedialog, messagebox
-        path = filedialog.askopenfilename(parent=self.app.root, title="Logo du widget",
-                                          filetypes=[("Images", "*.png *.gif"), ("Tous les fichiers", "*")])
+        path = filedialog.askopenfilename(parent=self.app.root, title=_("Logo du widget"),
+                                          filetypes=[(_("Images"), "*.png *.gif"), (_("Tous les fichiers"), "*")])
         if not path:
             return
         try:
@@ -394,7 +395,7 @@ class WidgetManager:
             name = uuid.uuid4().hex[:8] + ext
             shutil.copyfile(path, os.path.join(folder, name))
         except (tk.TclError, OSError) as e:
-            messagebox.showerror("HA Taskbar", "Image illisible : %s\n(formats acceptés : PNG et GIF)" % e,
+            messagebox.showerror("HA Taskbar", _("Image illisible : %s\n(formats acceptés : PNG et GIF)") % e,
                                  parent=self.app.root)
             return
         self.edit(wid, lambda w: w.update(image=name))
@@ -417,7 +418,7 @@ class WidgetManager:
         if len(ents) == 1:
             st = self.app.last_states.get(ents[0]) or {}
             return st.get("attributes", {}).get("friendly_name") or ents[0]
-        return "Capteurs (%d)" % len(ents)
+        return _("Capteurs (%d)") % len(ents)
 
     def numeric_entities(self):
         """Elements de la barre a valeur numerique (pour les ajouter a un widget)."""
@@ -444,32 +445,32 @@ class WidgetManager:
         for label, h in PERIODS:
             sub.add_radiobutton(label=label, value=h, variable=var(tk.IntVar, int(w.get("hours") or 24)),
                                 command=lambda h=h: self.edit(wid, lambda w: w.update(hours=h)))
-        m.add_cascade(label="Période", menu=sub)
+        m.add_cascade(label=_("Période"), menu=sub)
         sub = tk.Menu(m, tearoff=0)
-        for label, s in (("Petit", "small"), ("Moyen", "medium"), ("Grand", "large")):
+        for label, s in ((_("Petit"), "small"), (_("Moyen"), "medium"), (_("Grand"), "large")):
             sub.add_radiobutton(label=label, value=s, variable=var(tk.StringVar, w.get("size") or "medium"),
                                 command=lambda s=s: self.edit(wid, lambda w: w.update(size=s)))
-        m.add_cascade(label="Taille", menu=sub)
+        m.add_cascade(label=_("Taille"), menu=sub)
         sub = tk.Menu(m, tearoff=0)
-        for label, s in (("Graphique", "graph"), ("Valeur en grand", "value")):
+        for label, s in ((_("Graphique"), "graph"), (_("Valeur en grand"), "value")):
             sub.add_radiobutton(label=label, value=s, variable=var(tk.StringVar, w.get("style") or "graph"),
                                 command=lambda s=s: self.edit(wid, lambda w: w.update(style=s)))
-        m.add_cascade(label="Affichage", menu=sub)
+        m.add_cascade(label=_("Affichage"), menu=sub)
         sub = tk.Menu(m, tearoff=0)
         cur = w.get("icon") or "auto"
         icon_var = var(tk.StringVar, cur)
-        sub.add_radiobutton(label="Automatique (celle du capteur)", value="auto", variable=icon_var,
+        sub.add_radiobutton(label=_("Automatique (celle du capteur)"), value="auto", variable=icon_var,
                             command=lambda: self.edit(wid, lambda w: w.pop("icon", None)))
-        sub.add_radiobutton(label="Aucune", value="none", variable=icon_var,
+        sub.add_radiobutton(label=_("Aucune"), value="none", variable=icon_var,
                             command=lambda: self.edit(wid, lambda w: w.update(icon="none")))
         for n, (key, (_g, label)) in enumerate(ICONS.items()):
             sub.add_radiobutton(label=label, value=key, variable=icon_var, columnbreak=(n % 30 == 0),
                                 command=lambda key=key: self.edit(wid, lambda w: w.update(icon=key)))
-        m.add_cascade(label="Icône", menu=sub)
-        m.add_command(label="Choisir un logo (image PNG ou GIF)…", command=lambda: self.choose_logo(wid))
+        m.add_cascade(label=_("Icône"), menu=sub)
+        m.add_command(label=_("Choisir un logo (image PNG ou GIF)…"), command=lambda: self.choose_logo(wid))
         if w.get("image"):
-            m.add_command(label="Retirer le logo", command=lambda: self.edit(wid, lambda w: w.pop("image", None)))
-        m.add_checkbutton(label="Toujours au premier plan", variable=var(tk.BooleanVar, bool(w.get("on_top"))),
+            m.add_command(label=_("Retirer le logo"), command=lambda: self.edit(wid, lambda w: w.pop("image", None)))
+        m.add_checkbutton(label=_("Toujours au premier plan"), variable=var(tk.BooleanVar, bool(w.get("on_top"))),
                           command=lambda: self.edit(wid, lambda w: w.update(on_top=not w.get("on_top"))))
         others = [(e, n) for e, n in self.numeric_entities() if e not in w.get("entities", [])]
         if others:
@@ -477,18 +478,18 @@ class WidgetManager:
             for e, n in others:
                 sub.add_command(label=n[:50], command=lambda e=e: self.edit(
                     wid, lambda w: w.update(entities=w.get("entities", []) + [e])))
-            m.add_cascade(label="Ajouter un capteur", menu=sub)
+            m.add_cascade(label=_("Ajouter un capteur"), menu=sub)
         if len(w.get("entities", [])) > 1:
             sub = tk.Menu(m, tearoff=0)
             for e in w.get("entities", []):
                 sub.add_command(label=dw.name(e)[:50], command=lambda e=e: self.edit(
                     wid, lambda w: w.update(entities=[x for x in w.get("entities", []) if x != e])))
-            m.add_cascade(label="Retirer un capteur", menu=sub)
-        m.add_command(label="Remettre en haut à droite",
+            m.add_cascade(label=_("Retirer un capteur"), menu=sub)
+        m.add_command(label=_("Remettre en haut à droite"),
                       command=lambda: self.edit(wid, lambda w: (w.pop("win_x", None), w.pop("win_y", None))))
         m.add_separator()
-        m.add_command(label="Masquer", command=lambda: self.edit(wid, lambda w: w.update(hidden=True)))
-        m.add_command(label="Supprimer", command=lambda: self.remove(wid))
+        m.add_command(label=_("Masquer"), command=lambda: self.edit(wid, lambda w: w.update(hidden=True)))
+        m.add_command(label=_("Supprimer"), command=lambda: self.remove(wid))
         try:
             m.tk_popup(x, y)
         finally:

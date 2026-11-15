@@ -13,6 +13,7 @@ import copy
 import ctypes
 import os
 import queue
+import subprocess
 import sys
 import threading
 import time
@@ -28,7 +29,8 @@ from ha_core import (ACTIVE_STATES, ANIM_ICONS, BATTERIES, CONFIG_PATH, DEFAULT_
                      STATE_TEXT, WEATHER_TEXT, HomeAssistant, __version__, anim_active, bar_colors, bar_light,
                      battery_state, group_state, icon_key, in_quiet_hours, item_members, item_visible, system_light,
                      item_zone, latest_release, load_config, mix_color, needs_setup, parse_hotkey, parse_thresholds,
-                     resolve_icon, resolve_service, save_config, threshold_color, update_available)
+                     resolve_icon, resolve_service, restart_command, save_config, threshold_color, update_available)
+from i18n import _
 
 # --------------------------------------------------------------------------- Win32
 # DPI : on travaille en pixels physiques pour coller exactement a la barre des taches
@@ -381,11 +383,11 @@ class Item:
         # Scenes / boutons : l'etat est la date du dernier declenchement -> on affiche l'action
         if not attr and st.get("state") not in ("unavailable", "unknown"):
             if self.domain == "scene":
-                text = "Activer"
+                text = _("Activer")
             elif self.domain in ("button", "input_button"):
-                text = "Appuyer"
+                text = _("Appuyer")
             elif self.domain == "script":
-                text = "en cours" if st.get("state") == "on" else "Lancer"
+                text = _("en cours") if st.get("state") == "on" else _("Lancer")
 
         if unit:
             text = "%s %s" % (text, unit)
@@ -646,14 +648,14 @@ class App:
             cfg = load_config()
         except Exception as e:
             cfg = copy.deepcopy(DEFAULT_CONFIG)
-            self.last_error = "config.json illisible : %s" % e
+            self.last_error = _("config.json illisible : %s") % e
         self.apply_config(cfg)
         try:
             from widgets_ui import WidgetManager
             self.widget_mgr = WidgetManager(self)
             self.widget_mgr.sync()
         except Exception as e:
-            self.last_error = "widgets : %s" % e
+            self.last_error = _("widgets : %s") % e
 
         # Des qu'une fenetre (dont la barre des taches) passe au premier plan, on se remet au-dessus
         self._hook_cb = WINEVENTPROC(lambda *a: self.raise_now())
@@ -682,6 +684,15 @@ class App:
         if e.widget is self.root and self.tray is not None:
             self.tray.remove()
             self.tray = None
+
+    def restart(self):
+        """Relance HA Taskbar (nouvelle langue) : le nouveau processus attend que celui-ci soit ferme."""
+        try:
+            subprocess.Popen(restart_command(), close_fds=True,
+                             creationflags=getattr(subprocess, "DETACHED_PROCESS", 0x8))
+        except OSError:
+            return
+        self.quit()
 
     def quit(self):
         if self.rt is not None:
@@ -730,7 +741,7 @@ class App:
         self.status.bind("<Button-1>", lambda e: self.open_settings())
 
         if not self.items:
-            hint = tk.Label(self.main_zone.container, text="HA Taskbar · clic droit → Réglages", bg=self.colors["bg"],
+            hint = tk.Label(self.main_zone.container, text=_("HA Taskbar · clic droit → Réglages"), bg=self.colors["bg"],
                             fg=self.colors["dim"], font=(cfg.get("font", "Segoe UI"), int(cfg.get("font_size", 9))))
             hint.pack(side="left", padx=8)
             hint.bind("<Button-3>", self.show_menu)
@@ -856,7 +867,7 @@ class App:
         try:
             save_config(cfg)
         except OSError as e:
-            self.last_error = "config : %s" % e
+            self.last_error = _("config : %s") % e
         self.apply_config(cfg)
 
     def set_hidden(self, i, hidden):
@@ -1094,7 +1105,7 @@ class App:
             lo, hi = num(a.get("min_temp"), 5), num(a.get("max_temp"), 35)
             base = pend[0] if pend else num(a.get("temperature"), 20)
             v = max(lo, min(hi, round((base + step * d) / step) * step))
-            fmt = "→ %g°" % v
+            fmt = _("→ %g°") % v
 
             def send(v):
                 self.call_service(dom + ".set_temperature", {"entity_id": eid, "temperature": v})
@@ -1143,7 +1154,7 @@ class App:
                     self.call_service("homeassistant.turn_off", {"entity_id": members})
                 else:
                     self.call_service("%s.turn_off" % eid.split(".", 1)[0], {"entity_id": eid})
-                self.notify("Arrêt programmé", "%s : éteint." % self.friendly(eid))
+                self.notify(_("Arrêt programmé"), _("%s : éteint.") % self.friendly(eid))
         self.refresh_badges()
 
     def refresh_badges(self):
@@ -1170,7 +1181,7 @@ class App:
                 self.hotkey_errors.append(it.get("hotkey"))
         hk = parse_hotkey(self.cfg.get("palette_hotkey"))
         if hk and not self.tray.register_hotkey(PALETTE_HOTKEY_ID, *hk):
-            self.hotkey_errors.append("%s (palette de commandes)" % self.cfg.get("palette_hotkey"))
+            self.hotkey_errors.append(_("%s (palette de commandes)") % self.cfg.get("palette_hotkey"))
 
     def on_hotkey(self, hid):
         if hid == PALETTE_HOTKEY_ID:
@@ -1228,7 +1239,7 @@ class App:
             at = b.get("attributes", {})
             name = at.get("friendly_name") or eid
             state = ("%s %s" % (STATE_TEXT.get(sb, sb), at.get("unit_of_measurement", ""))).strip()
-            text = (rule.get("message") or "").strip() or "{name} : {state}"
+            text = (rule.get("message") or "").strip() or _("{name} : {state}")
             try:
                 text = text.format(name=name, state=state, old=STATE_TEXT.get(sa, sa))
             except (KeyError, IndexError, ValueError):
@@ -1403,13 +1414,13 @@ class App:
                 if manual or info["version"] != self.cfg.get("skip_version"):
                     self.show_update()
                 if manual:
-                    self._report("Version %s disponible." % info["version"])
+                    self._report(_("Version %s disponible.") % info["version"])
             elif manual:
-                self._report("Tu as la dernière version (%s)." % __version__)
+                self._report(_("Tu as la dernière version (%s).") % __version__)
         elif kind == "update_error":
             msg, manual = payload
             if manual:
-                self._report("Impossible de joindre GitHub : %s" % msg)
+                self._report(_("Impossible de joindre GitHub : %s") % msg)
         elif w is not None:
             if kind == "update_progress":
                 w.on_progress(*payload)
@@ -1435,7 +1446,7 @@ class App:
             try:
                 self.q.put(("states", ha.states()))
             except urllib.error.HTTPError as e:
-                self.q.put(("error", "HTTP %s %s" % (e.code, "(jeton invalide ?)" if e.code == 401 else e.reason)))
+                self.q.put(("error", "HTTP %s %s" % (e.code, _("(jeton invalide ?)") if e.code == 401 else e.reason)))
             except Exception as e:
                 self.q.put(("error", str(e)))
             try:
@@ -1464,13 +1475,13 @@ class App:
         if self.tray is not None:
             tip = "HA Taskbar %s" % __version__
             if self.offline:
-                tip += " — Home Assistant hors ligne"
+                tip += _(" — Home Assistant hors ligne")
             elif self.rt_connected:
-                tip += " — temps réel"
+                tip += _(" — temps réel")
             self.tray.set_tip(tip)
 
     def _show_status(self):
-        self.status.configure(text="● HA hors ligne" if self.offline else "● HA")
+        self.status.configure(text=_("● HA hors ligne") if self.offline else "● HA")
         if not self.status.winfo_ismapped():
             others = [w for w in self.main_zone.container.winfo_children() if w is not self.status]
             if others:
@@ -1511,7 +1522,7 @@ class App:
                     if was_offline:
                         self.set_tray_tip()
                         if self.cfg.get("notify_offline", True):
-                            self.notify("Home Assistant", "Connexion rétablie.")
+                            self.notify("Home Assistant", _("Connexion rétablie."))
                     if not self.areas and time.time() - self._areas_at > 60:
                         self.load_areas()
                 elif kind == "error":
@@ -1524,7 +1535,7 @@ class App:
                             it.refresh_from(self.last_states)
                         self.set_tray_tip()
                         if self.cfg.get("notify_offline", True) and self.last_ok:
-                            self.notify("Home Assistant ne répond plus", payload[:200], warning=True)
+                            self.notify(_("Home Assistant ne répond plus"), payload[:200], warning=True)
                     self._show_status()
                 elif kind == "rt_status":
                     self.rt_connected, self.rt_detail = payload
@@ -1607,16 +1618,16 @@ class App:
         i = self.item_index(item) if item is not None and item in self.items else None
         if i is not None:
             m.add_command(label=(item.cfg.get("label") or item.entity_id)[:50], state="disabled")
-            m.add_command(label="Modifier cet élément…", command=lambda: self.open_settings(select=i))
-            m.add_command(label="Ouvrir la carte", command=lambda: self.open_card(item))
-            m.add_command(label="Masquer de la barre", command=lambda: self.set_hidden(i, True))
+            m.add_command(label=_("Modifier cet élément…"), command=lambda: self.open_settings(select=i))
+            m.add_command(label=_("Ouvrir la carte"), command=lambda: self.open_card(item))
+            m.add_command(label=_("Masquer de la barre"), command=lambda: self.set_hidden(i, True))
             st = self.last_states.get(item.entity_id) or {}
             if as_float(st.get("state")) is not None and self.widget_mgr is not None:
                 spark = tk.BooleanVar(m, bool(item.cfg.get("sparkline")))
                 m._spark_var = spark
-                m.add_checkbutton(label="Mini-graphique des 6 dernières heures", variable=spark,
+                m.add_checkbutton(label=_("Mini-graphique des 6 dernières heures"), variable=spark,
                                   command=lambda: self.toggle_spark(i))
-                m.add_command(label="Créer un widget de bureau avec ce capteur",
+                m.add_command(label=_("Créer un widget de bureau avec ce capteur"),
                               command=lambda: self.widget_mgr.add([item.entity_id]))
                 ws = [w for w in self.cfg.get("widgets", []) if item.entity_id not in w.get("entities", [])]
                 if ws:
@@ -1625,28 +1636,28 @@ class App:
                         sub.add_command(label=self.widget_mgr.title(w)[:50], command=lambda w=w: self.widget_mgr.edit(
                             w["id"], lambda x: x.update(entities=x.get("entities", []) + [item.entity_id],
                                                         hidden=False)))
-                    m.add_cascade(label="Ajouter à un widget", menu=sub)
-            m.add_command(label="Pour le déplacer : Ctrl + glisser", state="disabled")
+                    m.add_cascade(label=_("Ajouter à un widget"), menu=sub)
+            m.add_command(label=_("Pour le déplacer : Ctrl + glisser"), state="disabled")
             m.add_separator()
         if self.last_error:
-            m.add_command(label="Erreur : " + self.last_error[:80], state="disabled")
+            m.add_command(label=_("Erreur : ") + self.last_error[:80], state="disabled")
             if self.last_ok:
-                m.add_command(label="Dernière réponse de HA à %s" % time.strftime(
+                m.add_command(label=_("Dernière réponse de HA à %s") % time.strftime(
                     "%H:%M:%S", time.localtime(self.last_ok)), state="disabled")
-            m.add_command(label="Réessayer maintenant", command=self.wake.set)
+            m.add_command(label=_("Réessayer maintenant"), command=self.wake.set)
             m.add_separator()
         for hk in self.hotkey_errors:
-            m.add_command(label="Raccourci déjà pris par une autre application : %s" % hk, state="disabled")
+            m.add_command(label=_("Raccourci déjà pris par une autre application : %s") % hk, state="disabled")
         if self.hotkey_errors:
             m.add_separator()
         if self.timers:
             for eid in list(self.timers):
-                m.add_command(label="⏲  Annuler l'arrêt de %s (dans %d min)" % (
+                m.add_command(label=_("⏲  Annuler l'arrêt de %s (dans %d min)") % (
                     self.friendly(eid), max(1, round(self.timer_left(eid) / 60.0))),
                     command=lambda e=eid: self.cancel_timer(e))
             m.add_separator()
         if self.update_info:
-            m.add_command(label="⬆  Mettre à jour vers la version %s…" % self.update_info["version"],
+            m.add_command(label=_("⬆  Mettre à jour vers la version %s…") % self.update_info["version"],
                           command=self.show_update)
             m.add_separator()
         hidden = [(n, it) for n, it in enumerate(self.cfg.get("items", [])) if it.get("hidden")]
@@ -1655,38 +1666,38 @@ class App:
             for n, it in hidden:
                 sub.add_command(label=(it.get("label") or it.get("entity_id") or "?")[:50],
                                 command=lambda n=n: self.set_hidden(n, False))
-            m.add_cascade(label="Réafficher un élément masqué", menu=sub)
+            m.add_cascade(label=_("Réafficher un élément masqué"), menu=sub)
         ws = self.cfg.get("widgets", [])
         if ws and self.widget_mgr is not None:
             sub = tk.Menu(m, tearoff=0)
             if any(not w.get("hidden") for w in ws):
-                sub.add_command(label="Masquer tous les widgets", command=lambda: self.widget_mgr.set_all_hidden(True))
+                sub.add_command(label=_("Masquer tous les widgets"), command=lambda: self.widget_mgr.set_all_hidden(True))
             if any(w.get("hidden") for w in ws):
-                sub.add_command(label="Afficher tous les widgets", command=lambda: self.widget_mgr.set_all_hidden(False))
-            m.add_cascade(label="Widgets de bureau", menu=sub)
+                sub.add_command(label=_("Afficher tous les widgets"), command=lambda: self.widget_mgr.set_all_hidden(False))
+            m.add_cascade(label=_("Widgets de bureau"), menu=sub)
         hk = self.cfg.get("palette_hotkey")
-        m.add_command(label="Palette de commandes" + ("   (%s)" % hk if parse_hotkey(hk) else ""),
+        m.add_command(label=_("Palette de commandes") + ("   (%s)" % hk if parse_hotkey(hk) else ""),
                       command=self.open_palette)
         now = time.time()
         if self.notify_paused_until > now:
-            m.add_command(label="Reprendre les notifications (suspendues jusqu'à %s)"
+            m.add_command(label=_("Reprendre les notifications (suspendues jusqu'à %s)")
                           % time.strftime("%H:%M", time.localtime(self.notify_paused_until)),
                           command=lambda: self.pause_notifications(until=0.0))
         else:
             sub = tk.Menu(m, tearoff=0)
-            sub.add_command(label="Pendant 1 heure", command=lambda: self.pause_notifications(3600))
-            sub.add_command(label="Pendant 3 heures", command=lambda: self.pause_notifications(3 * 3600))
+            sub.add_command(label=_("Pendant 1 heure"), command=lambda: self.pause_notifications(3600))
+            sub.add_command(label=_("Pendant 3 heures"), command=lambda: self.pause_notifications(3 * 3600))
             lt = time.localtime(now + 86400)
             tomorrow = time.mktime((lt.tm_year, lt.tm_mon, lt.tm_mday, 8, 0, 0, 0, 0, -1))
-            sub.add_command(label="Jusqu'à demain 8 h", command=lambda: self.pause_notifications(until=tomorrow))
-            m.add_cascade(label="Suspendre les notifications", menu=sub)
+            sub.add_command(label=_("Jusqu'à demain 8 h"), command=lambda: self.pause_notifications(until=tomorrow))
+            m.add_cascade(label=_("Suspendre les notifications"), menu=sub)
         m.add_separator()
-        m.add_command(label="Réglages…", command=self.open_settings)
-        m.add_command(label="Rafraîchir", command=self.wake.set)
-        m.add_command(label="Recharger config.json", command=self.reload)
-        m.add_command(label="Rechercher une mise à jour", command=lambda: self.check_update(manual=True))
+        m.add_command(label=_("Réglages…"), command=self.open_settings)
+        m.add_command(label=_("Rafraîchir"), command=self.wake.set)
+        m.add_command(label=_("Recharger config.json"), command=self.reload)
+        m.add_command(label=_("Rechercher une mise à jour"), command=lambda: self.check_update(manual=True))
         m.add_separator()
-        m.add_command(label="Quitter", command=self.quit)
+        m.add_command(label=_("Quitter"), command=self.quit)
         self.menu_open = True
         try:
             user32.SetForegroundWindow(self.main_zone.hwnd)  # sinon le menu ne se ferme pas en cliquant ailleurs
@@ -1699,7 +1710,7 @@ class App:
         try:
             self.apply_config(load_config())
         except Exception as e:
-            self.last_error = "config : %s" % e
+            self.last_error = _("config : %s") % e
             self._show_status()
 
     def open_settings(self, select=None):
@@ -1718,10 +1729,17 @@ class App:
 
 
 def main():
-    # Une seule instance a la fois
-    kernel32.CreateMutexW(None, False, "Local\\HATaskbar_single_instance")
-    if kernel32.GetLastError() == ERROR_ALREADY_EXISTS:
-        user32.MessageBoxW(None, "HA Taskbar est déjà lancé.\nClic sur l'icône près de l'horloge → Réglages.",
+    # Une seule instance a la fois (apres un redemarrage, on attend que l'ancienne soit fermee)
+    tries = 40 if "--restart" in sys.argv else 1
+    for n in range(tries):
+        h = kernel32.CreateMutexW(None, False, "Local\\HATaskbar_single_instance")
+        if kernel32.GetLastError() != ERROR_ALREADY_EXISTS:
+            break
+        if n + 1 < tries:
+            kernel32.CloseHandle(h)
+            time.sleep(0.25)
+    else:
+        user32.MessageBoxW(None, _("HA Taskbar est déjà lancé.\nClic sur l'icône près de l'horloge → Réglages."),
                            "HA Taskbar", 0x40)
         sys.exit(0)
     if not os.path.exists(CONFIG_PATH):

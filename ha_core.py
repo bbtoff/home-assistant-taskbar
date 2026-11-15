@@ -11,6 +11,8 @@ import urllib.parse
 import urllib.request
 
 from anim_icons import ANIM_ICONS
+import i18n
+from i18n import _
 
 __version__ = "1.9.1"
 
@@ -29,6 +31,7 @@ if FROZEN and not PORTABLE:
 else:
     CONFIG_DIR = APP_DIR
 CONFIG_PATH = os.path.join(CONFIG_DIR, "config.json")
+i18n.init(CONFIG_PATH)          # langue de l'interface : avant tout texte traduit
 ICON_PATH = os.path.join(RESOURCE_DIR, "assets", "ha_taskbar.ico")
 PLACEHOLDER_TOKEN = "COLLE_ICI_TON_JETON_LONGUE_DUREE"
 
@@ -71,6 +74,7 @@ DEFAULT_CONFIG = {
     "tooltips": True,                # infobulle au survol (etat, mini-courbe)
     "flash_changes": True,           # une valeur qui change brille un instant
     "battery_low": 20,               # seuil des piles faibles (%) pour l'element "@batteries"
+    "language": "auto",              # langue de l'interface : "auto" (celle de Windows), "fr" ou "en"
     "items": [],
 }
 
@@ -140,7 +144,7 @@ def _dpapi(data, protect):
                    ctypes.c_void_p, wintypes.DWORD, ctypes.POINTER(BLOB)]
     fn.restype = wintypes.BOOL
     if not fn(ctypes.byref(inp), None, ctypes.byref(ent), None, None, CRYPTPROTECT_UI_FORBIDDEN, ctypes.byref(out)):
-        raise OSError("CryptProtectData a échoué (%d)" % ctypes.GetLastError())
+        raise OSError(_("CryptProtectData a échoué (%d)") % ctypes.GetLastError())
     try:
         return ctypes.string_at(out.pbData, out.cbData)
     finally:
@@ -231,31 +235,31 @@ _NEUTRAL_DARK = {"bg": "#2b2b2b", "surface": "#383838", "surface_h": "#444444", 
 _NEUTRAL_LIGHT = {"bg": "#fbfbfb", "surface": "#ececec", "surface_h": "#e0e0e0", "border": "#d4d4d4",
                   "fg": "#1b1b1b", "dim": "#616161", "knob": "#ffffff", "accent": "bar"}
 CARD_THEMES = {
-    "barre": {"name": "Comme la barre (défaut)", "radius": 6,
+    "barre": {"name": _("Comme la barre (défaut)"), "radius": 6,
               "dark": dict(_NEUTRAL_DARK), "light": dict(_NEUTRAL_LIGHT)},
-    "windows": {"name": "Windows 11 (couleur d'accentuation)", "radius": 6,
+    "windows": {"name": _("Windows 11 (couleur d'accentuation)"), "radius": 6,
                 "dark": dict(_NEUTRAL_DARK, accent="system"), "light": dict(_NEUTRAL_LIGHT, accent="system")},
     "ha": {"name": "Home Assistant", "radius": 14,
            "dark": {"bg": "#1c1c1c", "surface": "#2b2b2b", "surface_h": "#363636", "border": "#3a3a3a",
                     "fg": "#e1e1e1", "dim": "#9b9b9b", "knob": "#2b2b2b", "accent": "#03a9f4"},
            "light": {"bg": "#ffffff", "surface": "#f0f0f0", "surface_h": "#e4e4e4", "border": "#e0e0e0",
                      "fg": "#212121", "dim": "#727272", "knob": "#ffffff", "accent": "#039be5"}},
-    "ocean": {"name": "Océan", "radius": 8,
+    "ocean": {"name": _("Océan"), "radius": 8,
               "dark": {"bg": "#0f1e2b", "surface": "#17304a", "surface_h": "#1f3d5c", "border": "#24486b",
                        "fg": "#e6f1ff", "dim": "#8aa4bf", "knob": "#17304a", "accent": "#2ec4b6"},
               "light": {"bg": "#f2f8fc", "surface": "#dcebf5", "surface_h": "#cde1ef", "border": "#c2d8e8",
                         "fg": "#0f2a3f", "dim": "#4f6b82", "knob": "#ffffff", "accent": "#0f8b8d"}},
-    "foret": {"name": "Forêt", "radius": 8,
+    "foret": {"name": _("Forêt"), "radius": 8,
               "dark": {"bg": "#17201a", "surface": "#223026", "surface_h": "#2b3d30", "border": "#33473a",
                        "fg": "#eef5ee", "dim": "#93a896", "knob": "#223026", "accent": "#8bc34a"},
               "light": {"bg": "#f5f8f1", "surface": "#e3ecda", "surface_h": "#d6e3ca", "border": "#cddbbf",
                         "fg": "#1f2d1f", "dim": "#5b6e58", "knob": "#ffffff", "accent": "#4c8c2b"}},
-    "crepuscule": {"name": "Crépuscule", "radius": 10,
+    "crepuscule": {"name": _("Crépuscule"), "radius": 10,
                    "dark": {"bg": "#1e1729", "surface": "#2c2140", "surface_h": "#382a52", "border": "#3f305c",
                             "fg": "#f3eefe", "dim": "#a99cc2", "knob": "#2c2140", "accent": "#ff8a5c"},
                    "light": {"bg": "#fbf6ff", "surface": "#efe4fa", "surface_h": "#e4d4f5", "border": "#dccbf0",
                              "fg": "#2a1d3d", "dim": "#6d5a85", "knob": "#ffffff", "accent": "#c2185b"}},
-    "contraste": {"name": "Contraste élevé", "radius": 2,
+    "contraste": {"name": _("Contraste élevé"), "radius": 2,
                   "dark": {"bg": "#000000", "surface": "#1a1a1a", "surface_h": "#333333", "border": "#ffffff",
                            "fg": "#ffffff", "dim": "#d0d0d0", "knob": "#000000", "accent": "#ffff00"},
                   "light": {"bg": "#ffffff", "surface": "#f0f0f0", "surface_h": "#dddddd", "border": "#000000",
@@ -320,10 +324,10 @@ def needs_setup(cfg):
 
 # --------------------------------------------------------------------------- etats
 ACTIVE_STATES = {"on", "open", "opening", "playing", "home", "unlocked", "heat", "cool", "heat_cool", "auto"}
-STATE_TEXT = {"on": "ON", "off": "OFF", "unavailable": "indispo", "unknown": "?",
-              "open": "ouvert", "closed": "fermé", "playing": "lecture", "paused": "pause",
-              "idle": "inactif", "home": "présent", "not_home": "absent",
-              "locked": "fermé", "unlocked": "ouvert"}
+STATE_TEXT = {"on": "ON", "off": "OFF", "unavailable": _("indispo"), "unknown": "?",
+              "open": _("ouvert"), "closed": _("fermé"), "playing": _("lecture"), "paused": _("pause"),
+              "idle": _("inactif"), "home": _("présent"), "not_home": _("absent"),
+              "locked": _("fermé"), "unlocked": _("ouvert")}
 
 
 # --------------------------------------------------------------------------- actions
@@ -510,7 +514,7 @@ def battery_state(states, threshold=20):
     low = low_batteries(states, threshold)
     levels = [v for _e, _n, v in battery_levels(states) if v is not None]
     return {"entity_id": BATTERIES, "state": str(len(low)),
-            "attributes": {"friendly_name": "Piles faibles", "battery_level": min(levels) if levels else None,
+            "attributes": {"friendly_name": _("Piles faibles"), "battery_level": min(levels) if levels else None,
                            "low": low}}
 
 
@@ -548,95 +552,95 @@ def parse_hotkey(text):
 # Glyphes de la police Windows 11 "Segoe Fluent Icons" (repli : "Segoe MDL2 Assets")
 ICON_FONTS = ("Segoe Fluent Icons", "Segoe MDL2 Assets")
 ICONS = {
-    "lightbulb": ("", "Ampoule"),
-    "lightbulb2": ("", "Ampoule (contour)"),
-    "toggle": ("", "Interrupteur (suit l'état)"),
-    "power": ("", "Marche / arrêt"),
-    "tap": ("", "Bouton / appui"),
-    "thermometer": ("", "Thermomètre"),
-    "flame": ("", "Flamme / chauffage"),
-    "drop": ("", "Goutte / humidité"),
-    "bolt": ("", "Éclair / énergie"),
-    "battery": ("", "Batterie"),
-    "sun": ("", "Soleil / luminosité"),
-    "moon": ("", "Lune / nuit"),
-    "cloud": ("", "Nuage / météo"),
-    "wind": ("", "Vent / ventilateur"),
-    "home": ("", "Maison"),
-    "home_filled": ("", "Maison (plein)"),
-    "window": ("", "Fenêtre / volet"),
-    "lock": ("", "Cadenas (suit l'état)"),
-    "shield": ("", "Bouclier / alarme"),
-    "bell": ("", "Cloche"),
-    "warning": ("", "Alerte"),
+    "lightbulb": ("", _("Ampoule")),
+    "lightbulb2": ("", _("Ampoule (contour)")),
+    "toggle": ("", _("Interrupteur (suit l'état)")),
+    "power": ("", _("Marche / arrêt")),
+    "tap": ("", _("Bouton / appui")),
+    "thermometer": ("", _("Thermomètre")),
+    "flame": ("", _("Flamme / chauffage")),
+    "drop": ("", _("Goutte / humidité")),
+    "bolt": ("", _("Éclair / énergie")),
+    "battery": ("", _("Batterie")),
+    "sun": ("", _("Soleil / luminosité")),
+    "moon": ("", _("Lune / nuit")),
+    "cloud": ("", _("Nuage / météo")),
+    "wind": ("", _("Vent / ventilateur")),
+    "home": ("", _("Maison")),
+    "home_filled": ("", _("Maison (plein)")),
+    "window": ("", _("Fenêtre / volet")),
+    "lock": ("", _("Cadenas (suit l'état)")),
+    "shield": ("", _("Bouclier / alarme")),
+    "bell": ("", _("Cloche")),
+    "warning": ("", _("Alerte")),
     "speaker": ("", "Haut-parleur"),
-    "music": ("", "Musique"),
-    "play": ("", "Lecture"),
-    "pause": ("", "Pause"),
-    "tv": ("", "Écran / TV"),
-    "video": ("", "Caméra"),
-    "camera": ("", "Appareil photo"),
-    "person": ("", "Personne"),
-    "people": ("", "Personnes"),
-    "car": ("", "Voiture"),
+    "music": ("", _("Musique")),
+    "play": ("", _("Lecture")),
+    "pause": ("", _("Pause")),
+    "tv": ("", _("Écran / TV")),
+    "video": ("", _("Caméra")),
+    "camera": ("", _("Appareil photo")),
+    "person": ("", _("Personne")),
+    "people": ("", _("Personnes")),
+    "car": ("", _("Voiture")),
     "wifi": ("", "Wi-Fi"),
-    "gear": ("", "Engrenage"),
-    "gears": ("", "Automatisation"),
-    "code": ("", "Script"),
-    "palette": ("", "Scène"),
-    "clock": ("", "Horloge"),
-    "timer": ("", "Minuteur"),
-    "pulse": ("", "Capteur / activité"),
-    "heart": ("", "Cœur"),
-    "star": ("", "Étoile"),
-    "flag": ("", "Drapeau"),
-    "location": ("", "Position"),
-    "refresh": ("", "Actualiser"),
-    "game": ("", "Console / jeux"),
-    "laptop": ("", "Ordinateur portable"),
-    "desktop": ("", "Ordinateur"),
-    "phone": ("", "Téléphone"),
-    "headphones": ("", "Casque audio"),
-    "mic": ("", "Micro"),
-    "mute": ("", "Son coupé"),
-    "stop": ("", "Stop"),
-    "prev": ("", "Précédent"),
-    "next": ("", "Suivant"),
-    "photo": ("", "Photo / cadre"),
-    "eye": ("", "Œil / surveillance"),
-    "fingerprint": ("", "Empreinte"),
-    "key": ("", "Clé"),
-    "bell_off": ("", "Sonnerie coupée"),
-    "check": ("", "Validé"),
-    "person_filled": ("", "Personne (plein)"),
-    "sunrise": ("", "Lever du soleil"),
-    "sunset": ("", "Coucher du soleil"),
-    "snow": ("", "Flocon / froid"),
-    "health": ("", "Santé"),
-    "smile": ("", "Humeur"),
+    "gear": ("", _("Engrenage")),
+    "gears": ("", _("Automatisation")),
+    "code": ("", _("Script")),
+    "palette": ("", _("Scène")),
+    "clock": ("", _("Horloge")),
+    "timer": ("", _("Minuteur")),
+    "pulse": ("", _("Capteur / activité")),
+    "heart": ("", _("Cœur")),
+    "star": ("", _("Étoile")),
+    "flag": ("", _("Drapeau")),
+    "location": ("", _("Position")),
+    "refresh": ("", _("Actualiser")),
+    "game": ("", _("Console / jeux")),
+    "laptop": ("", _("Ordinateur portable")),
+    "desktop": ("", _("Ordinateur")),
+    "phone": ("", _("Téléphone")),
+    "headphones": ("", _("Casque audio")),
+    "mic": ("", _("Micro")),
+    "mute": ("", _("Son coupé")),
+    "stop": ("", _("Stop")),
+    "prev": ("", _("Précédent")),
+    "next": ("", _("Suivant")),
+    "photo": ("", _("Photo / cadre")),
+    "eye": ("", _("Œil / surveillance")),
+    "fingerprint": ("", _("Empreinte")),
+    "key": ("", _("Clé")),
+    "bell_off": ("", _("Sonnerie coupée")),
+    "check": ("", _("Validé")),
+    "person_filled": ("", _("Personne (plein)")),
+    "sunrise": ("", _("Lever du soleil")),
+    "sunset": ("", _("Coucher du soleil")),
+    "snow": ("", _("Flocon / froid")),
+    "health": ("", _("Santé")),
+    "smile": ("", _("Humeur")),
     "like": ("", "J'aime"),
-    "mail": ("", "Courrier"),
-    "message": ("", "Message"),
-    "calendar": ("", "Calendrier"),
-    "history": ("", "Historique"),
-    "cart": ("", "Courses"),
-    "bag": ("", "Achats"),
-    "trash": ("", "Poubelle"),
-    "work": ("", "Travail"),
-    "school": ("", "École"),
-    "building": ("", "Bâtiment"),
-    "globe": ("", "Internet / monde"),
-    "map": ("", "Carte"),
-    "plane": ("", "Avion / voyage"),
-    "bus": ("", "Bus"),
-    "train": ("", "Train"),
-    "bluetooth": ("", "Bluetooth"),
-    "antenna": ("", "Antenne / signal"),
-    "chip": ("", "Processeur"),
-    "chart": ("", "Tendance"),
-    "pie": ("", "Statistiques"),
-    "wrench": ("", "Outils / entretien"),
-    "puzzle": ("", "Extension"),
+    "mail": ("", _("Courrier")),
+    "message": ("", _("Message")),
+    "calendar": ("", _("Calendrier")),
+    "history": ("", _("Historique")),
+    "cart": ("", _("Courses")),
+    "bag": ("", _("Achats")),
+    "trash": ("", _("Poubelle")),
+    "work": ("", _("Travail")),
+    "school": ("", _("École")),
+    "building": ("", _("Bâtiment")),
+    "globe": ("", _("Internet / monde")),
+    "map": ("", _("Carte")),
+    "plane": ("", _("Avion / voyage")),
+    "bus": ("", _("Bus")),
+    "train": ("", _("Train")),
+    "bluetooth": ("", _("Bluetooth")),
+    "antenna": ("", _("Antenne / signal")),
+    "chip": ("", _("Processeur")),
+    "chart": ("", _("Tendance")),
+    "pie": ("", _("Statistiques")),
+    "wrench": ("", _("Outils / entretien")),
+    "puzzle": ("", _("Extension")),
 }
 # Variantes selon l'etat
 TOGGLE_OFF = ""
@@ -652,11 +656,11 @@ G_VOLUME = ["\ue992", "\ue993", "\ue994", "\ue995"]
 G_MUTED = "\ue74f"
 
 # Meteo : texte et icone selon la condition (entites weather.*)
-WEATHER_TEXT = {"clear-night": "Nuit claire", "cloudy": "Nuageux", "exceptional": "Exceptionnel",
-                "fog": "Brouillard", "hail": "Grêle", "lightning": "Orages", "lightning-rainy": "Orages et pluie",
-                "partlycloudy": "Éclaircies", "pouring": "Averses", "rainy": "Pluie", "snowy": "Neige",
-                "snowy-rainy": "Neige et pluie", "sunny": "Ensoleillé", "windy": "Venteux",
-                "windy-variant": "Venteux et nuageux"}
+WEATHER_TEXT = {"clear-night": _("Nuit claire"), "cloudy": _("Nuageux"), "exceptional": _("Exceptionnel"),
+                "fog": _("Brouillard"), "hail": _("Grêle"), "lightning": _("Orages"), "lightning-rainy": _("Orages et pluie"),
+                "partlycloudy": _("Éclaircies"), "pouring": _("Averses"), "rainy": _("Pluie"), "snowy": _("Neige"),
+                "snowy-rainy": _("Neige et pluie"), "sunny": _("Ensoleillé"), "windy": _("Venteux"),
+                "windy-variant": _("Venteux et nuageux")}
 WEATHER_ICON = {"clear-night": "moon", "cloudy": "cloud", "exceptional": "warning", "fog": "cloud",
                 "hail": "snow", "lightning": "bolt", "lightning-rainy": "bolt", "partlycloudy": "cloud",
                 "pouring": "drop", "rainy": "drop", "snowy": "snow", "snowy-rainy": "snow", "sunny": "sun",
@@ -883,7 +887,7 @@ class HomeAssistant:
                "{% if a %}{{ s.entity_id }}\t{{ a }}\n{% endif %}{% endfor %}")
         out = {}
         for line in self.template(tpl, timeout=20).splitlines():
-            eid, _, area = line.partition("\t")
+            eid, _sep, area = line.partition("\t")
             if eid and area:
                 out[eid.strip()] = area.strip()
         return out
@@ -962,7 +966,7 @@ def download_update(info, dest_dir, progress=None, cancelled=lambda: False):
             total = info.get("size") or int(r.headers.get("Content-Length") or 0)
             while True:
                 if cancelled():
-                    raise RuntimeError("téléchargement annulé")
+                    raise RuntimeError(_("téléchargement annulé"))
                 chunk = r.read(64 * 1024)
                 if not chunk:
                     break
@@ -972,9 +976,9 @@ def download_update(info, dest_dir, progress=None, cancelled=lambda: False):
                 if progress:
                     progress(done, total)
         if info.get("size") and done != info["size"]:
-            raise RuntimeError("fichier incomplet (%d octets sur %d)" % (done, info["size"]))
+            raise RuntimeError(_("fichier incomplet (%d octets sur %d)") % (done, info["size"]))
         if info.get("sha256") and h.hexdigest() != info["sha256"]:
-            raise RuntimeError("empreinte SHA-256 incorrecte : fichier abîmé ou modifié")
+            raise RuntimeError(_("empreinte SHA-256 incorrecte : fichier abîmé ou modifié"))
         if os.path.exists(path):
             os.remove(path)
         os.replace(tmp, path)
@@ -990,6 +994,14 @@ def download_update(info, dest_dir, progress=None, cancelled=lambda: False):
 # --------------------------------------------------------------------------- demarrage Windows
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 RUN_NAME = "HATaskbar"
+
+
+def restart_command():
+    """Commande qui relance HA Taskbar (apres un changement de langue)."""
+    if FROZEN:
+        return [sys.executable, "--restart"]
+    pyw = os.path.join(os.path.dirname(sys.executable), "pythonw.exe")
+    return [pyw if os.path.exists(pyw) else sys.executable, os.path.join(HERE, "ha_taskbar.py"), "--restart"]
 
 
 def startup_command():

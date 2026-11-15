@@ -8,6 +8,7 @@ from ctypes import wintypes
 from card_ui import derive_palette, fnum
 from ha_core import (ACTIVE_STATES, STATE_TEXT, WEATHER_TEXT, card_light, card_palette, resolve_icon,
                      resolve_service)
+from i18n import _
 
 user32 = ctypes.windll.user32
 user32.GetAncestor.restype = wintypes.HWND
@@ -46,7 +47,7 @@ def state_text(eid, st):
         return "%d %%" % a["current_position"]
     if d in ("climate", "water_heater") and a.get("temperature") is not None:
         cur = a.get("current_temperature")
-        return ("%s° → %s°" % (fnum(cur, 1), fnum(a["temperature"]))) if cur is not None else "→ %s°" % fnum(
+        return (_("%s° → %s°") % (fnum(cur, 1), fnum(a["temperature"]))) if cur is not None else _("→ %s°") % fnum(
             a["temperature"])
     if d == "media_player" and a.get("volume_level") is not None and s not in ("off", "standby"):
         return "%s · %d %%" % (STATE_TEXT.get(s, s), round(a["volume_level"] * 100))
@@ -55,7 +56,7 @@ def state_text(eid, st):
     if d in ("scene", "button", "input_button"):
         return ""
     if d == "script":
-        return "en cours" if s == "on" else ""
+        return _("en cours") if s == "on" else ""
     try:
         float(s)
         unit = a.get("unit_of_measurement", "")
@@ -126,7 +127,7 @@ class Palette:
                 w.bind("<Motion>", lambda e, i=i: self.hover(i))
             self.rows.append(ws)
         self.empty = tk.Label(body, text="", bg=c["bg"], fg=c["dim"], font=(fam, 9))
-        tk.Label(body, text="Entrée : action   ·   ← → ou molette : régler   ·   Tab : carte   ·   Échap : fermer",
+        tk.Label(body, text=_("Entrée : action   ·   ← → ou molette : régler   ·   Tab : carte   ·   Échap : fermer"),
                  bg=c["bg"], fg=c["dim"], font=(fam, 8)).pack(anchor="w", pady=(s(8), 0), side="bottom")
 
         e = self.entry
@@ -219,8 +220,8 @@ class Palette:
             elif r.winfo_ismapped():
                 r.pack_forget()
         if not self.results:
-            self.empty.configure(text="Aucune entité ne correspond." if self.app.last_states
-                                 else "Home Assistant n'a pas encore répondu.")
+            self.empty.configure(text=_("Aucune entité ne correspond.") if self.app.last_states
+                                 else _("Home Assistant n'a pas encore répondu."))
             if not self.empty.winfo_ismapped():
                 self.empty.pack(pady=self.s(10))
         elif self.empty.winfo_ismapped():

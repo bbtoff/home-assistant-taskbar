@@ -18,6 +18,7 @@ import struct
 import threading
 import time
 import urllib.parse
+from i18n import _
 
 EVENT_NOTIFY = "ha_taskbar_notify"      # evenement HA -> notification Windows (automatisations)
 PING_EVERY = 30                         # secondes
@@ -60,14 +61,14 @@ class WebSocket:
             while b"\r\n\r\n" not in buf:
                 chunk = sock.recv(4096)
                 if not chunk:
-                    raise WSClosed("le serveur a fermé la connexion")
+                    raise WSClosed(_("le serveur a fermé la connexion"))
                 buf += chunk
                 if len(buf) > 65536:
-                    raise WSClosed("réponse invalide")
+                    raise WSClosed(_("réponse invalide"))
             head, rest = buf.split(b"\r\n\r\n", 1)
             status = head.split(b"\r\n", 1)[0].decode("latin-1")
             if " 101" not in status:
-                raise WSClosed("connexion refusée (%s)" % status.strip())
+                raise WSClosed(_("connexion refusée (%s)") % status.strip())
         except Exception:
             sock.close()
             raise
@@ -137,7 +138,7 @@ class WebSocket:
             if fr is not None:
                 fin, op, payload = fr
                 if op == 0x8:
-                    raise WSClosed("connexion fermée par Home Assistant")
+                    raise WSClosed(_("connexion fermée par Home Assistant"))
                 if op == 0x9:
                     self._send(0xA, payload)
                     continue
@@ -163,7 +164,7 @@ class WebSocket:
                     return None
             chunk = self.sock.recv(65536)
             if not chunk:
-                raise WSClosed("connexion perdue")
+                raise WSClosed(_("connexion perdue"))
             self._buf += chunk
 
     def close(self):
@@ -221,16 +222,16 @@ class Realtime:
 
     def session(self):
         if not self.url or not self.token:
-            raise AuthFailed("adresse ou jeton manquant")
+            raise AuthFailed(_("adresse ou jeton manquant"))
         ws = self.ws = WebSocket(self.url, self.verify)
         try:
             msg = json.loads(ws.recv(15) or "null")
             if not msg or msg.get("type") != "auth_required":
-                raise WSClosed("réponse inattendue de Home Assistant")
+                raise WSClosed(_("réponse inattendue de Home Assistant"))
             ws.send_json({"type": "auth", "access_token": self.token})
             msg = json.loads(ws.recv(15) or "null")
             if not msg or msg.get("type") != "auth_ok":
-                raise AuthFailed("jeton refusé")
+                raise AuthFailed(_("jeton refusé"))
             ws.send_json({"id": 1, "type": "subscribe_events", "event_type": "state_changed"})
             if self.notifications:
                 ws.send_json({"id": 2, "type": "persistent_notification/subscribe"})
@@ -256,7 +257,7 @@ class Realtime:
                     ws.send_json({"id": nid, "type": "ping"})
                     next_ping = now + PING_EVERY
                 if now - last_rx > DEAD_AFTER:
-                    raise WSClosed("Home Assistant ne répond plus")
+                    raise WSClosed(_("Home Assistant ne répond plus"))
         finally:
             self.ws = None
             ws.close()

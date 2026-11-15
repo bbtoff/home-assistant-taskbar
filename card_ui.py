@@ -15,6 +15,7 @@ from tkinter import font as tkfont
 from ha_core import (ACTIVE_STATES, BATTERIES, ICONS, STATE_TEXT, WEATHER_ICON, WEATHER_TEXT, battery_state,
                      card_light, card_palette, group_state, item_members, load_config, parse_time, resolve_icon,
                      resolve_service, save_config)
+from i18n import _, decimal_sep
 
 user32 = ctypes.windll.user32
 user32.GetAncestor.restype = wintypes.HWND
@@ -43,39 +44,39 @@ TOGGLE_DOMAINS = {"light", "switch", "input_boolean", "fan", "automation", "sire
 ACTION_DOMAINS = {"scene", "script", "button", "input_button"}
 COLOR_MODES = {"hs", "rgb", "rgbw", "rgbww", "xy"}
 
-HVAC_TEXT = {"off": "Arrêt", "heat": "Chauffage", "cool": "Clim", "heat_cool": "Auto", "auto": "Auto",
-             "dry": "Déshum.", "fan_only": "Ventilation"}
-HVAC_ACTION = {"heating": "Chauffe", "cooling": "Refroidit", "idle": "Au repos", "off": "Arrêt",
-               "drying": "Déshumidifie", "fan": "Ventile", "preheating": "Préchauffe", "defrosting": "Dégivre"}
-PRESET_TEXT = {"none": "Aucun", "eco": "Éco", "comfort": "Confort", "away": "Absent", "home": "Maison",
-               "sleep": "Nuit", "boost": "Boost", "activity": "Activité", "frost_protection": "Hors-gel",
-               "nature": "Naturel", "fresh": "Frais", "smart": "Auto", "custom": "Perso", "auto": "Auto",
-               "normal": "Normal", "breeze": "Brise", "turbo": "Turbo", "silent": "Silence", "quiet": "Silence"}
+HVAC_TEXT = {"off": _("Arrêt"), "heat": _("Chauffage"), "cool": _("Clim"), "heat_cool": _("Auto"), "auto": _("Auto"),
+             "dry": _("Déshum."), "fan_only": _("Ventilation")}
+HVAC_ACTION = {"heating": _("Chauffe"), "cooling": _("Refroidit"), "idle": _("Au repos"), "off": _("Arrêt"),
+               "drying": _("Déshumidifie"), "fan": _("Ventile"), "preheating": _("Préchauffe"), "defrosting": _("Dégivre")}
+PRESET_TEXT = {"none": _("Aucun"), "eco": _("Éco"), "comfort": _("Confort"), "away": _("Absent"), "home": _("Maison"),
+               "sleep": _("Nuit"), "boost": _("Boost"), "activity": _("Activité"), "frost_protection": "Hors-gel",
+               "nature": _("Naturel"), "fresh": _("Frais"), "smart": _("Auto"), "custom": _("Perso"), "auto": _("Auto"),
+               "normal": _("Normal"), "breeze": _("Brise"), "turbo": _("Turbo"), "silent": _("Silence"), "quiet": _("Silence")}
 # Ventilateur : features HA (FanEntityFeature) et sens de rotation
 FAN_OSCILLATE, FAN_DIRECTION = 2, 4
-FAN_DIRECTIONS = [("forward", "Été · normal"), ("reverse", "Hiver · inversé")]
+FAN_DIRECTIONS = [("forward", _("Été · normal")), ("reverse", _("Hiver · inversé"))]
 # Arret programme (minuterie locale de HA Taskbar)
 TIMER_DOMAINS = TOGGLE_DOMAINS | {"media_player", "climate"}
-TIMER_CHOICES = [(15, "15 min"), (30, "30 min"), (60, "1 h"), (120, "2 h")]
+TIMER_CHOICES = [(15, _("15 min")), (30, _("30 min")), (60, _("1 h")), (120, _("2 h"))]
 # Periodes de l'historique (heures)
-HISTORY_PERIODS = [(24, "24 h"), (168, "7 jours"), (720, "30 jours")]
+HISTORY_PERIODS = [(24, _("24 h")), (168, _("7 jours")), (720, _("30 jours"))]
 # Ambiances integrees des lumieres : (nom, luminosite %, temperature K ou None)
-LIGHT_SCENES_CT = [("Lecture", 100, 4500), ("Détente", 45, 2700), ("Veilleuse", 5, 2200)]
-LIGHT_SCENES_DIM = [("Fort", 100, None), ("Moyen", 50, None), ("Veilleuse", 5, None)]
-SELECT_TEXT = {"cancel": "Arrêt", "off": "Arrêt", "on": "Marche", "none": "Aucun"}
-VACUUM_TEXT = {"cleaning": "Nettoie", "docked": "Sur sa base", "returning": "Retour à la base", "idle": "Inactif",
-               "paused": "En pause", "error": "Erreur"}
+LIGHT_SCENES_CT = [(_("Lecture"), 100, 4500), (_("Détente"), 45, 2700), (_("Veilleuse"), 5, 2200)]
+LIGHT_SCENES_DIM = [(_("Fort"), 100, None), (_("Moyen"), 50, None), (_("Veilleuse"), 5, None)]
+SELECT_TEXT = {"cancel": _("Arrêt"), "off": _("Arrêt"), "on": _("Marche"), "none": _("Aucun")}
+VACUUM_TEXT = {"cleaning": _("Nettoie"), "docked": _("Sur sa base"), "returning": _("Retour à la base"), "idle": _("Inactif"),
+               "paused": _("En pause"), "error": _("Erreur")}
 # Entites du meme appareil affichees dans la carte (les autres domaines sont ignores)
 SIBLING_DOMAINS = ("light", "switch", "fan", "select", "number", "sensor", "binary_sensor", "button",
                    "input_boolean", "cover", "lock", "siren")
 MAX_SIBLINGS = 6
-DAYS = ["lun.", "mar.", "mer.", "jeu.", "ven.", "sam.", "dim."]
+DAYS = [_("lun."), _("mar."), _("mer."), _("jeu."), _("ven."), _("sam."), _("dim.")]
 FORECAST_DAYS = 5
-COVER_TEXT = {"open": "Ouvert", "closed": "Fermé", "opening": "Ouverture…", "closing": "Fermeture…"}
-MEDIA_TEXT = {"playing": "Lecture", "paused": "Pause", "idle": "Inactif", "off": "Éteint", "on": "Allumé",
-              "standby": "Veille", "buffering": "Chargement…"}
-LOCK_TEXT = {"locked": "Verrouillé", "unlocked": "Déverrouillé", "locking": "Verrouillage…",
-             "unlocking": "Déverrouillage…", "jammed": "Bloqué", "open": "Ouvert"}
+COVER_TEXT = {"open": _("Ouvert"), "closed": _("Fermé"), "opening": _("Ouverture…"), "closing": _("Fermeture…")}
+MEDIA_TEXT = {"playing": _("Lecture"), "paused": _("Pause"), "idle": _("Inactif"), "off": _("Éteint"), "on": _("Allumé"),
+              "standby": _("Veille"), "buffering": _("Chargement…")}
+LOCK_TEXT = {"locked": _("Verrouillé"), "unlocked": _("Déverrouillé"), "locking": _("Verrouillage…"),
+             "unlocking": _("Déverrouillage…"), "jammed": _("Bloqué"), "open": _("Ouvert")}
 
 SWATCHES = [(255, 59, 48), (255, 149, 0), (255, 214, 10), (52, 199, 89),
             (48, 200, 230), (10, 132, 255), (175, 82, 222), (255, 55, 145)]
@@ -125,7 +126,7 @@ def fnum(v, dec=None):
         s = ("%.2f" % f).rstrip("0").rstrip(".")
     if s.lstrip("-").strip("0,.") == "":
         s = s.lstrip("-")              # pas de « -0 »
-    return s.replace(".", ",")
+    return s.replace(".", decimal_sep())
 
 
 def ago(iso):
@@ -134,12 +135,12 @@ def ago(iso):
         return ""
     s = (datetime.datetime.now(datetime.timezone.utc) - t).total_seconds()
     if s < 60:
-        return "à l'instant"
+        return _("à l'instant")
     if s < 3600:
-        return "il y a %d min" % (s // 60)
+        return _("il y a %d min") % (s // 60)
     if s < 86400:
-        return "il y a %d h" % (s // 3600)
-    return "il y a %d j" % (s // 86400)
+        return _("il y a %d h") % (s // 3600)
+    return _("il y a %d j") % (s // 86400)
 
 
 def derive_palette(base):
@@ -411,7 +412,7 @@ class History(tk.Canvas):
         self.W, self.H = card.iw, card.s(78)
         super().__init__(parent, width=self.W, height=self.H, bg=card.c["bg"], highlightthickness=0)
         self.series, self.segments = [], []
-        self.message("Chargement de l'historique…")
+        self.message(_("Chargement de l'historique…"))
         self.bind("<Motion>", self._motion)
         self.bind("<Leave>", self._leave)
 
@@ -422,15 +423,15 @@ class History(tk.Canvas):
     @staticmethod
     def span_text(h):
         if h <= 48:
-            return "%g h" % h
-        return ("%g j" % round(h / 24.0, 1)).replace(".", ",")
+            return _("%g h") % h
+        return (_("%g j") % round(h / 24.0, 1)).replace(".", ",")
 
     def _axis(self):
         c, f, y = self.card.c, self.card.f_small, self.H - 1
         self.create_text(0, y, text="−" + self.span_text(self.hours), fill=c["dim"], font=f, anchor="sw")
         self.create_text(self.W / 2, y, text="−" + self.span_text(self.hours / 2.0), fill=c["dim"], font=f,
                          anchor="s")
-        self.create_text(self.W, y, text="maintenant", fill=c["dim"], font=f, anchor="se")
+        self.create_text(self.W, y, text=_("maintenant"), fill=c["dim"], font=f, anchor="se")
 
     def set_data(self, points, hours=24):
         """points = [(datetime UTC, valeur)]"""
@@ -438,7 +439,7 @@ class History(tk.Canvas):
         self.hours = hours
         self.series, self.segments = [], []
         if not points:
-            self.message("Pas d'historique sur " + self.span_text(hours))
+            self.message(_("Pas d'historique sur ") + self.span_text(hours))
             return
         self.now = datetime.datetime.now(datetime.timezone.utc)
         self.t0 = self.now - datetime.timedelta(hours=hours)
@@ -467,8 +468,8 @@ class History(tk.Canvas):
         for t, v in nums:
             x = int(self._tx(t))
             cols.setdefault(x, []).append((t, v))
-        pts = [(x, sum(v for _, v in g) / len(g), g[-1][0]) for x, g in sorted(cols.items())]
-        vals = [v for _, v, _ in pts]
+        pts = [(x, sum(v for _t, v in g) / len(g), g[-1][0]) for x, g in sorted(cols.items())]
+        vals = [v for _t, v, _n in pts]
         lo, hi = min(vals), max(vals)
         if hi - lo < 1e-9:
             lo, hi = lo - 1, hi + 1
@@ -476,7 +477,7 @@ class History(tk.Canvas):
 
         def ty(v):
             return bot - (v - lo) / (hi - lo) * (bot - top)
-        xy = [(x, ty(v)) for x, v, _ in pts]
+        xy = [(x, ty(v)) for x, v, _n in pts]
         if len(xy) == 1:
             xy.append((self.W - 1, xy[0][1]))
         poly = [xy[0][0], bot] + [k for p in xy for k in p] + [xy[-1][0], bot]
@@ -491,8 +492,8 @@ class History(tk.Canvas):
                 tot += dt
                 wsum += va * dt
         avg = wsum / tot if tot else sum(vals) / len(vals)
-        self.create_text(0, 0, text="min %s  ·  moy. %s  ·  max %s%s" % (
-            fnum(round(min(v for _, v in nums), 2)), fnum(round(avg, 2)), fnum(round(max(v for _, v in nums), 2)), u),
+        self.create_text(0, 0, text=_("min %s  ·  moy. %s  ·  max %s%s") % (
+            fnum(round(min(v for _t, v in nums), 2)), fnum(round(avg, 2)), fnum(round(max(v for _t, v in nums), 2)), u),
             fill=c["dim"], font=self.card.f_small, anchor="nw", tags="mm")
         self.series = [(x, ty(v), v, t) for x, v, t in pts]
 
@@ -528,13 +529,13 @@ class History(tk.Canvas):
             r = s(3)
             self.create_oval(x - r, y - r, x + r, y + r, fill=c["accent"], outline=c["bg"], tags="hover")
             txt = "%s%s · %s" % (fnum(round(v, 2)), (" " + self.unit) if self.unit else "",
-                                 t.astimezone().strftime("%H:%M" if self.hours <= 24 else "%d/%m %H:%M"))
+                                 t.astimezone().strftime("%H:%M" if self.hours <= 24 else _("%d/%m %H:%M")))
         else:
             seg = next((p for p in self.segments if p[0] <= e.x <= p[1]), None)
             if seg is None:
                 return
-            tf = "%H:%M" if self.hours <= 24 else "%d/%m %H:%M"
-            txt = "%s · %s → %s" % (STATE_TEXT.get(seg[2], seg[2]), seg[3].astimezone().strftime(tf),
+            tf = "%H:%M" if self.hours <= 24 else _("%d/%m %H:%M")
+            txt = _("%s · %s → %s") % (STATE_TEXT.get(seg[2], seg[2]), seg[3].astimezone().strftime(tf),
                                     seg[4].astimezone().strftime(tf))
         tid = self.create_text(self.W, 0, text=txt, fill=c["fg"], font=f, anchor="ne", tags="hover")
         bb = self.bbox(tid)
@@ -686,7 +687,7 @@ class Card:
             self.tog.grid(row=0, column=2, rowspan=2, sticky="e")
 
         if self.is_group:
-            sec = self.section("Membres du groupe")
+            sec = self.section(_("Membres du groupe"))
             for eid in self.members:
                 self._entity_row(sec, eid)
         elif self.eid == BATTERIES:
@@ -710,7 +711,7 @@ class Card:
             sec = self.section(top=16)
             hrow = tk.Frame(sec, bg=c["bg"])
             hrow.pack(fill="x", pady=(0, s(4)))
-            tk.Label(hrow, text="Historique", bg=c["bg"], fg=c["dim"], font=self.f_text).pack(side="left")
+            tk.Label(hrow, text=_("Historique"), bg=c["bg"], fg=c["dim"], font=self.f_text).pack(side="left")
             self.hist_btns = {}
             for h, t in reversed(HISTORY_PERIODS):
                 lb = tk.Label(hrow, text=t, bg=c["bg"], fg=c["fg"] if h == 24 else c["dim"],
@@ -727,7 +728,7 @@ class Card:
         foot.pack(fill="x")
         self.f_ago = tk.Label(foot, text="", bg=c["bg"], fg=c["dim"], font=self.f_small)
         self.f_ago.pack(side="left")
-        link = tk.Label(foot, text="Ouvrir dans Home Assistant  ↗", bg=c["bg"], fg=c["dim"], font=self.f_small,
+        link = tk.Label(foot, text=_("Ouvrir dans Home Assistant  ↗"), bg=c["bg"], fg=c["dim"], font=self.f_small,
                         cursor="hand2")
         link.pack(side="right")
         link.bind("<Enter>", lambda e: link.configure(fg=c["fg"]))
@@ -736,7 +737,7 @@ class Card:
 
     # -- arret programme
     def _b_timer(self):
-        sec = self.section("Arrêt programmé")
+        sec = self.section(_("Arrêt programmé"))
         eid = self.eid
         info = tk.Label(sec, text="", bg=self.c["bg"], fg=self.c["accent"], font=self.f_text_b, anchor="w")
 
@@ -746,7 +747,7 @@ class Card:
             else:
                 self.app.start_timer(eid, m)
             upd()
-        ch = Chips(sec, self, TIMER_CHOICES + [(0, "Annuler")], pick, "timer")
+        ch = Chips(sec, self, TIMER_CHOICES + [(0, _("Annuler"))], pick, "timer")
         ch.pack(anchor="w")
 
         def upd(_st=None):
@@ -757,8 +758,8 @@ class Card:
                     ch._select(None)
             else:
                 m = int(left // 60) + 1
-                info.configure(text="S'éteint dans %s (à %s)" % (
-                    "%d h %02d" % divmod(m, 60) if m >= 60 else "%d min" % m,
+                info.configure(text=_("S'éteint dans %s (à %s)") % (
+                    _("%d h %02d") % divmod(m, 60) if m >= 60 else _("%d min") % m,
                     time.strftime("%H:%M", time.localtime(time.time() + left))))
                 if not info.winfo_ismapped():
                     info.pack(anchor="w", pady=(self.s(2), 0))
@@ -775,8 +776,8 @@ class Card:
             name = name[len(base):].strip(" -·:")
             name = name[:1].upper() + name[1:]
         elif base and name.lower() == base.lower():
-            name = {"light": "Lumière", "fan": "Ventilateur", "switch": "Prise / interrupteur",
-                    "sensor": "Capteur", "select": "Choix"}.get(eid.split(".", 1)[0], name)
+            name = {"light": _("Lumière"), "fan": _("Ventilateur"), "switch": _("Prise / interrupteur"),
+                    "sensor": _("Capteur"), "select": _("Choix")}.get(eid.split(".", 1)[0], name)
         return name
 
     def _entity_row(self, parent, eid):
@@ -800,7 +801,7 @@ class Card:
             tg.pack(side="right")
             sl = None
             if d == "light" and ((set(a.get("supported_color_modes") or []) - {"onoff"}) or a.get("brightness")):
-                sl = Slider(box, self, "Luminosité", 1, 100, 1, lambda v: "%d %%" % v,
+                sl = Slider(box, self, _("Luminosité"), 1, 100, 1, lambda v: "%d %%" % v,
                             lambda v: call("light.turn_on", {"entity_id": eid, "brightness_pct": int(v)}),
                             key + ":bri", wheel=5)
                 sl.pack(fill="x")
@@ -833,14 +834,14 @@ class Card:
                 except (TypeError, ValueError):
                     sl.set(None)
         elif d == "button":
-            Btn(row, self, "Appuyer", height=s(26), command=lambda: call("button.press", {"entity_id": eid})).pack(
+            Btn(row, self, _("Appuyer"), height=s(26), command=lambda: call("button.press", {"entity_id": eid})).pack(
                 side="right")
 
             def upd(st):
                 pass
         elif d in ("cover", "lock"):
-            svc = {"cover": (("open_cover", "Ouvrir"), ("close_cover", "Fermer")),
-                   "lock": (("lock", "Verrouiller"), ("unlock", "Ouvrir"))}[d]
+            svc = {"cover": (("open_cover", _("Ouvrir")), ("close_cover", _("Fermer"))),
+                   "lock": (("lock", _("Verrouiller")), ("unlock", _("Ouvrir")))}[d]
             for sv, t in reversed(svc):
                 Btn(row, self, t, height=s(26), command=lambda sv=sv: call("%s.%s" % (d, sv), {"entity_id": eid})
                     ).pack(side="right", padx=(s(4), 0))
@@ -884,7 +885,7 @@ class Card:
         shown.sort(key=lambda e: order.get(e.split(".", 1)[0], 2))
         if not shown:
             return
-        tk.Label(self.dev_sec, text="Sur le même appareil", bg=self.c["bg"], fg=self.c["dim"],
+        tk.Label(self.dev_sec, text=_("Sur le même appareil"), bg=self.c["bg"], fg=self.c["dim"],
                  font=self.f_text).pack(anchor="w", pady=(self.s(14), self.s(4)))
         for e in shown:
             self._entity_row(self.dev_sec, e)
@@ -926,8 +927,8 @@ class Card:
         unit.pack(side="left", anchor="s", pady=(0, s(9)), padx=(s(4), 0))
         info = tk.Label(sec, text="", bg=c["bg"], fg=c["dim"], font=self.f_text, anchor="w", justify="left")
         info.pack(anchor="w")
-        self.fc_sec = self.section("Prévisions")
-        self.fc_msg = tk.Label(self.fc_sec, text="Chargement…", bg=c["bg"], fg=c["dim"], font=self.f_small)
+        self.fc_sec = self.section(_("Prévisions"))
+        self.fc_msg = tk.Label(self.fc_sec, text=_("Chargement…"), bg=c["bg"], fg=c["dim"], font=self.f_small)
         self.fc_msg.pack(anchor="w")
 
         def upd(st):
@@ -937,9 +938,9 @@ class Card:
             unit.configure(text=at.get("temperature_unit", "°C") if t is not None else "")
             parts = [WEATHER_TEXT.get(st.get("state"), st.get("state"))]
             if at.get("humidity") is not None:
-                parts.append("humidité %s %%" % fnum(at["humidity"]))
+                parts.append(_("humidité %s %%") % fnum(at["humidity"]))
             if at.get("wind_speed") is not None:
-                parts.append("vent %s %s" % (fnum(at["wind_speed"], 0), at.get("wind_speed_unit", "km/h")))
+                parts.append(_("vent %s %s") % (fnum(at["wind_speed"], 0), at.get("wind_speed_unit", "km/h")))
             info.configure(text=" · ".join(p for p in parts if p))
         self.updaters.append(upd)
         if a.get("forecast"):
@@ -969,7 +970,7 @@ class Card:
         if kind == "twice_daily":
             fc = [f for f in fc if f.get("is_daytime", True)]
         if not fc:
-            tk.Label(self.fc_sec, text="Pas de prévisions pour cette entité.", bg=c["bg"], fg=c["dim"],
+            tk.Label(self.fc_sec, text=_("Pas de prévisions pour cette entité."), bg=c["bg"], fg=c["dim"],
                      font=self.f_small).pack(anchor="w")
             return
         grid = tk.Frame(self.fc_sec, bg=c["bg"])
@@ -982,10 +983,10 @@ class Card:
             if t is None:
                 day = ""
             elif kind == "hourly":
-                day = t.astimezone().strftime("%H h")
+                day = t.astimezone().strftime(_("%H h"))
             else:
                 d = t.astimezone().date()
-                day = "Auj." if d == today else ("Dem." if (d - today).days == 1 else DAYS[d.weekday()])
+                day = _("Auj.") if d == today else (_("Dem.") if (d - today).days == 1 else DAYS[d.weekday()])
             key = WEATHER_ICON.get(f.get("condition"), "cloud")
             hi, lo = f.get("temperature"), f.get("templow")
             col = tk.Frame(grid, bg=c["surface"], padx=s(2), pady=s(6))
@@ -1016,13 +1017,13 @@ class Card:
             low = st.get("attributes", {}).get("low") or []
             rows = low
             if low:
-                title = "Sous %s %%" % fnum(thr)
+                title = _("Sous %s %%") % fnum(thr)
             else:
                 from ha_core import battery_levels
                 rows = sorted([x for x in battery_levels(self.app.last_states) if x[2] is not None],
                               key=lambda x: x[2])[:5]
-                title = ("Toutes les piles sont au-dessus de %s %%. Les plus basses :" % fnum(thr)) if rows else \
-                    "Aucune pile trouvée dans Home Assistant."
+                title = (_("Toutes les piles sont au-dessus de %s %%. Les plus basses :") % fnum(thr)) if rows else \
+                    _("Aucune pile trouvée dans Home Assistant.")
             sig = (title, tuple((e, v) for e, _n, v in rows[:10]))
             if sig == self._bat_sig:
                 return
@@ -1037,7 +1038,7 @@ class Card:
                 head.pack(fill="x")
                 tk.Label(head, text=name, bg=c["bg"], fg=c["fg"], font=self.f_text, anchor="w").pack(side="left")
                 binary = eid.startswith("binary_sensor.")
-                tk.Label(head, text="faible" if binary else "%d %%" % v, bg=c["bg"],
+                tk.Label(head, text=_("faible") if binary else "%d %%" % v, bg=c["bg"],
                          fg="#e5534b" if v < float(thr) else c["fg"], font=self.f_text_b).pack(side="right")
                 if not binary:
                     cv = tk.Canvas(line, width=self.iw, height=s(8), bg=c["bg"], highlightthickness=0)
@@ -1049,7 +1050,7 @@ class Card:
                                        fill=c["accent"] if v >= float(thr) else "#e5534b", width=s(5),
                                        capstyle="round")
             if len(low) > 10:
-                tk.Label(self.bat_box, text="… et %d autres" % (len(low) - 10), bg=c["bg"], fg=c["dim"],
+                tk.Label(self.bat_box, text=_("… et %d autres") % (len(low) - 10), bg=c["bg"], fg=c["dim"],
                          font=self.f_small).pack(anchor="w")
         self.updaters.append(upd)
 
@@ -1058,7 +1059,7 @@ class Card:
         modes = set(a.get("supported_color_modes") or [])
         if (modes - {"onoff"}) or a.get("brightness") is not None:
             sec = self.section()
-            bri = Slider(sec, self, "Luminosité", 1, 100, 1, lambda v: "%d %%" % v,
+            bri = Slider(sec, self, _("Luminosité"), 1, 100, 1, lambda v: "%d %%" % v,
                          lambda v: self.call("light.turn_on", brightness_pct=int(v)), "bri", wheel=5)
             bri.pack(fill="x")
 
@@ -1070,7 +1071,7 @@ class Card:
             kmin = int(a.get("min_color_temp_kelvin") or 2000)
             kmax = int(a.get("max_color_temp_kelvin") or 6500)
             sec = self.section()
-            ct = Slider(sec, self, "Température du blanc", kmin, kmax, 50, lambda v: "%d K" % v,
+            ct = Slider(sec, self, _("Température du blanc"), kmin, kmax, 50, lambda v: _("%d K") % v,
                         lambda v: self.call("light.turn_on", color_temp_kelvin=int(v)), "ct", wheel=250,
                         gradient=CT_GRADIENT)
             ct.pack(fill="x")
@@ -1080,10 +1081,10 @@ class Card:
                 ct.set(at.get("color_temp_kelvin") if st.get("state") == "on" else None)
             self.updaters.append(upd_ct)
         if modes & COLOR_MODES:
-            sec = self.section("Couleur")
+            sec = self.section(_("Couleur"))
             Swatches(sec, self, SWATCHES, lambda rgb: self.call("light.turn_on", rgb_color=list(rgb))).pack()
         if (modes - {"onoff"}) or a.get("brightness") is not None:
-            self.fav_sec = self.section("Ambiances")
+            self.fav_sec = self.section(_("Ambiances"))
             self.fav_has_ct = "color_temp" in modes
             self.fav_has_rgb = bool(modes & COLOR_MODES)
             self._fill_favorites()
@@ -1097,7 +1098,7 @@ class Card:
         opts = [("b%d" % i, n) for i, (n, _b, _k) in enumerate(builtin)]
         favs = list(self.cfg.get("favorites") or [])
         opts += [("f%d" % i, "★ " + (f.get("name") or str(i + 1))) for i, f in enumerate(favs)]
-        opts.append(("save", "+ Mémoriser"))
+        opts.append(("save", _("+ Mémoriser")))
 
         def pick(v):
             if v == "save":
@@ -1121,14 +1122,14 @@ class Card:
                 self._fill_favorites()
         Chips(sec, self, opts, pick, "fav", on_right=right).pack(anchor="w")
         if favs:
-            tk.Label(sec, text="Clic droit sur un ★ pour le supprimer.", bg=self.c["bg"], fg=self.c["dim"],
+            tk.Label(sec, text=_("Clic droit sur un ★ pour le supprimer."), bg=self.c["bg"], fg=self.c["dim"],
                      font=self.f_small).pack(anchor="w")
 
     def _save_favorite(self):
         st = self.state() or {}
         a = st.get("attributes", {})
         if st.get("state") != "on" or not a.get("brightness"):
-            self.h_sub.configure(text="Allume la lumière avant de mémoriser")
+            self.h_sub.configure(text=_("Allume la lumière avant de mémoriser"))
             return
         fav = {"brightness_pct": max(1, round(a["brightness"] * 100 / 255))}
         if a.get("color_mode") == "color_temp" and a.get("color_temp_kelvin"):
@@ -1136,10 +1137,10 @@ class Card:
         elif a.get("rgb_color") and a.get("color_mode") not in ("brightness", "onoff", "white"):
             fav["rgb_color"] = list(a["rgb_color"])
         n = len(self.cfg.get("favorites") or []) + 1
-        fav["name"] = "%d %%" % fav["brightness_pct"] + (" · %d K" % fav["color_temp_kelvin"]
+        fav["name"] = "%d %%" % fav["brightness_pct"] + (_(" · %d K") % fav["color_temp_kelvin"]
                                                         if "color_temp_kelvin" in fav else "")
         if n > 8:
-            self.h_sub.configure(text="8 favoris au maximum")
+            self.h_sub.configure(text=_("8 favoris au maximum"))
             return
         self.save_item(lambda it: it.__setitem__("favorites", list(it.get("favorites") or []) + [dict(fav)]))
         self._fill_favorites()
@@ -1160,7 +1161,7 @@ class Card:
             mid.grid(row=0, column=1)
             big = tk.Label(mid, text="—", bg=c["bg"], fg=c["fg"], font=self.f_big)
             big.pack()
-            tk.Label(mid, text="Consigne", bg=c["bg"], fg=c["dim"], font=self.f_text).pack()
+            tk.Label(mid, text=_("Consigne"), bg=c["bg"], fg=c["dim"], font=self.f_text).pack()
 
             def show(v):
                 big.configure(text="—" if v is None else "%s %s" % (fnum(v, 1), unit))
@@ -1200,22 +1201,22 @@ class Card:
             at = st.get("attributes", {})
             parts = []
             if at.get("current_humidity") is not None:
-                parts.append("Humidité %s %%" % fnum(at["current_humidity"], 0))
+                parts.append(_("Humidité %s %%") % fnum(at["current_humidity"], 0))
             w = self.outdoor()
             if w:
-                parts.append("Extérieur %s" % w)
+                parts.append(_("Extérieur %s") % w)
             info.configure(text="  ·  ".join(parts))
         self.updaters.append(upd_info)
         modes = a.get("hvac_modes") or []
         if modes:
-            sec = self.section("Mode")
+            sec = self.section(_("Mode"))
             ch = Chips(sec, self, [(m, HVAC_TEXT.get(m, m)) for m in modes],
                        lambda m: self.call("climate.set_hvac_mode", hvac_mode=m), "hvac")
             ch.pack(anchor="w")
             self.updaters.append(lambda st: ch.set(st.get("state")))
         presets = a.get("preset_modes") or []
         if presets:
-            sec = self.section("Préréglage")
+            sec = self.section(_("Préréglage"))
             pc = Chips(sec, self, [(p, PRESET_TEXT.get(p, p.capitalize())) for p in presets],
                        lambda p: self.call("climate.set_preset_mode", preset_mode=p), "preset")
             pc.pack(anchor="w")
@@ -1245,13 +1246,13 @@ class Card:
         row = tk.Frame(sec, bg=self.c["bg"])
         row.pack(fill="x")
         w = (self.iw - 2 * s(8)) // 3
-        for i, (g, t, svc) in enumerate(((G_UP, "Ouvrir", "open_cover"), (G_STOP, "Stop", "stop_cover"),
-                                         (G_DOWN, "Fermer", "close_cover"))):
+        for i, (g, t, svc) in enumerate(((G_UP, _("Ouvrir"), "open_cover"), (G_STOP, _("Stop"), "stop_cover"),
+                                         (G_DOWN, _("Fermer"), "close_cover"))):
             Btn(row, self, t, glyph=g, width=w, command=lambda sv=svc: self.call("cover." + sv)).pack(
                 side="left", padx=(0 if i == 0 else s(8), 0))
         if a.get("current_position") is not None:
             sec = self.section()
-            pos = Slider(sec, self, "Position", 0, 100, 1, lambda v: "%d %%" % v,
+            pos = Slider(sec, self, _("Position"), 0, 100, 1, lambda v: "%d %%" % v,
                          lambda v: self.call("cover.set_cover_position", position=int(v)), "pos", wheel=10)
             pos.pack(fill="x")
             self.updaters.append(lambda st: pos.set(st.get("attributes", {}).get("current_position")))
@@ -1262,7 +1263,7 @@ class Card:
             self.updaters.append(lambda st: pc.set(st.get("attributes", {}).get("current_position")))
         if a.get("current_tilt_position") is not None:
             sec = self.section()
-            tilt = Slider(sec, self, "Inclinaison", 0, 100, 1, lambda v: "%d %%" % v,
+            tilt = Slider(sec, self, _("Inclinaison"), 0, 100, 1, lambda v: "%d %%" % v,
                           lambda v: self.call("cover.set_cover_tilt_position", tilt_position=int(v)), "tilt", wheel=10)
             tilt.pack(fill="x")
             self.updaters.append(lambda st: tilt.set(st.get("attributes", {}).get("current_tilt_position")))
@@ -1273,7 +1274,7 @@ class Card:
         n = int(round(100.0 / step)) if step > 0 else 0
         if "percentage" in a and 2 <= n <= 10:
             # peu de vitesses (souvent 3 a 6) : des boutons 1, 2, 3... plutot qu'un curseur
-            sec = self.section("Vitesse")
+            sec = self.section(_("Vitesse"))
             sc = Chips(sec, self, [(i, str(i)) for i in range(1, n + 1)],
                        lambda i: self.call("fan.set_percentage", percentage=min(100, int(round(i * step)))), "pct")
             sc.pack(anchor="w")
@@ -1281,28 +1282,28 @@ class Card:
                                                    if st.get("state") == "on" else None))
         elif "percentage" in a:
             sec = self.section()
-            sp = Slider(sec, self, "Vitesse", 0, 100, float(a.get("percentage_step") or 1), lambda v: "%d %%" % v,
+            sp = Slider(sec, self, _("Vitesse"), 0, 100, float(a.get("percentage_step") or 1), lambda v: "%d %%" % v,
                         lambda v: self.call("fan.set_percentage", percentage=int(round(v))), "pct", wheel=10)
             sp.pack(fill="x")
             self.updaters.append(lambda st: sp.set(st.get("attributes", {}).get("percentage")
                                                    if st.get("state") == "on" else None))
         presets = a.get("preset_modes") or []
         if presets:
-            sec = self.section("Mode")
+            sec = self.section(_("Mode"))
             pc = Chips(sec, self, [(p, PRESET_TEXT.get(p, p.capitalize())) for p in presets],
                        lambda p: self.call("fan.set_preset_mode", preset_mode=p), "preset")
             pc.pack(anchor="w")
             self.updaters.append(lambda st: pc.set(st.get("attributes", {}).get("preset_mode")))
         feats = int(a.get("supported_features") or 0)
         if feats & FAN_DIRECTION or "direction" in a:
-            sec = self.section("Sens de rotation")
+            sec = self.section(_("Sens de rotation"))
             dc = Chips(sec, self, FAN_DIRECTIONS,
                        lambda d: self.call("fan.set_direction", direction=d), "dir")
             dc.pack(anchor="w")
             self.updaters.append(lambda st: dc.set(st.get("attributes", {}).get("direction")))
         if feats & FAN_OSCILLATE or "oscillating" in a:
-            sec = self.section("Oscillation")
-            oc = Chips(sec, self, [(True, "Activée"), (False, "Désactivée")],
+            sec = self.section(_("Oscillation"))
+            oc = Chips(sec, self, [(True, _("Activée")), (False, _("Désactivée"))],
                        lambda o: self.call("fan.oscillate", oscillating=o), "osc")
             oc.pack(anchor="w")
             self.updaters.append(lambda st: oc.set(st.get("attributes", {}).get("oscillating")))
@@ -1338,14 +1339,14 @@ class Card:
         vol = None
         if "volume_level" in a:
             sec2 = self.section()
-            vol = Slider(sec2, self, "Volume", 0, 100, 1, lambda v: "%d %%" % v,
+            vol = Slider(sec2, self, _("Volume"), 0, 100, 1, lambda v: "%d %%" % v,
                          lambda v: self.call("media_player.volume_set", volume_level=round(v / 100.0, 2)), "vol",
                          wheel=5)
             vol.pack(fill="x")
         sources = (a.get("source_list") or [])[:10]
         src = None
         if sources:
-            sec3 = self.section("Source")
+            sec3 = self.section(_("Source"))
             src = Chips(sec3, self, [(x, x) for x in sources],
                         lambda x: self.call("media_player.select_source", source=x), "src")
             src.pack(anchor="w")
@@ -1413,12 +1414,12 @@ class Card:
     # -- serrure
     def _b_lock(self, a):
         sec = self.section()
-        b = Btn(sec, self, "Verrouiller", width=self.iw, height=self.s(36), primary=True)
+        b = Btn(sec, self, _("Verrouiller"), width=self.iw, height=self.s(36), primary=True)
         b.pack()
 
         def upd(st):
             locked = st.get("state") == "locked"
-            b.set(text="Déverrouiller" if locked else "Verrouiller")
+            b.set(text=_("Déverrouiller") if locked else _("Verrouiller"))
             b.command = lambda: self.call("lock.unlock" if locked else "lock.lock")
         self.updaters.append(upd)
 
@@ -1429,7 +1430,7 @@ class Card:
         row = tk.Frame(sec, bg=self.c["bg"])
         row.pack(fill="x")
         w = (self.iw - 3 * s(8) - s(32)) // 3
-        for i, (t, svc) in enumerate((("Démarrer", "start"), ("Pause", "pause"), ("Base", "return_to_base"))):
+        for i, (t, svc) in enumerate(((_("Démarrer"), "start"), (_("Pause"), "pause"), (_("Base"), "return_to_base"))):
             Btn(row, self, t, width=w, command=lambda sv=svc: self.call("vacuum." + sv)).pack(
                 side="left", padx=(0 if i == 0 else s(8), 0))
         Btn(row, self, glyph=G_LOCATE, round_=True, height=s(32), command=lambda: self.call("vacuum.locate")).pack(
@@ -1439,7 +1440,7 @@ class Card:
             sec2 = self.section()
             head = tk.Frame(sec2, bg=self.c["bg"])
             head.pack(fill="x")
-            tk.Label(head, text="Batterie", bg=self.c["bg"], fg=self.c["dim"], font=self.f_text).pack(side="left")
+            tk.Label(head, text=_("Batterie"), bg=self.c["bg"], fg=self.c["dim"], font=self.f_text).pack(side="left")
             bat_lv = tk.Label(head, text="", bg=self.c["bg"], fg=self.c["fg"], font=self.f_text_b)
             bat_lv.pack(side="right")
             bat_cv = tk.Canvas(sec2, width=self.iw, height=s(12), bg=self.c["bg"], highlightthickness=0)
@@ -1459,7 +1460,7 @@ class Card:
         speeds = a.get("fan_speed_list") or []
         fs = None
         if speeds:
-            sec3 = self.section("Puissance d'aspiration")
+            sec3 = self.section(_("Puissance d'aspiration"))
             fs = Chips(sec3, self, [(x, x.capitalize()) for x in speeds],
                        lambda x: self.call("vacuum.set_fan_speed", fan_speed=x), "fanspeed")
             fs.pack(anchor="w")
@@ -1478,7 +1479,7 @@ class Card:
         step = float(a.get("step", 1))
         unit = a.get("unit_of_measurement", "")
         sec = self.section()
-        sl = Slider(sec, self, "Valeur", lo, hi, step,
+        sl = Slider(sec, self, _("Valeur"), lo, hi, step,
                     lambda v: "%s%s" % (fnum(v), (" " + unit) if unit else ""),
                     lambda v: self.call(domain + ".set_value", value=v), "num", wheel=step)
         sl.pack(fill="x")
@@ -1495,7 +1496,7 @@ class Card:
 
     def _b_input_select(self, a, domain="input_select"):
         opts = a.get("options") or []
-        sec = self.section("Choix")
+        sec = self.section(_("Choix"))
         ch = Chips(sec, self, [(o, o) for o in opts],
                    lambda o: self.call(domain + ".select_option", option=o), "opt")
         ch.pack(anchor="w")
@@ -1513,52 +1514,52 @@ class Card:
                              self.close())).pack()
 
     def _b_scene(self, a):
-        self._action("Activer la scène")
+        self._action(_("Activer la scène"))
 
     def _b_script(self, a):
-        self._action("Lancer le script")
+        self._action(_("Lancer le script"))
 
     def _b_button(self, a):
-        self._action("Appuyer")
+        self._action(_("Appuyer"))
 
     def _b_input_button(self, a):
-        self._action("Appuyer")
+        self._action(_("Appuyer"))
 
     # ---------------- mise a jour
     def subtitle(self, st):
         s, a, d = st.get("state"), st.get("attributes", {}), self.domain
         if self.is_group:
             _g, on, total = group_state(self.cfg, self.app.last_states)
-            return "Groupe · %d allumé%s sur %d" % (on, "s" if on > 1 else "", total)
+            return _("Groupe · %d allumé%s sur %d") % (on, "s" if on > 1 else "", total)
         if self.eid == BATTERIES:
             n = len(a.get("low") or [])
-            return "%d pile%s faible%s" % (n, "s" if n > 1 else "", "s" if n > 1 else "") if n else "Piles chargées"
+            return _("%d pile%s faible%s") % (n, "s" if n > 1 else "", "s" if n > 1 else "") if n else _("Piles chargées")
         if s == "unavailable":
-            return "Indisponible"
+            return _("Indisponible")
         if s == "unknown":
-            return "État inconnu"
+            return _("État inconnu")
         if d == "light":
             if s != "on":
-                return "Éteinte"
+                return _("Éteinte")
             b = a.get("brightness")
-            return "Allumée · %d %%" % round(b * 100 / 255) if b else "Allumée"
+            return _("Allumée · %d %%") % round(b * 100 / 255) if b else _("Allumée")
         if d in ("switch", "input_boolean", "automation", "siren", "humidifier"):
-            return "Allumé" if s == "on" else "Éteint"
+            return _("Allumé") if s == "on" else _("Éteint")
         if d == "fan":
             p = a.get("percentage")
-            txt = ("Allumé · %d %%" % p if p else "Allumé") if s == "on" else "Éteint"
+            txt = (_("Allumé · %d %%") % p if p else _("Allumé")) if s == "on" else _("Éteint")
             if s == "on" and a.get("direction"):
-                txt += " · " + ("hiver" if a["direction"] == "reverse" else "été")
+                txt += " · " + (_("hiver") if a["direction"] == "reverse" else _("été"))
             return txt
         if d == "vacuum":
             txt = VACUUM_TEXT.get(s, STATE_TEXT.get(s, s))
             if a.get("battery_level") is not None:
-                txt += " · batterie %d %%" % a["battery_level"]
+                txt += _(" · batterie %d %%") % a["battery_level"]
             return txt
         if d in ("climate", "water_heater"):
             parts = [HVAC_ACTION.get(a.get("hvac_action"), HVAC_TEXT.get(s, s))]
             if a.get("current_temperature") is not None:
-                parts.append("%s °C actuellement" % fnum(a["current_temperature"], 1))
+                parts.append(_("%s °C actuellement") % fnum(a["current_temperature"], 1))
             return " · ".join(parts)
         if d == "cover":
             p = a.get("current_position")
@@ -1569,16 +1570,16 @@ class Card:
         if d == "lock":
             return LOCK_TEXT.get(s, s)
         if d == "scene":
-            return "Scène · activée " + ago(s) if parse_time(s) else "Scène"
+            return _("Scène · activée ") + ago(s) if parse_time(s) else _("Scène")
         if d == "script":
-            return "En cours" if s == "on" else "Script"
+            return _("En cours") if s == "on" else _("Script")
         if d in ("button", "input_button"):
-            return "Dernier appui " + ago(s) if parse_time(s) else "Bouton"
+            return _("Dernier appui ") + ago(s) if parse_time(s) else _("Bouton")
         if d == "weather":
-            return WEATHER_TEXT.get(s, "Météo")
+            return WEATHER_TEXT.get(s, _("Météo"))
         if d in ("sensor", "binary_sensor", "weather", "sun", "person", "device_tracker"):
-            return {"binary_sensor": "Détecteur", "weather": "Météo", "sun": "Soleil", "person": "Personne",
-                    "device_tracker": "Localisation"}.get(d, "Capteur")
+            return {"binary_sensor": _("Détecteur"), "weather": _("Météo"), "sun": _("Soleil"), "person": _("Personne"),
+                    "device_tracker": _("Localisation")}.get(d, _("Capteur"))
         return STATE_TEXT.get(s, s)
 
     def refresh(self):
@@ -1586,7 +1587,7 @@ class Card:
             return
         st = self.state()
         if st is None:
-            self.h_sub.configure(text="Entité introuvable")
+            self.h_sub.configure(text=_("Entité introuvable"))
             return
         s, a = st.get("state"), st.get("attributes", {})
         active = s in ACTIVE_STATES and self.domain not in ("sensor",)
@@ -1613,7 +1614,7 @@ class Card:
                     f(est)
                 except Exception:
                     pass
-        self.f_ago.configure(text="Modifié " + ago(st.get("last_changed")) if st.get("last_changed") else "")
+        self.f_ago.configure(text=_("Modifié ") + ago(st.get("last_changed")) if st.get("last_changed") else "")
 
     # ---------------- titre modifiable
     def edit_title(self):
@@ -1714,7 +1715,7 @@ class Card:
         self.hist_hours = h
         for k, lb in self.hist_btns.items():
             lb.configure(fg=self.c["fg"] if k == h else self.c["dim"], font=self.f_text_b if k == h else self.f_small)
-        self.chart.message("Chargement de l'historique…")
+        self.chart.message(_("Chargement de l'historique…"))
         threading.Thread(target=self._fetch_history, args=(self.app.ha, h), daemon=True).start()
 
     # ---------------- fenetre
@@ -1756,7 +1757,7 @@ class Card:
                 elif kind == "forecast":
                     self._build_forecast(data[1], data[0] or "daily")
                 elif data[1] == self.hist_hours:
-                    self.chart.message("Historique indisponible")
+                    self.chart.message(_("Historique indisponible"))
         except queue.Empty:
             pass
         self._place()

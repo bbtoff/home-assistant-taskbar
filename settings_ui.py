@@ -14,6 +14,7 @@ from tkinter import colorchooser, filedialog, messagebox, ttk
 from tkinter import font as tkfont
 
 import anim_icons
+import i18n
 import screens
 import ui_theme
 from ha_core import (__version__, ANIM_ICONS, BATTERIES, CARD_THEMES, CARD_THEMES_PATH, DARK_COLORS, ICON_FONTS,
@@ -22,41 +23,42 @@ from ha_core import (__version__, ANIM_ICONS, BATTERIES, CARD_THEMES, CARD_THEME
                      parse_hhmm, parse_hotkey, parse_thresholds, resolve_icon, resolve_service, save_config,
                      set_startup, system_light, item_zone)
 from palette import fold
+from i18n import _
 
 HEX_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
-COLOR_NAMES = [("bg", "Fond"), ("fg", "Valeurs"), ("dim", "Libellés"), ("on", "Actif / allumé"),
-               ("hover", "Survol"), ("error", "Erreur")]
+COLOR_NAMES = [("bg", _("Fond")), ("fg", _("Valeurs")), ("dim", _("Libellés")), ("on", _("Actif / allumé")),
+               ("hover", _("Survol")), ("error", _("Erreur"))]
 AUTO = "(auto)"
-NO_ACTION = "(aucune)"
-STATE_ATTR = "(état)"
-NEW_LABEL = "Nouvel élément"
-ZONE_TEXT = {"left": "Gauche", "right": "Droite"}
-ALL_DOMAINS = "(tous les types)"
-ALL_AREAS = "(toutes les pièces)"
-BATTERIES_NAME = "Piles faibles"
-THRESH_HINT = ("Ex. « > 25 orange ; > 30 rouge ; < 15 bleu ». Couleurs : rouge, orange, jaune, vert, bleu, "
-               "violet, rose, gris, ou #rrggbb. La règle la plus précise gagne.")
+NO_ACTION = _("(aucune)")
+STATE_ATTR = _("(état)")
+NEW_LABEL = _("Nouvel élément")
+ZONE_TEXT = {"left": _("Gauche"), "right": _("Droite")}
+ALL_DOMAINS = _("(tous les types)")
+ALL_AREAS = _("(toutes les pièces)")
+BATTERIES_NAME = _("Piles faibles")
+THRESH_HINT = (_("Ex. « > 25 orange ; > 30 rouge ; < 15 bleu ». Couleurs : rouge, orange, jaune, vert, bleu, "
+               "violet, rose, gris, ou #rrggbb. La règle la plus précise gagne."))
 # Clic du milieu : actions speciales (en plus des services HA de l'entite)
-MIDDLE_CHOICES = [("", "Ouvrir la carte (défaut)"), ("@direction", "Inverser le sens de rotation (ventilateur)"),
-                  ("@preset", "Mode / préréglage suivant"), ("@timer15", "Arrêt programmé dans 15 min"),
-                  ("@timer30", "Arrêt programmé dans 30 min"), ("@timer60", "Arrêt programmé dans 1 h"),
-                  ("@mute", "Couper / remettre le son (média)"), ("none", "Rien")]
-BADGE_CHOICES = [("", "(aucun)"), ("direction", "Sens de rotation ↻ ↺"), ("percentage", "Pourcentage"),
-                 ("battery", "Batterie")]
-ANY_CHANGE = "(n'importe quel changement)"
+MIDDLE_CHOICES = [("", _("Ouvrir la carte (défaut)")), ("@direction", _("Inverser le sens de rotation (ventilateur)")),
+                  ("@preset", _("Mode / préréglage suivant")), ("@timer15", _("Arrêt programmé dans 15 min")),
+                  ("@timer30", _("Arrêt programmé dans 30 min")), ("@timer60", _("Arrêt programmé dans 1 h")),
+                  ("@mute", _("Couper / remettre le son (média)")), ("none", _("Rien"))]
+BADGE_CHOICES = [("", _("(aucun)")), ("direction", _("Sens de rotation ↻ ↺")), ("percentage", _("Pourcentage")),
+                 ("battery", _("Batterie"))]
+ANY_CHANGE = _("(n'importe quel changement)")
 DOMAIN_NAMES = {
-    "sensor": "Capteurs", "binary_sensor": "Capteurs binaires", "light": "Lumières", "switch": "Interrupteurs",
-    "climate": "Thermostats", "cover": "Volets", "fan": "Ventilateurs", "lock": "Serrures",
-    "media_player": "Lecteurs multimédia", "scene": "Scènes", "script": "Scripts", "automation": "Automatisations",
-    "button": "Boutons", "input_button": "Boutons (helpers)", "input_boolean": "Interrupteurs (helpers)",
-    "input_number": "Nombres (helpers)", "number": "Nombres", "select": "Sélecteurs", "person": "Personnes",
-    "device_tracker": "Localisation", "weather": "Météo", "camera": "Caméras", "update": "Mises à jour",
-    "sun": "Soleil", "zone": "Zones", "vacuum": "Aspirateurs", "alarm_control_panel": "Alarmes",
+    "sensor": _("Capteurs"), "binary_sensor": _("Capteurs binaires"), "light": _("Lumières"), "switch": _("Interrupteurs"),
+    "climate": _("Thermostats"), "cover": _("Volets"), "fan": _("Ventilateurs"), "lock": _("Serrures"),
+    "media_player": _("Lecteurs multimédia"), "scene": _("Scènes"), "script": _("Scripts"), "automation": _("Automatisations"),
+    "button": _("Boutons"), "input_button": _("Boutons (helpers)"), "input_boolean": _("Interrupteurs (helpers)"),
+    "input_number": _("Nombres (helpers)"), "number": _("Nombres"), "select": _("Sélecteurs"), "person": _("Personnes"),
+    "device_tracker": _("Localisation"), "weather": _("Météo"), "camera": _("Caméras"), "update": _("Mises à jour"),
+    "sun": _("Soleil"), "zone": _("Zones"), "vacuum": _("Aspirateurs"), "alarm_control_panel": _("Alarmes"),
 }
 
 
 def domain_label(d, n):
-    return "%s (%s) — %d" % (DOMAIN_NAMES.get(d, d), d, n) if d in DOMAIN_NAMES else "%s — %d" % (d, n)
+    return _("%s (%s) — %d") % (DOMAIN_NAMES.get(d, d), d, n) if d in DOMAIN_NAMES else _("%s — %d") % (d, n)
 
 
 class IconPicker:
@@ -72,7 +74,7 @@ class IconPicker:
 
         pal = sw.pal
         top = self.top = tk.Toplevel(sw.win)
-        top.title("Choisir une icône")
+        top.title(_("Choisir une icône"))
         top.transient(sw.win)
         top.resizable(False, False)
         top.configure(bg=pal["bg"])
@@ -82,13 +84,13 @@ class IconPicker:
 
         bf = ttk.Frame(f)
         bf.grid(row=0, column=0, columnspan=self.COLS, sticky="w", pady=(0, 10))
-        ttk.Button(bf, text="Automatique (%s)" % ICONS.get(auto_key, ("", auto_key))[1],
+        ttk.Button(bf, text=_("Automatique (%s)") % ICONS.get(auto_key, ("", auto_key))[1],
                    command=lambda: self.choose("auto")).pack(side="left")
-        ttk.Button(bf, text="Aucune icône", command=lambda: self.choose("none")).pack(side="left", padx=6)
+        ttk.Button(bf, text=_("Aucune icône"), command=lambda: self.choose("none")).pack(side="left", padx=6)
 
-        self.name = ttk.Label(f, text="Icône actuelle : %s" % (
-            "automatique" if current == "auto" else "aucune" if current == "none"
-            else ANIM_ICONS[current][1] if current in ANIM_ICONS
+        self.name = ttk.Label(f, text=_("Icône actuelle : %s") % (
+            _("automatique") if current == "auto" else _("aucune") if current == "none"
+            else _(ANIM_ICONS[current][1]) if current in ANIM_ICONS
             else ICONS.get(current, ("", current))[1]), style="Hint.TLabel")
         for i, (key, (glyph, label)) in enumerate(ICONS.items()):
             r, c = divmod(i, self.COLS)
@@ -104,8 +106,8 @@ class IconPicker:
         rows = (len(ICONS) + self.COLS - 1) // self.COLS
 
         # Icones animees : apercu "allume" qui bouge, comme sur la barre
-        ttk.Label(f, text="Icônes animées : immobiles quand l'élément est éteint, elles bougent doucement "
-                          "quand il est allumé (un thermostat : seulement quand il chauffe).",
+        ttk.Label(f, text=_("Icônes animées : immobiles quand l'élément est éteint, elles bougent doucement "
+                          "quand il est allumé (un thermostat : seulement quand il chauffe)."),
                   style="Hint.TLabel", wraplength=sw.px(440), justify="left").grid(
             row=rows + 1, column=0, columnspan=self.COLS, sticky="w", pady=(10, 4))
         px = max(16, tkfont.Font(top, family=font[0], size=font[1]).measure(ICONS["flame"][0]))
@@ -114,6 +116,7 @@ class IconPicker:
         blank = self.blank = tk.PhotoImage(master=top, width=px, height=px)
         arows = (len(ANIM_ICONS) + self.COLS - 1) // self.COLS
         for i, (key, (_fb, label, _n)) in enumerate(ANIM_ICONS.items()):
+            label = _(label)
             sel = key == current
             cell = tk.Label(f, image=blank, cursor="hand2", width=px + 8, height=px + 4,
                             bg=pal["cell_sel"] if sel else pal["card"], relief="flat", borderwidth=0,
@@ -164,7 +167,7 @@ class EntityPicker:
         self.job = None
         self.domain_map = {}
         top = self.top = tk.Toplevel(sw.win)
-        top.title("Ajouter des entités Home Assistant")
+        top.title(_("Ajouter des entités Home Assistant"))
         top.transient(sw.win)
         top.geometry("%dx%d" % (sw.px(900), sw.px(620)))
         top.minsize(sw.px(640), sw.px(440))
@@ -176,7 +179,7 @@ class EntityPicker:
         f.columnconfigure(1, weight=1)
         f.rowconfigure(1, weight=1)
 
-        ttk.Label(f, text="Rechercher").grid(row=0, column=0, sticky="w", padx=(0, 8))
+        ttk.Label(f, text=_("Rechercher")).grid(row=0, column=0, sticky="w", padx=(0, 8))
         self.v_search = tk.StringVar()
         e = ttk.Entry(f, textvariable=self.v_search)
         e.grid(row=0, column=1, sticky="ew")
@@ -196,8 +199,8 @@ class EntityPicker:
         tf.columnconfigure(0, weight=1)
         self.tree = ttk.Treeview(tf, columns=("name", "area", "entity", "state"), show="headings",
                                  selectmode="extended")
-        for col, title, w in (("name", "Nom", 250), ("area", "Pièce", 130), ("entity", "Entité", 260),
-                              ("state", "État", 120)):
+        for col, title, w in (("name", _("Nom"), 250), ("area", _("Pièce"), 130), ("entity", _("Entité"), 260),
+                              ("state", _("État"), 120)):
             self.tree.heading(col, text=title)
             self.tree.column(col, width=sw.px(w), minwidth=sw.px(60))
         self.tree.tag_configure("added", foreground="#8a8a8a")
@@ -212,10 +215,10 @@ class EntityPicker:
         bf.grid(row=2, column=0, columnspan=4, sticky="ew", pady=(8, 0))
         self.info = ttk.Label(bf, text="", style="Hint.TLabel")
         self.info.pack(side="left")
-        ttk.Button(bf, text="Fermer", command=top.destroy).pack(side="right")
-        ttk.Button(bf, text="Ajouter la sélection à la barre", command=self.add_selected).pack(side="right", padx=6)
-        ttk.Label(f, text="Double-clic pour ajouter. Ctrl ou Maj + clic pour en sélectionner plusieurs. "
-                          "Les entités déjà sur la barre sont grisées (✔).",
+        ttk.Button(bf, text=_("Fermer"), command=top.destroy).pack(side="right")
+        ttk.Button(bf, text=_("Ajouter la sélection à la barre"), command=self.add_selected).pack(side="right", padx=6)
+        ttk.Label(f, text=_("Double-clic pour ajouter. Ctrl ou Maj + clic pour en sélectionner plusieurs. "
+                          "Les entités déjà sur la barre sont grisées (✔)."),
                   style="Hint.TLabel").grid(row=3, column=0, columnspan=4, sticky="w", pady=(6, 0))
 
         self.refresh()
@@ -267,21 +270,21 @@ class EntityPicker:
 
         self.tree.delete(*self.tree.get_children())
         # element virtuel : resume des piles faibles
-        if ents and not dom and area == ALL_AREAS and all(w in "@batteries piles faibles batterie resume"
+        if ents and not dom and area == ALL_AREAS and all(w in _("@batteries piles faibles batterie resume")
                                                           for w in words):
             n = len(battery_state(ents, self.sw.cfg.get("battery_low", 20))["attributes"]["low"])
             mark = BATTERIES in added
             self.tree.insert("", "end", iid=BATTERIES,
-                             values=(("✔ " if mark else "") + "🔋 Résumé des piles faibles", "", BATTERIES,
-                                     "%d faible%s" % (n, "s" if n > 1 else "")), tags=("added",) if mark else ())
+                             values=(("✔ " if mark else "") + _("🔋 Résumé des piles faibles"), "", BATTERIES,
+                                     _("%d faible%s") % (n, "s" if n > 1 else "")), tags=("added",) if mark else ())
         for _a, _k, eid, name, ar, state in rows:
             mark = eid in added
             self.tree.insert("", "end", iid=eid, values=(("✔ " if mark else "") + (name or eid), ar, eid, state),
                              tags=("added",) if mark else ())
         if not ents:
-            self.info.configure(text="Aucune entité chargée — vérifie l'onglet Connexion puis « Tester la connexion ».")
+            self.info.configure(text=_("Aucune entité chargée — vérifie l'onglet Connexion puis « Tester la connexion »."))
         else:
-            self.info.configure(text="%d entité(s) affichée(s) sur %d" % (len(rows), len(ents)))
+            self.info.configure(text=_("%d entité(s) affichée(s) sur %d") % (len(rows), len(ents)))
 
     def add_selected(self, _e=None):
         sel = self.tree.selection()
@@ -289,7 +292,7 @@ class EntityPicker:
             self.sw.add_entity(eid)
         if sel:
             self.refresh()
-            self.info.configure(text="✔ %d entité(s) ajoutée(s) à la barre" % len(sel))
+            self.info.configure(text=_("✔ %d entité(s) ajoutée(s) à la barre") % len(sel))
         return "break"
 
 
@@ -314,7 +317,7 @@ class SettingsWindow:
 
         win = self.win = tk.Toplevel(app.root)
         self.s = win.winfo_fpixels("1i") / 96.0      # facteur d'echelle DPI
-        win.title("HA Taskbar %s — Réglages" % __version__)
+        win.title(_("HA Taskbar %s — Réglages") % __version__)
         win.geometry("%dx%d" % (self.px(1180), self.px(860)))
         win.minsize(self.px(1080), self.px(780))
         win.protocol("WM_DELETE_WINDOW", self.on_close)
@@ -328,7 +331,7 @@ class SettingsWindow:
         win.columnconfigure(1, weight=1)
         win.rowconfigure(0, weight=1)
         self.nb = ui_theme.SideNav(win, self.pal, getattr(app, "icon_font", None), "HA Taskbar",
-                                   "Version %s" % __version__, self.px)
+                                   _("Version %s") % __version__, self.px)
         self.nb.side.grid(row=0, column=0, rowspan=2, sticky="ns")
         self.nb.grid(row=0, column=1, sticky="nsew")
         self.build_connection()
@@ -342,15 +345,15 @@ class SettingsWindow:
         bar.grid(row=1, column=1, sticky="ew")
         self.status = ttk.Label(bar, text="", style="Hint.TLabel")
         self.status.pack(side="left")
-        ttk.Button(bar, text="Appliquer", command=self.apply).pack(side="right")
-        ttk.Button(bar, text="Annuler", command=self.cancel).pack(side="right", padx=8)
+        ttk.Button(bar, text=_("Appliquer"), command=self.apply).pack(side="right")
+        ttk.Button(bar, text=_("Annuler"), command=self.cancel).pack(side="right", padx=8)
         ttk.Button(bar, text="OK", style="Accent.TButton", width=10, command=self.ok).pack(side="right")
 
         self.win.after(150, self.poll_queue)
         import ha_core
         if ha_core.TOKEN_UNREADABLE and not self.cfg.get("token"):
-            self.status.configure(text="Le jeton enregistré a été chiffré sur un autre PC ou un autre compte "
-                                       "Windows : colle-le à nouveau (onglet Connexion).", style="Err.TLabel")
+            self.status.configure(text=_("Le jeton enregistré a été chiffré sur un autre PC ou un autre compte "
+                                       "Windows : colle-le à nouveau (onglet Connexion)."), style="Err.TLabel")
         if self.cfg.get("token"):
             self.test_connection()
             if self.cfg["items"]:
@@ -369,7 +372,7 @@ class SettingsWindow:
 
     def track(self, var, setter):
         """Relie une variable Tk a la config : chaque modif met a jour self.cfg + previsualisation."""
-        def cb(*_):
+        def cb(*_args):
             if self.loading:
                 return
             try:
@@ -387,7 +390,7 @@ class SettingsWindow:
 
     def changed(self):
         self.dirty = True
-        self.status.configure(text="Modifications non enregistrées (aperçu en direct sur la barre)")
+        self.status.configure(text=_("Modifications non enregistrées (aperçu en direct sur la barre)"))
         if self.preview_job:
             self.win.after_cancel(self.preview_job)
         self.preview_job = self.win.after(350, self.preview)
@@ -405,66 +408,82 @@ class SettingsWindow:
     # ------------------------------------------------------------------ onglet Connexion
     def build_connection(self):
         f = ttk.Frame(self.nb, padding=0)
-        self.nb.add(f, text="Connexion", icon="")
+        self.nb.add(f, text=_("Connexion"), icon="")
         f.columnconfigure(1, weight=1)
 
-        ttk.Label(f, text="Adresse de Home Assistant").grid(row=0, column=0, sticky="w", padx=(0, 12))
+        ttk.Label(f, text=_("Adresse de Home Assistant")).grid(row=0, column=0, sticky="w", padx=(0, 12))
         self.v_url = self.track(tk.StringVar(value=self.cfg["ha_url"]), self.key("ha_url", str.strip))
         ttk.Entry(f, textvariable=self.v_url).grid(row=0, column=1, columnspan=2, sticky="ew")
-        self.hint(f, "Exemple : http://homeassistant.local:8123 ou http://192.168.1.10:8123",
+        self.hint(f, _("Exemple : http://homeassistant.local:8123 ou http://192.168.1.10:8123"),
                   row=1, column=1, columnspan=2, sticky="w", pady=(2, 12))
 
-        ttk.Label(f, text="Jeton d'accès").grid(row=2, column=0, sticky="w", padx=(0, 12))
+        ttk.Label(f, text=_("Jeton d'accès")).grid(row=2, column=0, sticky="w", padx=(0, 12))
         self.v_token = self.track(tk.StringVar(value=self.cfg["token"]), self.key("token", str.strip))
         self.token_entry = ttk.Entry(f, textvariable=self.v_token, show="•")
         self.token_entry.grid(row=2, column=1, sticky="ew")
         self.v_show = tk.BooleanVar(value=False)
-        ttk.Checkbutton(f, text="Afficher", variable=self.v_show,
+        ttk.Checkbutton(f, text=_("Afficher"), variable=self.v_show,
                         command=lambda: self.token_entry.configure(show="" if self.v_show.get() else "•")
                         ).grid(row=2, column=2, padx=(8, 0))
-        self.hint(f, "Dans Home Assistant : clique sur ton profil (en bas à gauche) → onglet « Sécurité » → "
+        self.hint(f, _("Dans Home Assistant : clique sur ton profil (en bas à gauche) → onglet « Sécurité » → "
                      "« Jetons d'accès longue durée » → « Créer un jeton », puis colle-le ici.\n"
                      "🔒 Il est chiffré dans config.json (protection des données de Windows) : seul ton compte, "
-                     "sur ce PC, peut le relire.",
+                     "sur ce PC, peut le relire."),
                   row=3, column=1, columnspan=2, sticky="w", pady=(2, 12))
 
         self.v_verify = self.track(tk.BooleanVar(value=self.cfg.get("verify_ssl", True)), self.key("verify_ssl"))
-        ttk.Checkbutton(f, text="Vérifier le certificat HTTPS (décocher pour un certificat auto-signé)",
+        ttk.Checkbutton(f, text=_("Vérifier le certificat HTTPS (décocher pour un certificat auto-signé)"),
                         variable=self.v_verify).grid(row=4, column=1, columnspan=2, sticky="w", pady=(0, 12))
 
-        ttk.Label(f, text="Rafraîchissement").grid(row=5, column=0, sticky="w", padx=(0, 12))
+        ttk.Label(f, text=_("Rafraîchissement")).grid(row=5, column=0, sticky="w", padx=(0, 12))
         rf = ttk.Frame(f)
         rf.grid(row=5, column=1, sticky="w")
         self.v_poll = self.track(tk.StringVar(value=str(self.cfg.get("poll_interval", 5))),
                                  self.key("poll_interval", lambda v: max(1, int(v))))
         ttk.Spinbox(rf, from_=1, to=300, width=6, textvariable=self.v_poll).pack(side="left")
-        ttk.Label(rf, text="secondes").pack(side="left", padx=6)
+        ttk.Label(rf, text=_("secondes")).pack(side="left", padx=6)
 
         tf = ttk.Frame(f)
         tf.grid(row=6, column=1, columnspan=2, sticky="w", pady=(20, 0))
-        ttk.Button(tf, text="Tester la connexion", command=self.test_connection).pack(side="left")
+        ttk.Button(tf, text=_("Tester la connexion"), command=self.test_connection).pack(side="left")
         self.conn_label = ttk.Label(tf, text="", style="Hint.TLabel")
         self.conn_label.pack(side="left", padx=10)
 
         ttk.Separator(f).grid(row=7, column=0, columnspan=3, sticky="ew", pady=20)
         self.v_startup = tk.BooleanVar(value=get_startup())
         self.track(self.v_startup, lambda v: None)
-        ttk.Checkbutton(f, text="Lancer HA Taskbar au démarrage de Windows",
+        ttk.Checkbutton(f, text=_("Lancer HA Taskbar au démarrage de Windows"),
                         variable=self.v_startup).grid(row=8, column=1, columnspan=2, sticky="w")
 
         # --- mises a jour
         self.v_updates = self.track(tk.BooleanVar(value=self.cfg.get("check_updates", True)),
                                     self.key("check_updates"))
-        ttk.Checkbutton(f, text="Rechercher les mises à jour sur GitHub (au démarrage, puis une fois par jour)",
+        ttk.Checkbutton(f, text=_("Rechercher les mises à jour sur GitHub (au démarrage, puis une fois par jour)"),
                         variable=self.v_updates).grid(row=9, column=1, columnspan=2, sticky="w", pady=(6, 0))
         uf = ttk.Frame(f)
         uf.grid(row=10, column=1, columnspan=2, sticky="w", pady=(6, 0))
-        ttk.Button(uf, text="Rechercher maintenant", command=self.check_update_now).pack(side="left")
-        self.update_label = ttk.Label(uf, text="Version installée : %s" % __version__, style="Hint.TLabel")
+        ttk.Button(uf, text=_("Rechercher maintenant"), command=self.check_update_now).pack(side="left")
+        self.update_label = ttk.Label(uf, text=_("Version installée : %s") % __version__, style="Hint.TLabel")
         self.update_label.pack(side="left", padx=10)
 
+        # --- langue
+        ttk.Label(f, text=_("Langue")).grid(row=11, column=0, sticky="w", padx=(0, 12), pady=(20, 0))
+        self.lang_choices = [("auto", _("Automatique (langue de Windows)"))] + [
+            (k, t) for k, t in i18n.LANGUAGES if t]
+        self.cb_lang = ttk.Combobox(f, state="readonly", width=32, values=[t for _k, t in self.lang_choices])
+        cur = self.cfg.get("language", "auto")
+        self.cb_lang.current(next((i for i, (k, _t) in enumerate(self.lang_choices) if k == cur), 0))
+        self.cb_lang.grid(row=11, column=1, sticky="w", pady=(20, 0))
+
+        def on_lang(_e=None):
+            self.cfg["language"] = self.lang_choices[self.cb_lang.current()][0]
+            self.changed()
+        self.cb_lang.bind("<<ComboboxSelected>>", on_lang)
+        self.hint(f, _("S'applique au prochain lancement de HA Taskbar."), row=12, column=1, sticky="w",
+                  pady=(2, 0))
+
     def check_update_now(self):
-        self.update_label.configure(text="Recherche…", style="Hint.TLabel")
+        self.update_label.configure(text=_("Recherche…"), style="Hint.TLabel")
 
         def report(text):
             if self.win.winfo_exists():
@@ -473,7 +492,7 @@ class SettingsWindow:
 
     def test_connection(self):
         ha = HomeAssistant(self.cfg["ha_url"], self.cfg["token"], self.cfg.get("verify_ssl", True))
-        self.conn_label.configure(text="Connexion…", style="Hint.TLabel")
+        self.conn_label.configure(text=_("Connexion…"), style="Hint.TLabel")
 
         def run():
             try:
@@ -486,9 +505,9 @@ class SettingsWindow:
                     areas = None
                 self.q.put(("ok", conf, states, services, areas))
             except urllib.error.HTTPError as e:
-                self.q.put(("err", "Jeton refusé (HTTP 401)" if e.code == 401 else "Erreur HTTP %s" % e.code))
+                self.q.put(("err", _("Jeton refusé (HTTP 401)") if e.code == 401 else _("Erreur HTTP %s") % e.code))
             except Exception as e:
-                self.q.put(("err", "Connexion impossible : %s" % getattr(e, "reason", e)))
+                self.q.put(("err", _("Connexion impossible : %s") % getattr(e, "reason", e)))
         threading.Thread(target=run, daemon=True).start()
 
     def poll_queue(self):
@@ -498,12 +517,12 @@ class SettingsWindow:
             while True:
                 msg = self.q.get_nowait()
                 if msg[0] == "ok":
-                    _, conf, states, services, areas = msg
+                    _kind, conf, states, services, areas = msg
                     self.entities, self.services = states, services
                     if areas:
                         self.areas = areas
                     self.conn_label.configure(
-                        text="✔ Connecté à « %s » (version %s) — %d entités"
+                        text=_("✔ Connecté à « %s » (version %s) — %d entités")
                              % (conf.get("location_name", "Home Assistant"), conf.get("version", "?"), len(states)),
                         style="Ok.TLabel")
                     self.update_item_choices()
@@ -523,7 +542,7 @@ class SettingsWindow:
     # ------------------------------------------------------------------ onglet Elements
     def build_items(self):
         f = ttk.Frame(self.nb, padding=0)
-        self.nb.add(f, text="Éléments", icon="")
+        self.nb.add(f, text=_("Éléments"), icon="")
         f.columnconfigure(0, weight=1, minsize=self.px(420))
         f.columnconfigure(1, weight=1)
         f.rowconfigure(0, weight=1)
@@ -534,8 +553,8 @@ class SettingsWindow:
         left.columnconfigure(0, weight=1)
         self.tree = ttk.Treeview(left, columns=("label", "entity", "action", "zone"), show="headings",
                                  selectmode="browse")
-        for col, title, w in (("label", "Libellé", 95), ("entity", "Entité", 140), ("action", "Clic", 100),
-                              ("zone", "Zone", 60)):
+        for col, title, w in (("label", _("Libellé"), 95), ("entity", _("Entité"), 140), ("action", _("Clic"), 100),
+                              ("zone", _("Zone"), 60)):
             self.tree.heading(col, text=title)
             self.tree.column(col, width=self.px(w), minwidth=self.px(50))
         sb = ttk.Scrollbar(left, orient="vertical", command=self.tree.yview)
@@ -544,19 +563,19 @@ class SettingsWindow:
         sb.grid(row=0, column=1, sticky="ns")
         self.tree.bind("<<TreeviewSelect>>", self.on_select)
         self.empty_label = ttk.Label(left, style="Empty.TLabel", justify="center", anchor="center",
-                                     text="La barre est vide.\n\nClique sur « Ajouter des entités… »\n"
-                                          "pour choisir parmi tes entités Home Assistant.")
+                                     text=_("La barre est vide.\n\nClique sur « Ajouter des entités… »\n"
+                                          "pour choisir parmi tes entités Home Assistant."))
 
-        ttk.Button(left, text="➕  Ajouter des entités…", command=self.open_picker).grid(
+        ttk.Button(left, text=_("➕  Ajouter des entités…"), command=self.open_picker).grid(
             row=2, column=0, columnspan=2, sticky="ew", pady=(8, 0))
         btns = ttk.Frame(left)
         btns.grid(row=1, column=0, columnspan=2, sticky="w", pady=(8, 0))
-        for text, cmd, w in (("Ajouter vide", self.add_item, None), ("Dupliquer", self.dup_item, None),
-                             ("Supprimer", self.del_item, None), ("▲", lambda: self.move_item(-1), 3),
+        for text, cmd, w in ((_("Ajouter vide"), self.add_item, None), (_("Dupliquer"), self.dup_item, None),
+                             (_("Supprimer"), self.del_item, None), ("▲", lambda: self.move_item(-1), 3),
                              ("▼", lambda: self.move_item(1), 3)):
             ttk.Button(btns, text=text, command=cmd, width=w).pack(side="left", padx=(0, 6))
 
-        box = ttk.LabelFrame(f, text="Élément sélectionné", padding=8)
+        box = ttk.LabelFrame(f, text=_("Élément sélectionné"), padding=8)
         box.grid(row=0, column=1, sticky="nsew")
         box.columnconfigure(0, weight=1)
         box.rowconfigure(0, weight=1)
@@ -564,8 +583,8 @@ class SettingsWindow:
         inb.grid(row=0, column=0, sticky="nsew")
         right = ttk.Frame(inb, padding=10)
         adv = self.adv = ttk.Frame(inb, padding=10)
-        inb.add(right, text="Général")
-        inb.add(adv, text="Plus d'options")
+        inb.add(right, text=_("Général"))
+        inb.add(adv, text=_("Plus d'options"))
         right.columnconfigure(1, weight=1)
         adv.columnconfigure(1, weight=1)
         self.v_eid, self.v_label, self.v_attr = tk.StringVar(), tk.StringVar(), tk.StringVar()
@@ -574,18 +593,18 @@ class SettingsWindow:
         def row(r, text):
             ttk.Label(right, text=text).grid(row=r, column=0, sticky="nw", padx=(0, 10), pady=(4, 0))
 
-        row(0, "Entité")
+        row(0, _("Entité"))
         self.cb_eid = ttk.Combobox(right, textvariable=self.v_eid, postcommand=self.filter_entities)
         self.cb_eid.grid(row=0, column=1, sticky="ew", pady=(4, 0))
         self.cb_eid.bind("<KeyRelease>", self.filter_entities)
         self.eid_info = self.hint(right, "", row=1, column=1, sticky="w")
 
-        row(2, "Libellé")
+        row(2, _("Libellé"))
         lf = ttk.Frame(right)
         lf.grid(row=2, column=1, sticky="ew", pady=(4, 0))
         self.e_label = ttk.Entry(lf, textvariable=self.v_label)
         self.e_label.pack(side="left", fill="x", expand=True)
-        ttk.Label(lf, text="  Icône").pack(side="left")
+        ttk.Label(lf, text=_("  Icône")).pack(side="left")
         self.v_icon = tk.StringVar(value="auto")
         self.icon_preview = tk.Label(lf, text="", width=2,
                                      font=(getattr(self.app, "icon_font", None) or "Segoe Fluent Icons", 14),
@@ -593,55 +612,55 @@ class SettingsWindow:
                                      highlightthickness=1, highlightbackground=self.pal["border"], cursor="hand2")
         self.icon_preview.pack(side="left", padx=(6, 4))
         self.icon_preview.bind("<Button-1>", lambda e: self.open_icon_picker())
-        self.b_icon = ttk.Button(lf, text="Changer…", command=self.open_icon_picker)
+        self.b_icon = ttk.Button(lf, text=_("Changer…"), command=self.open_icon_picker)
         self.b_icon.pack(side="left")
 
-        row(3, "Valeur affichée")
+        row(3, _("Valeur affichée"))
         self.cb_attr = ttk.Combobox(right, textvariable=self.v_attr)
         self.cb_attr.grid(row=3, column=1, sticky="ew", pady=(4, 0))
-        self.hint(right, "« (état) » = l'état de l'entité, sinon un de ses attributs.", row=4, column=1, sticky="w")
+        self.hint(right, _("« (état) » = l'état de l'entité, sinon un de ses attributs."), row=4, column=1, sticky="w")
 
-        row(5, "Unité")
+        row(5, _("Unité"))
         uf = ttk.Frame(right)
         uf.grid(row=5, column=1, sticky="ew", pady=(4, 0))
         self.e_unit = ttk.Entry(uf, textvariable=self.v_unit, width=8)
         self.e_unit.pack(side="left")
-        ttk.Label(uf, text="  Décimales").pack(side="left")
+        ttk.Label(uf, text=_("  Décimales")).pack(side="left")
         self.cb_dec = ttk.Combobox(uf, textvariable=self.v_dec, width=7, values=[AUTO, "0", "1", "2", "3"])
         self.cb_dec.pack(side="left", padx=(6, 0))
-        self.hint(right, "Unité vide = celle fournie par Home Assistant.", row=6, column=1, sticky="w")
+        self.hint(right, _("Unité vide = celle fournie par Home Assistant."), row=6, column=1, sticky="w")
 
-        row(7, "Action au clic")
+        row(7, _("Action au clic"))
         self.cb_service = ttk.Combobox(right, textvariable=self.v_service)
         self.cb_service.grid(row=7, column=1, sticky="ew", pady=(4, 0))
         self.svc_info = self.hint(right, "", row=8, column=1, sticky="w")
 
-        row(9, "Données (JSON)")
+        row(9, _("Données (JSON)"))
         self.t_data = tk.Text(right, height=4, font=("Consolas", 10), wrap="word", relief="flat", borderwidth=0,
                               bg=self.pal["field"], fg=self.pal["fg"], insertbackground=self.pal["fg"],
                               highlightthickness=1, highlightbackground=self.pal["border"],
                               highlightcolor=self.pal["accent"], padx=6, pady=4)
         self.t_data.grid(row=9, column=1, sticky="ew", pady=(4, 0))
-        self.data_info = self.hint(right, "Optionnel. Vide = {\"entity_id\": \"<l'entité>\"}",
+        self.data_info = self.hint(right, _("Optionnel. Vide = {\"entity_id\": \"<l'entité>\"}"),
                                    row=10, column=1, sticky="w")
 
-        row(11, "Titre de la carte")
+        row(11, _("Titre de la carte"))
         self.v_ctitle = tk.StringVar()
         self.e_ctitle = ttk.Entry(right, textvariable=self.v_ctitle)
         self.e_ctitle.grid(row=11, column=1, sticky="ew", pady=(4, 0))
-        self.hint(right, "Vide = nom de l'entité dans Home Assistant. Aussi modifiable avec le crayon ✎ "
-                         "de la carte (appui long).", wrap=300, row=12, column=1, sticky="w")
+        self.hint(right, _("Vide = nom de l'entité dans Home Assistant. Aussi modifiable avec le crayon ✎ "
+                         "de la carte (appui long)."), wrap=300, row=12, column=1, sticky="w")
 
-        row(13, "Zone")
+        row(13, _("Zone"))
         self.v_zone = tk.StringVar(value="left")
         zf = ttk.Frame(right)
         zf.grid(row=13, column=1, sticky="w", pady=(4, 0))
         self.rb_zones = [ttk.Radiobutton(zf, text=t, value=v, variable=self.v_zone)
-                         for t, v in (("Gauche", "left"), ("Droite", "right"))]
+                         for t, v in ((_("Gauche"), "left"), (_("Droite"), "right"))]
         for rb in self.rb_zones:
             rb.pack(side="left", padx=(0, 12))
-        self.hint(right, "Côté de la barre des tâches où s'affiche l'élément. Les décalages se règlent "
-                         "dans l'onglet Apparence.", wrap=300, row=14, column=1, sticky="w")
+        self.hint(right, _("Côté de la barre des tâches où s'affiche l'élément. Les décalages se règlent "
+                         "dans l'onglet Apparence."), wrap=300, row=14, column=1, sticky="w")
 
         self.build_item_advanced(adv)
         for v in (self.v_eid, self.v_label, self.v_attr, self.v_unit, self.v_dec, self.v_service, self.v_icon,
@@ -664,68 +683,68 @@ class SettingsWindow:
         def row(r, text):
             ttk.Label(adv, text=text).grid(row=r, column=0, sticky="nw", padx=(0, 10), pady=(6, 0))
 
-        row(0, "Clic du milieu")
+        row(0, _("Clic du milieu"))
         self.v_middle = tk.StringVar()
         self.cb_middle = ttk.Combobox(adv, textvariable=self.v_middle)
         self.cb_middle.grid(row=0, column=1, sticky="ew", pady=(6, 0))
-        self.hint(adv, "Clic avec la molette de la souris sur l'élément.", wrap=300, row=1, column=1, sticky="w")
+        self.hint(adv, _("Clic avec la molette de la souris sur l'élément."), wrap=300, row=1, column=1, sticky="w")
 
-        row(2, "Badge")
+        row(2, _("Badge"))
         self.v_badge = tk.StringVar()
         self.cb_badge = ttk.Combobox(adv, textvariable=self.v_badge)
         self.cb_badge.grid(row=2, column=1, sticky="ew", pady=(6, 0))
-        self.hint(adv, "Petite info en bas à droite de l'icône. Un arrêt programmé en cours s'y affiche "
-                       "toujours (⏲ minutes restantes).", wrap=300, row=3, column=1, sticky="w")
+        self.hint(adv, _("Petite info en bas à droite de l'icône. Un arrêt programmé en cours s'y affiche "
+                       "toujours (⏲ minutes restantes)."), wrap=300, row=3, column=1, sticky="w")
 
-        row(4, "Grouper avec")
+        row(4, _("Grouper avec"))
         self.v_group = tk.StringVar()
         self.e_group = ttk.Combobox(adv, textvariable=self.v_group, postcommand=self.filter_group)
         self.e_group.grid(row=4, column=1, sticky="ew", pady=(6, 0))
         self.e_group.bind("<<ComboboxSelected>>", self.pick_group)
         self.e_group.bind("<KeyRelease>", self._remember_group)
-        self.hint(adv, "Autres entités commandées par le même bouton, séparées par des virgules "
+        self.hint(adv, _("Autres entités commandées par le même bouton, séparées par des virgules "
                        "(ex. light.salon, light.cuisine). Le clic allume tout, ou éteint tout si l'une "
-                       "d'elles est allumée.", wrap=300, row=5, column=1, sticky="w")
+                       "d'elles est allumée."), wrap=300, row=5, column=1, sticky="w")
 
-        row(6, "Raccourci clavier")
+        row(6, _("Raccourci clavier"))
         self.v_hotkey = tk.StringVar()
         self.e_hotkey = ttk.Entry(adv, textvariable=self.v_hotkey)
         self.e_hotkey.grid(row=6, column=1, sticky="ew", pady=(6, 0))
-        self.hotkey_info = self.hint(adv, "Ex. Ctrl+Alt+1, Ctrl+Maj+L, F9. Fonctionne partout dans Windows "
-                                          "et fait la même chose qu'un clic.", wrap=300,
+        self.hotkey_info = self.hint(adv, _("Ex. Ctrl+Alt+1, Ctrl+Maj+L, F9. Fonctionne partout dans Windows "
+                                          "et fait la même chose qu'un clic."), wrap=300,
                                      row=7, column=1, sticky="w")
 
-        row(8, "Affiché")
+        row(8, _("Affiché"))
         hf = ttk.Frame(adv)
         hf.grid(row=8, column=1, sticky="w", pady=(6, 0))
         self.v_from, self.v_to = tk.StringVar(), tk.StringVar()
-        ttk.Label(hf, text="de").pack(side="left")
+        ttk.Label(hf, text=_("de")).pack(side="left")
         self.e_from = ttk.Entry(hf, textvariable=self.v_from, width=7)
         self.e_from.pack(side="left", padx=6)
-        ttk.Label(hf, text="à").pack(side="left")
+        ttk.Label(hf, text=_("à")).pack(side="left")
         self.e_to = ttk.Entry(hf, textvariable=self.v_to, width=7)
         self.e_to.pack(side="left", padx=6)
-        self.hours_info = self.hint(adv, "Vide = toujours. Ex. de 22:00 à 07:00 pour un élément de nuit. "
-                                         "Hors de cette plage, l'élément disparaît de la barre.", wrap=300,
+        self.hours_info = self.hint(adv, _("Vide = toujours. Ex. de 22:00 à 07:00 pour un élément de nuit. "
+                                         "Hors de cette plage, l'élément disparaît de la barre."), wrap=300,
                                     row=9, column=1, sticky="w")
 
-        row(10, "Couleur selon\nla valeur")
+        row(10, _("Couleur selon\nla valeur"))
         self.v_thresh = tk.StringVar()
         self.e_thresh = ttk.Entry(adv, textvariable=self.v_thresh)
         self.e_thresh.grid(row=10, column=1, sticky="ew", pady=(6, 0))
         self.thresh_info = self.hint(adv, THRESH_HINT, wrap=300, row=11, column=1, sticky="w")
 
         self.v_hidden = tk.BooleanVar(value=False)
-        self.cb_hidden = ttk.Checkbutton(adv, text="Masquer cet élément de la barre", variable=self.v_hidden)
+        self.cb_hidden = ttk.Checkbutton(adv, text=_("Masquer cet élément de la barre"), variable=self.v_hidden)
         self.cb_hidden.grid(row=12, column=1, sticky="w", pady=(8, 0))
-        self.hint(adv, "Il reste dans la liste. Aussi depuis la barre : clic droit sur l'élément → Masquer.",
+        self.hint(adv, _("Il reste dans la liste. Aussi depuis la barre : clic droit sur l'élément → Masquer."),
                   wrap=300, row=13, column=1, sticky="w")
 
         self.v_spark = tk.BooleanVar(value=False)
-        ttk.Checkbutton(adv, text="Mini-graphique des 6 dernières heures", variable=self.v_spark
+        ttk.Checkbutton(adv, text=_("Mini-graphique des 6 dernières heures"), variable=self.v_spark
                         ).grid(row=14, column=1, sticky="w", pady=(8, 0))
-        self.hint(adv, "Une petite courbe à droite de la valeur (capteurs à valeur numérique). Pour un grand "
-                       "graphique : clic droit sur l'élément → Créer un widget de bureau.",
+        self.hint(adv, _("Une petite courbe à droite de la valeur (capteurs à valeur numérique). Pour un grand "
+                       "graphique : clic droit sur l'élément → Créer un widget de bureau."),
                   wrap=300, row=15, column=1, sticky="w")
 
     def filter_group(self):
@@ -748,14 +767,14 @@ class SettingsWindow:
         if t in self.entities:      # entite deja choisie : on montre tout
             t = ""
         out = []
-        if not t or t in "@batteries piles faibles":
+        if not t or t in _("@batteries piles faibles"):
             out.append(BATTERIES)
         for eid in sorted(self.entities):
             if not t or t in eid.lower() or t in self.friendly(eid).lower():
                 out.append(eid)
         return out[:500]
 
-    def _remember_group(self, *_):
+    def _remember_group(self, *_args):
         self._group_before = self.v_group.get()
 
     def filter_entities(self, e=None):
@@ -770,7 +789,7 @@ class SettingsWindow:
     def tree_values(self, it):
         label = it.get("label", "")
         if it.get("hidden"):
-            label += "  (masqué)"
+            label += _("  (masqué)")
         return label, it.get("entity_id", ""), self.action_text(it), ZONE_TEXT[item_zone(it)]
 
     def refresh_tree(self):
@@ -854,7 +873,7 @@ class SettingsWindow:
         for w in self.item_widgets:
             w.configure(state=state)
         self.data_ok = True
-        self.data_info.configure(text="Optionnel. Vide = {\"entity_id\": \"<l'entité>\"}", style="Hint.TLabel")
+        self.data_info.configure(text=_("Optionnel. Vide = {\"entity_id\": \"<l'entité>\"}"), style="Hint.TLabel")
         self.update_item_choices()
         self.update_item_hints()
 
@@ -867,12 +886,12 @@ class SettingsWindow:
         svcs += ["homeassistant.%s" % s for s in self.services.get("homeassistant", [])
                  if s in ("toggle", "turn_on", "turn_off")]
         self.cb_service["values"] = [AUTO, NO_ACTION] + svcs
-        self.cb_middle["values"] = [t for _, t in MIDDLE_CHOICES] + svcs
-        self.cb_badge["values"] = [t for _, t in BADGE_CHOICES] + sorted(st.get("attributes", {}))
+        self.cb_middle["values"] = [t for _k, t in MIDDLE_CHOICES] + svcs
+        self.cb_badge["values"] = [t for _k, t in BADGE_CHOICES] + sorted(st.get("attributes", {}))
 
     def update_item_hints(self):
         if self.cur is None:
-            self.eid_info.configure(text="Sélectionne un élément ou clique sur « Ajouter des entités… ».",
+            self.eid_info.configure(text=_("Sélectionne un élément ou clique sur « Ajouter des entités… »."),
                                     style="Hint.TLabel")
             self.svc_info.configure(text="")
             self.icon_preview.configure(text="")
@@ -885,27 +904,27 @@ class SettingsWindow:
         self.icon_preview.configure(text=resolve_icon(it, st) or "")
         if eid == BATTERIES:
             n = len(st["attributes"]["low"])
-            self.eid_info.configure(text="Résumé des piles faibles — %d sous %s %% (seuil dans l'onglet Confort)"
+            self.eid_info.configure(text=_("Résumé des piles faibles — %d sous %s %% (seuil dans l'onglet Confort)")
                                          % (n, self.cfg.get("battery_low", 20)), style="Hint.TLabel")
         elif st:
             unit = st.get("attributes", {}).get("unit_of_measurement", "")
-            self.eid_info.configure(text="%s — état actuel : %s %s" % (self.friendly(eid) or eid, st.get("state"), unit),
+            self.eid_info.configure(text=_("%s — état actuel : %s %s") % (self.friendly(eid) or eid, st.get("state"), unit),
                                     style="Hint.TLabel")
         elif not self.entities:
-            self.eid_info.configure(text="Teste la connexion (onglet Connexion) pour avoir la liste des entités.",
+            self.eid_info.configure(text=_("Teste la connexion (onglet Connexion) pour avoir la liste des entités."),
                                     style="Hint.TLabel")
         elif eid:
-            self.eid_info.configure(text="Entité inconnue dans Home Assistant.", style="Err.TLabel")
+            self.eid_info.configure(text=_("Entité inconnue dans Home Assistant."), style="Err.TLabel")
         else:
-            self.eid_info.configure(text="Tape quelques lettres puis ouvre la liste.", style="Hint.TLabel")
+            self.eid_info.configure(text=_("Tape quelques lettres puis ouvre la liste."), style="Hint.TLabel")
 
         if it.get("service") in (None, ""):
             d = default_service(eid)
-            self.svc_info.configure(text="Auto : %s" % d if d else "Auto : aucune action (affichage seul)")
+            self.svc_info.configure(text=_("Auto : %s") % d if d else _("Auto : aucune action (affichage seul)"))
         else:
             self.svc_info.configure(text="")
 
-    def on_item_field(self, *_):
+    def on_item_field(self, *_args):
         if self.loading or self.cur is None:
             return
         it = self.cfg["items"][self.cur]
@@ -980,24 +999,24 @@ class SettingsWindow:
         hk = self.v_hotkey.get().strip()
         if hk and parse_hotkey(hk):
             it["hotkey"] = hk
-            self.hotkey_info.configure(text="Raccourci valide ✔ (appliqué avec « Appliquer »)", style="Ok.TLabel")
+            self.hotkey_info.configure(text=_("Raccourci valide ✔ (appliqué avec « Appliquer »)"), style="Ok.TLabel")
         else:
             it.pop("hotkey", None)
             self.hotkey_info.configure(
-                text="Raccourci invalide : il faut Ctrl, Alt, Maj ou Win + une touche (ou F1 à F24)." if hk else
-                "Ex. Ctrl+Alt+1, Ctrl+Maj+L, F9. Fonctionne partout dans Windows et fait la même chose qu'un clic.",
+                text=_("Raccourci invalide : il faut Ctrl, Alt, Maj ou Win + une touche (ou F1 à F24).") if hk else
+                _("Ex. Ctrl+Alt+1, Ctrl+Maj+L, F9. Fonctionne partout dans Windows et fait la même chose qu'un clic."),
                 style="Err.TLabel" if hk else "Hint.TLabel")
         hf, ht = self.v_from.get().strip(), self.v_to.get().strip()
         if hf and ht and parse_hhmm(hf) is not None and parse_hhmm(ht) is not None:
             it["show_from"], it["show_to"] = hf, ht
-            self.hours_info.configure(text="Affiché de %s à %s ✔" % (hf, ht), style="Ok.TLabel")
+            self.hours_info.configure(text=_("Affiché de %s à %s ✔") % (hf, ht), style="Ok.TLabel")
         else:
             it.pop("show_from", None)
             it.pop("show_to", None)
             self.hours_info.configure(
-                text="Heures au format HH:MM (ex. 07:30)." if (hf or ht) else
-                "Vide = toujours. Ex. de 22:00 à 07:00 pour un élément de nuit. "
-                "Hors de cette plage, l'élément disparaît de la barre.",
+                text=_("Heures au format HH:MM (ex. 07:30).") if (hf or ht) else
+                _("Vide = toujours. Ex. de 22:00 à 07:00 pour un élément de nuit. "
+                "Hors de cette plage, l'élément disparaît de la barre."),
                 style="Err.TLabel" if (hf or ht) else "Hint.TLabel")
 
         th = self.v_thresh.get().strip()
@@ -1019,7 +1038,7 @@ class SettingsWindow:
         if not raw:
             it.pop("data", None)
             self.data_ok = True
-            self.data_info.configure(text="Optionnel. Vide = {\"entity_id\": \"<l'entité>\"}", style="Hint.TLabel")
+            self.data_info.configure(text=_("Optionnel. Vide = {\"entity_id\": \"<l'entité>\"}"), style="Hint.TLabel")
         else:
             try:
                 parsed = json.loads(raw)
@@ -1027,10 +1046,10 @@ class SettingsWindow:
                     raise ValueError
                 it["data"] = parsed
                 self.data_ok = True
-                self.data_info.configure(text="JSON valide ✔", style="Ok.TLabel")
+                self.data_info.configure(text=_("JSON valide ✔"), style="Ok.TLabel")
             except ValueError:
                 self.data_ok = False
-                self.data_info.configure(text="JSON invalide (ex : {\"entity_id\": \"light.salon\"})",
+                self.data_info.configure(text=_("JSON invalide (ex : {\"entity_id\": \"light.salon\"})"),
                                          style="Err.TLabel")
 
         if eid != old_eid:
@@ -1049,10 +1068,10 @@ class SettingsWindow:
     def show_thresh_info(self, text):
         rules, bad = parse_thresholds(text)
         if bad:
-            self.thresh_info.configure(text="Pas compris : « %s ». %s" % (" ; ".join(bad), THRESH_HINT),
+            self.thresh_info.configure(text=_("Pas compris : « %s ». %s") % (" ; ".join(bad), THRESH_HINT),
                                        style="Err.TLabel")
         elif rules:
-            self.thresh_info.configure(text="%d règle%s ✔ (valeurs numériques seulement)"
+            self.thresh_info.configure(text=_("%d règle%s ✔ (valeurs numériques seulement)")
                                             % (len(rules), "s" if len(rules) > 1 else ""), style="Ok.TLabel")
         else:
             self.thresh_info.configure(text=THRESH_HINT, style="Hint.TLabel")
@@ -1095,12 +1114,12 @@ class SettingsWindow:
     # ------------------------------------------------------------------ onglet Apparence
     def build_appearance(self):
         f = ttk.Frame(self.nb, padding=0)
-        self.nb.add(f, text="Apparence", icon="")
+        self.nb.add(f, text=_("Apparence"), icon="")
         f.columnconfigure(0, weight=3)
         f.columnconfigure(1, weight=2)
 
         # --- position
-        pos = ttk.LabelFrame(f, text="Position sur la barre des tâches", padding=10)
+        pos = ttk.LabelFrame(f, text=_("Position sur la barre des tâches"), padding=10)
         pos.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
         pos.columnconfigure(0, weight=1)
         try:
@@ -1110,18 +1129,18 @@ class SettingsWindow:
         maxoff = max([400, self.win.winfo_screenwidth() - 50] + [m["width"] - 50 for m in self.monitors])
 
         # --- ecran (multi-ecran)
-        ttk.Label(pos, text="Écran").grid(row=0, column=0, sticky="w", pady=(0, 2))
+        ttk.Label(pos, text=_("Écran")).grid(row=0, column=0, sticky="w", pady=(0, 2))
         cur = self.cfg.get("monitor", "") or ""
         prim = next((m for m in self.monitors if m["primary"]), None)
-        self.screen_choices = [("", "Écran principal" + (" — %d × %d" % (prim["width"], prim["height"])
+        self.screen_choices = [("", _("Écran principal") + (_(" — %d × %d") % (prim["width"], prim["height"])
                                                           if prim else ""))]
         for m in self.monitors:
             if not m["primary"]:
                 self.screen_choices.append((m["device"], screens.monitor_label(m)))
-        if cur and cur not in [d for d, _ in self.screen_choices]:
-            self.screen_choices.append((cur, "Écran %s (non branché)" % (screens.screen_number(cur) or "?")))
-        self.cb_screen = ttk.Combobox(pos, state="readonly", values=[t for _, t in self.screen_choices])
-        self.cb_screen.current(next(i for i, (d, _) in enumerate(self.screen_choices) if d == cur))
+        if cur and cur not in [d for d, _k in self.screen_choices]:
+            self.screen_choices.append((cur, _("Écran %s (non branché)") % (screens.screen_number(cur) or "?")))
+        self.cb_screen = ttk.Combobox(pos, state="readonly", values=[t for _k, t in self.screen_choices])
+        self.cb_screen.current(next(i for i, (d, _k) in enumerate(self.screen_choices) if d == cur))
         self.cb_screen.grid(row=1, column=0, sticky="ew")
 
         def on_screen(_e=None):
@@ -1129,9 +1148,9 @@ class SettingsWindow:
             self.changed()
         self.cb_screen.bind("<<ComboboxSelected>>", on_screen)
         if len(self.monitors) > 1 and any(not m["taskbar"] for m in self.monitors):
-            self.hint(pos, "Un écran sans barre des tâches ne peut pas accueillir les boutons : active "
+            self.hint(pos, _("Un écran sans barre des tâches ne peut pas accueillir les boutons : active "
                            "« Afficher ma barre des tâches sur tous les écrans » dans les paramètres de "
-                           "Windows (Personnalisation → Barre des tâches → Comportements).",
+                           "Windows (Personnalisation → Barre des tâches → Comportements)."),
                       row=2, column=0, sticky="w", pady=(2, 0))
 
         def offset_slider(row, text, key, default):
@@ -1154,25 +1173,25 @@ class SettingsWindow:
             self.track(var, set_offset)
             return var
 
-        self.v_offset = offset_slider(3, "Zone gauche : décalage depuis le bord gauche (pixels)", "offset", 60)
+        self.v_offset = offset_slider(3, _("Zone gauche : décalage depuis le bord gauche (pixels)"), "offset", 60)
         self.v_offset_right = offset_slider(
-            5, "Zone droite : décalage depuis le bord droit (pixels, avant les icônes de notification)",
+            5, _("Zone droite : décalage depuis le bord droit (pixels, avant les icônes de notification)"),
             "offset_right", 300)
-        self.hint(pos, "Chaque élément choisit sa zone dans l'onglet Éléments. Une zone sans élément "
-                       "n'apparaît pas. Fais glisser : la barre se déplace en direct.",
+        self.hint(pos, _("Chaque élément choisit sa zone dans l'onglet Éléments. Une zone sans élément "
+                       "n'apparaît pas. Fais glisser : la barre se déplace en direct."),
                   row=7, column=0, sticky="w", pady=(2, 0))
 
         # --- texte
-        look = ttk.LabelFrame(f, text="Texte et affichage", padding=10)
+        look = ttk.LabelFrame(f, text=_("Texte et affichage"), padding=10)
         look.grid(row=1, column=0, sticky="nsew", padx=(0, 10), pady=(10, 0))
         look.columnconfigure(1, weight=1)
         self.v_layout = self.track(tk.StringVar(value=self.cfg.get("layout", "stacked")), self.key("layout"))
-        ttk.Radiobutton(look, text="Libellé au-dessus de la valeur", value="stacked",
+        ttk.Radiobutton(look, text=_("Libellé au-dessus de la valeur"), value="stacked",
                         variable=self.v_layout).grid(row=0, column=0, columnspan=2, sticky="w")
-        ttk.Radiobutton(look, text="Libellé et valeur sur une ligne", value="inline",
+        ttk.Radiobutton(look, text=_("Libellé et valeur sur une ligne"), value="inline",
                         variable=self.v_layout).grid(row=1, column=0, columnspan=2, sticky="w")
 
-        ttk.Label(look, text="Police").grid(row=2, column=0, sticky="w", pady=(10, 0), padx=(0, 10))
+        ttk.Label(look, text=_("Police")).grid(row=2, column=0, sticky="w", pady=(10, 0), padx=(0, 10))
         ff = ttk.Frame(look)
         ff.grid(row=2, column=1, sticky="ew", pady=(10, 0))
         families = sorted({f_ for f_ in tkfont.families(self.win) if not f_.startswith("@")})
@@ -1182,7 +1201,7 @@ class SettingsWindow:
                                   self.key("font_size", lambda v: min(30, max(5, int(v)))))
         ttk.Spinbox(ff, from_=5, to=30, width=4, textvariable=self.v_fsize).pack(side="left", padx=(6, 0))
 
-        ttk.Label(look, text="Opacité").grid(row=3, column=0, sticky="w", pady=(10, 0), padx=(0, 10))
+        ttk.Label(look, text=_("Opacité")).grid(row=3, column=0, sticky="w", pady=(10, 0), padx=(0, 10))
         opf = ttk.Frame(look)
         opf.grid(row=3, column=1, sticky="ew", pady=(10, 0))
         self.op_label = ttk.Label(opf, width=5)
@@ -1200,39 +1219,39 @@ class SettingsWindow:
 
         self.v_transp = self.track(tk.BooleanVar(value=self.cfg.get("transparent_bg", False)),
                                    self.key("transparent_bg"))
-        ttk.Checkbutton(look, text="Fond transparent", variable=self.v_transp).grid(
+        ttk.Checkbutton(look, text=_("Fond transparent"), variable=self.v_transp).grid(
             row=4, column=0, columnspan=2, sticky="w", pady=(10, 0))
         self.v_hidefs = self.track(tk.BooleanVar(value=self.cfg.get("hide_on_fullscreen", True)),
                                    self.key("hide_on_fullscreen"))
-        ttk.Checkbutton(look, text="Masquer quand une application est en plein écran",
+        ttk.Checkbutton(look, text=_("Masquer quand une application est en plein écran"),
                         variable=self.v_hidefs).grid(row=5, column=0, columnspan=2, sticky="w")
         self.v_icons = self.track(tk.BooleanVar(value=self.cfg.get("show_icons", True)), self.key("show_icons"))
-        ttk.Checkbutton(look, text="Afficher les icônes", variable=self.v_icons).grid(
+        ttk.Checkbutton(look, text=_("Afficher les icônes"), variable=self.v_icons).grid(
             row=6, column=0, columnspan=2, sticky="w")
         self.v_anim = self.track(tk.BooleanVar(value=self.cfg.get("anim_icons", True)), self.key("anim_icons"))
-        ttk.Checkbutton(look, text="Animer les icônes animées (mouvement lent et discret)",
+        ttk.Checkbutton(look, text=_("Animer les icônes animées (mouvement lent et discret)"),
                         variable=self.v_anim).grid(row=7, column=0, columnspan=2, sticky="w")
 
         # --- theme et couleurs de la barre
-        col = ttk.LabelFrame(f, text="Thème et couleurs de la barre", padding=10)
+        col = ttk.LabelFrame(f, text=_("Thème et couleurs de la barre"), padding=10)
         col.grid(row=0, column=1, rowspan=2, sticky="nsew")
         col.columnconfigure(2, weight=1)
         self.v_tmode = self.track(tk.StringVar(value=self.cfg.get("theme_mode", "system")), self.set_theme_mode)
-        for r, (val, txt) in enumerate((("system", "Suivre Windows (clair / sombre)"),
-                                        ("dark", "Toujours sombre"), ("light", "Toujours clair"))):
+        for r, (val, txt) in enumerate((("system", _("Suivre Windows (clair / sombre)")),
+                                        ("dark", _("Toujours sombre")), ("light", _("Toujours clair")))):
             ttk.Radiobutton(col, text=txt, value=val, variable=self.v_tmode).grid(
                 row=r, column=0, columnspan=3, sticky="w")
-        self.hint(col, "Windows est actuellement en mode %s." % ("clair" if system_light() else "sombre"),
+        self.hint(col, _("Windows est actuellement en mode %s.") % (_("clair") if system_light() else _("sombre")),
                   wrap=300, row=3, column=0, columnspan=3, sticky="w", pady=(2, 8))
 
-        ttk.Label(col, text="Couleurs à modifier :").grid(row=4, column=0, columnspan=3, sticky="w")
+        ttk.Label(col, text=_("Couleurs à modifier :")).grid(row=4, column=0, columnspan=3, sticky="w")
         sf = ttk.Frame(col)
         sf.grid(row=5, column=0, columnspan=3, sticky="w", pady=(2, 6))
         self.edit_set = "colors_light" if bar_light(self.cfg) else "colors"
         self.v_set = tk.StringVar(value=self.edit_set)
-        ttk.Radiobutton(sf, text="Mode sombre", value="colors", variable=self.v_set,
+        ttk.Radiobutton(sf, text=_("Mode sombre"), value="colors", variable=self.v_set,
                         command=self.switch_color_set).pack(side="left")
-        ttk.Radiobutton(sf, text="Mode clair", value="colors_light", variable=self.v_set,
+        ttk.Radiobutton(sf, text=_("Mode clair"), value="colors_light", variable=self.v_set,
                         command=self.switch_color_set).pack(side="left", padx=(12, 0))
 
         self.v_colors, self.swatches = {}, {}
@@ -1248,39 +1267,39 @@ class SettingsWindow:
             self.v_colors[k] = v
             self.track(v, lambda val, k=k: self.set_color(k, val))
         r = 6 + len(COLOR_NAMES)
-        ttk.Button(col, text="Couleurs par défaut", command=self.reset_colors).grid(
+        ttk.Button(col, text=_("Couleurs par défaut"), command=self.reset_colors).grid(
             row=r, column=0, columnspan=3, sticky="w", pady=(8, 0))
-        self.hint(col, "Clique sur une pastille pour choisir une couleur. Le fond doit être proche de la "
-                       "couleur de ta barre des tâches.", wrap=300, row=r + 1, column=0, columnspan=3,
+        self.hint(col, _("Clique sur une pastille pour choisir une couleur. Le fond doit être proche de la "
+                       "couleur de ta barre des tâches."), wrap=300, row=r + 1, column=0, columnspan=3,
                   sticky="w", pady=(6, 0))
 
         # --- carte de controle (appui long)
-        cf = ttk.LabelFrame(f, text="Carte de contrôle (appui long)", padding=10)
+        cf = ttk.LabelFrame(f, text=_("Carte de contrôle (appui long)"), padding=10)
         cf.grid(row=2, column=0, columnspan=2, sticky="nsew", pady=(10, 0))
         cf.columnconfigure(1, weight=1)
         self.themes = card_themes()
-        ttk.Label(cf, text="Thème").grid(row=0, column=0, sticky="w", padx=(0, 10))
+        ttk.Label(cf, text=_("Thème")).grid(row=0, column=0, sticky="w", padx=(0, 10))
         self.cb_theme = ttk.Combobox(cf, state="readonly", width=34)
         self.cb_theme.grid(row=0, column=1, sticky="w")
         self.cb_theme.bind("<<ComboboxSelected>>", self.on_card_theme)
         self.fill_themes()
 
-        ttk.Label(cf, text="Couleurs").grid(row=1, column=0, sticky="w", padx=(0, 10), pady=(8, 0))
-        self.card_modes = [("bar", "Comme la barre"),
-                           ("dark", "Toujours sombre"), ("light", "Toujours clair")]
-        self.cb_cmode = ttk.Combobox(cf, state="readonly", width=34, values=[t for _, t in self.card_modes])
+        ttk.Label(cf, text=_("Couleurs")).grid(row=1, column=0, sticky="w", padx=(0, 10), pady=(8, 0))
+        self.card_modes = [("bar", _("Comme la barre")),
+                           ("dark", _("Toujours sombre")), ("light", _("Toujours clair"))]
+        self.cb_cmode = ttk.Combobox(cf, state="readonly", width=34, values=[t for _k, t in self.card_modes])
         cur = self.cfg.get("card_mode", "bar")
-        self.cb_cmode.current(next((i for i, (k, _) in enumerate(self.card_modes) if k == cur), 0))
+        self.cb_cmode.current(next((i for i, (k, _k) in enumerate(self.card_modes) if k == cur), 0))
         self.cb_cmode.grid(row=1, column=1, sticky="w", pady=(8, 0))
         self.cb_cmode.bind("<<ComboboxSelected>>", self.on_card_mode)
 
         bf = ttk.Frame(cf)
         bf.grid(row=2, column=0, columnspan=2, sticky="w", pady=(12, 0))
-        ttk.Button(bf, text="Ouvrir la carte sur la barre", command=self.try_card).pack(side="left")
-        ttk.Button(bf, text="Thèmes personnalisés…", command=self.edit_themes).pack(side="left", padx=6)
+        ttk.Button(bf, text=_("Ouvrir la carte sur la barre"), command=self.try_card).pack(side="left")
+        ttk.Button(bf, text=_("Thèmes personnalisés…"), command=self.edit_themes).pack(side="left", padx=6)
         ttk.Button(bf, text="↻", width=3, command=self.reload_themes).pack(side="left")
-        self.hint(cf, "« Thèmes personnalisés… » ouvre le fichier card_themes.json : copie un thème, change ses "
-                      "couleurs, enregistre puis clique sur ↻.", wrap=420, row=3, column=0, columnspan=2,
+        self.hint(cf, _("« Thèmes personnalisés… » ouvre le fichier card_themes.json : copie un thème, change ses "
+                      "couleurs, enregistre puis clique sur ↻."), wrap=420, row=3, column=0, columnspan=2,
                   sticky="w", pady=(8, 0))
 
         self.card_cv = tk.Canvas(cf, width=self.px(300), height=self.px(140), highlightthickness=0,
@@ -1352,13 +1371,13 @@ class SettingsWindow:
         """Cree card_themes.json (avec un exemple) s'il n'existe pas, puis l'ouvre dans le Bloc-notes."""
         if not os.path.exists(CARD_THEMES_PATH):
             ex = copy.deepcopy(CARD_THEMES["ocean"])
-            ex["name"] = "Mon thème"
+            ex["name"] = _("Mon thème")
             try:
                 os.makedirs(os.path.dirname(CARD_THEMES_PATH), exist_ok=True)
                 with open(CARD_THEMES_PATH, "w", encoding="utf-8") as fh:
                     json.dump({"mon_theme": ex}, fh, indent=2, ensure_ascii=False)
             except OSError as e:
-                messagebox.showerror("HA Taskbar", "Impossible de créer %s : %s" % (CARD_THEMES_PATH, e),
+                messagebox.showerror("HA Taskbar", _("Impossible de créer %s : %s") % (CARD_THEMES_PATH, e),
                                      parent=self.win)
                 return
             self.reload_themes()
@@ -1372,7 +1391,7 @@ class SettingsWindow:
         if self.app.items:
             self.app.open_card(self.app.items[0])
         else:
-            messagebox.showinfo("HA Taskbar", "Ajoute d'abord un élément dans l'onglet Éléments.", parent=self.win)
+            messagebox.showinfo("HA Taskbar", _("Ajoute d'abord un élément dans l'onglet Éléments."), parent=self.win)
 
     def draw_card_preview(self):
         """Mini carte dessinee avec les couleurs du theme choisi."""
@@ -1389,8 +1408,8 @@ class SettingsWindow:
         icon_font = next((x for x in ICON_FONTS if x in tkfont.families(self.win)), None)
         if icon_font:
             cv.create_text(p(26), p(28), text=ICONS["lightbulb"][0], font=(icon_font, 15), fill=c["accent"])
-        cv.create_text(p(48), p(20), text="Lumière salon", font=(fam, 10, "bold"), fill=c["fg"], anchor="w")
-        cv.create_text(p(48), p(38), text="Allumée · 70 %", font=(fam, 8), fill=c["dim"], anchor="w")
+        cv.create_text(p(48), p(20), text=_("Lumière salon"), font=(fam, 10, "bold"), fill=c["fg"], anchor="w")
+        cv.create_text(p(48), p(38), text=_("Allumée · 70 %"), font=(fam, 8), fill=c["dim"], anchor="w")
         # interrupteur
         tw, th, tx, ty = p(36), p(18), W - p(52), p(20)
         cv.create_oval(tx, ty, tx + th, ty + th, fill=c["accent"], outline=c["accent"])
@@ -1408,7 +1427,7 @@ class SettingsWindow:
         cv.create_oval(xm - p(4), y - p(4), xm + p(4), y + p(4), fill=c["accent"], outline="")
         # choix
         x = p(18)
-        for txt, sel in (("Éco", False), ("Confort", True), ("Absent", False)):
+        for txt, sel in ((_("Éco"), False), (_("Confort"), True), (_("Absent"), False)):
             w_ = p(16) + tkfont.Font(font=(fam, 8)).measure(txt)
             fill = c["accent"] if sel else c["surface"]
             rrect(cv, x, p(94), x + w_, p(120), r, fill=fill, outline=fill)
@@ -1418,39 +1437,39 @@ class SettingsWindow:
     # ------------------------------------------------------------------ onglet Notifications
     def build_notifications(self):
         f = ttk.Frame(self.nb, padding=0)
-        self.nb.add(f, text="Notifications", icon="\ue7e7")
+        self.nb.add(f, text=_("Notifications"), icon="\ue7e7")
         f.columnconfigure(0, weight=1)
         f.rowconfigure(5, weight=1)
         self.cfg.setdefault("notifications", [])
 
         self.v_offline = self.track(tk.BooleanVar(value=self.cfg.get("notify_offline", True)),
                                     self.key("notify_offline"))
-        ttk.Checkbutton(f, text="Me prévenir quand Home Assistant ne répond plus, puis quand il revient",
+        ttk.Checkbutton(f, text=_("Me prévenir quand Home Assistant ne répond plus, puis quand il revient"),
                         variable=self.v_offline).grid(row=0, column=0, sticky="w")
         self.v_hanotif = self.track(tk.BooleanVar(value=self.cfg.get("ha_notifications", True)),
                                     self.key("ha_notifications"))
-        ttk.Checkbutton(f, text="Afficher les notifications de Home Assistant (notifications persistantes, "
-                                "et celles envoyées par tes automatisations)",
+        ttk.Checkbutton(f, text=_("Afficher les notifications de Home Assistant (notifications persistantes, "
+                                "et celles envoyées par tes automatisations)"),
                         variable=self.v_hanotif).grid(row=1, column=0, sticky="w", pady=(6, 0))
-        self.hint(f, "Pour envoyer une notification vers ce PC depuis une automatisation : action « Déclencher un "
+        self.hint(f, _("Pour envoyer une notification vers ce PC depuis une automatisation : action « Déclencher un "
                      "événement », type ha_taskbar_notify, données « title » et « message ». Nécessite la connexion "
-                     "temps réel (onglet Confort) et un compte administrateur pour les événements.",
+                     "temps réel (onglet Confort) et un compte administrateur pour les événements."),
                   wrap=760, row=2, column=0, sticky="w", pady=(2, 0))
         qf = ttk.Frame(f)
         qf.grid(row=3, column=0, sticky="w", pady=(10, 0))
-        ttk.Label(qf, text="Pas de notification de").pack(side="left")
+        ttk.Label(qf, text=_("Pas de notification de")).pack(side="left")
         self.v_qfrom = self.track(tk.StringVar(value=self.cfg.get("quiet_from", "")), self.set_quiet("quiet_from"))
         ttk.Entry(qf, textvariable=self.v_qfrom, width=7).pack(side="left", padx=6)
-        ttk.Label(qf, text="à").pack(side="left")
+        ttk.Label(qf, text=_("à")).pack(side="left")
         self.v_qto = self.track(tk.StringVar(value=self.cfg.get("quiet_to", "")), self.set_quiet("quiet_to"))
         ttk.Entry(qf, textvariable=self.v_qto, width=7).pack(side="left", padx=6)
         self.quiet_info = ttk.Label(qf, text="", style="Hint.TLabel")
         self.quiet_info.pack(side="left", padx=(6, 0))
         self.show_quiet_info()
-        self.hint(f, "Une notification Windows s'affiche quand une entité ci-dessous change d'état "
+        self.hint(f, _("Une notification Windows s'affiche quand une entité ci-dessous change d'état "
                      "(porte ouverte, machine à laver terminée, mouvement détecté…). Les entités n'ont pas "
                      "besoin d'être sur la barre. Le mode « Ne pas déranger » de Windows s'applique aussi, et le "
-                     "clic droit sur la barre permet de suspendre les notifications.",
+                     "clic droit sur la barre permet de suspendre les notifications."),
                   wrap=760, row=4, column=0, sticky="w", pady=(10, 10))
 
         tf = ttk.Frame(f)
@@ -1459,8 +1478,8 @@ class SettingsWindow:
         tf.columnconfigure(0, weight=1)
         self.ntree = ttk.Treeview(tf, columns=("entity", "to", "msg"), show="headings", selectmode="browse",
                                   height=6)
-        for col, title, w in (("entity", "Entité", 260), ("to", "Quand l'état devient", 170),
-                              ("msg", "Message", 300)):
+        for col, title, w in (("entity", _("Entité"), 260), ("to", _("Quand l'état devient"), 170),
+                              ("msg", _("Message"), 300)):
             self.ntree.heading(col, text=title)
             self.ntree.column(col, width=self.px(w), minwidth=self.px(60))
         self.ntree.grid(row=0, column=0, sticky="nsew")
@@ -1471,28 +1490,28 @@ class SettingsWindow:
 
         bf = ttk.Frame(f)
         bf.grid(row=6, column=0, sticky="w", pady=(8, 0))
-        ttk.Button(bf, text="➕  Ajouter une notification", command=self.add_rule).pack(side="left")
-        ttk.Button(bf, text="Supprimer", command=self.del_rule).pack(side="left", padx=6)
-        ttk.Button(bf, text="Tester", command=self.test_rule).pack(side="left")
+        ttk.Button(bf, text=_("➕  Ajouter une notification"), command=self.add_rule).pack(side="left")
+        ttk.Button(bf, text=_("Supprimer"), command=self.del_rule).pack(side="left", padx=6)
+        ttk.Button(bf, text=_("Tester"), command=self.test_rule).pack(side="left")
 
-        ed = ttk.LabelFrame(f, text="Notification sélectionnée", padding=12)
+        ed = ttk.LabelFrame(f, text=_("Notification sélectionnée"), padding=12)
         ed.grid(row=7, column=0, sticky="ew", pady=(12, 0))
         ed.columnconfigure(1, weight=1)
         self.n_cur = None
         self.vn_eid, self.vn_to, self.vn_msg = tk.StringVar(), tk.StringVar(), tk.StringVar()
-        ttk.Label(ed, text="Entité").grid(row=0, column=0, sticky="w", padx=(0, 10))
+        ttk.Label(ed, text=_("Entité")).grid(row=0, column=0, sticky="w", padx=(0, 10))
         self.cbn_eid = ttk.Combobox(ed, textvariable=self.vn_eid,
                                     postcommand=lambda: self.cbn_eid.configure(
                                         values=self.entity_list(self.vn_eid.get())))
         self.cbn_eid.grid(row=0, column=1, sticky="ew")
-        ttk.Label(ed, text="Quand l'état devient").grid(row=1, column=0, sticky="w", padx=(0, 10), pady=(8, 0))
+        ttk.Label(ed, text=_("Quand l'état devient")).grid(row=1, column=0, sticky="w", padx=(0, 10), pady=(8, 0))
         self.cbn_to = ttk.Combobox(ed, textvariable=self.vn_to, postcommand=self.fill_rule_states)
         self.cbn_to.grid(row=1, column=1, sticky="ew", pady=(8, 0))
-        ttk.Label(ed, text="Message").grid(row=2, column=0, sticky="w", padx=(0, 10), pady=(8, 0))
+        ttk.Label(ed, text=_("Message")).grid(row=2, column=0, sticky="w", padx=(0, 10), pady=(8, 0))
         self.en_msg = ttk.Entry(ed, textvariable=self.vn_msg)
         self.en_msg.grid(row=2, column=1, sticky="ew", pady=(8, 0))
-        self.hint(ed, "Vide = « {name} : {state} ». {name} = nom de l'entité, {state} = nouvel état, "
-                      "{old} = état d'avant. Ex. « La machine à laver a terminé ».", wrap=640,
+        self.hint(ed, _("Vide = « {name} : {state} ». {name} = nom de l'entité, {state} = nouvel état, "
+                      "{old} = état d'avant. Ex. « La machine à laver a terminé »."), wrap=640,
                   row=3, column=1, sticky="w", pady=(2, 0))
         for v in (self.vn_eid, self.vn_to, self.vn_msg):
             v.trace_add("write", self.on_rule_field)
@@ -1509,17 +1528,17 @@ class SettingsWindow:
     def show_quiet_info(self):
         a, b = self.cfg.get("quiet_from", ""), self.cfg.get("quiet_to", "")
         if not a and not b:
-            self.quiet_info.configure(text="(vide = jamais)", style="Hint.TLabel")
+            self.quiet_info.configure(text=_("(vide = jamais)"), style="Hint.TLabel")
         elif parse_hhmm(a) is None or parse_hhmm(b) is None:
-            self.quiet_info.configure(text="Heures au format HH:MM (ex. 22:00 et 07:00)", style="Err.TLabel")
+            self.quiet_info.configure(text=_("Heures au format HH:MM (ex. 22:00 et 07:00)"), style="Err.TLabel")
         else:
-            self.quiet_info.configure(text="✔ silence de %s à %s" % (a, b), style="Ok.TLabel")
+            self.quiet_info.configure(text=_("✔ silence de %s à %s") % (a, b), style="Ok.TLabel")
 
     def refresh_rules(self):
         self.ntree.delete(*self.ntree.get_children())
         for i, r in enumerate(self.cfg["notifications"]):
             self.ntree.insert("", "end", iid=str(i), values=(
-                r.get("entity_id", ""), r.get("to") or ANY_CHANGE, r.get("message") or "{name} : {state}"))
+                r.get("entity_id", ""), r.get("to") or ANY_CHANGE, r.get("message") or _("{name} : {state}")))
 
     def on_nselect(self, _e=None):
         sel = self.ntree.selection()
@@ -1552,7 +1571,7 @@ class SettingsWindow:
             vals.append(st["state"])
         self.cbn_to["values"] = vals
 
-    def on_rule_field(self, *_):
+    def on_rule_field(self, *_args):
         if self.loading or self.n_cur is None:
             return
         r = self.cfg["notifications"][self.n_cur]
@@ -1568,7 +1587,7 @@ class SettingsWindow:
         else:
             r.pop("message", None)
         self.ntree.item(str(self.n_cur), values=(r.get("entity_id", ""), r.get("to") or ANY_CHANGE,
-                                                  r.get("message") or "{name} : {state}"))
+                                                  r.get("message") or _("{name} : {state}")))
         self.changed()
 
     def add_rule(self):
@@ -1593,93 +1612,93 @@ class SettingsWindow:
         r = self.cfg["notifications"][self.n_cur] if self.n_cur is not None else {}
         eid = r.get("entity_id", "")
         st = self.entities.get(eid, {})
-        name = st.get("attributes", {}).get("friendly_name") or eid or "Test"
-        text = (r.get("message") or "{name} : {state}")
+        name = st.get("attributes", {}).get("friendly_name") or eid or _("Test")
+        text = (r.get("message") or _("{name} : {state}"))
         try:
             text = text.format(name=name, state=r.get("to") or st.get("state", "?"), old="?")
         except (KeyError, IndexError, ValueError):
             pass
         if getattr(self.app, "tray", None) is None:
-            messagebox.showinfo("HA Taskbar", "Icône de notification indisponible : impossible d'afficher "
-                                              "une notification.", parent=self.win)
+            messagebox.showinfo("HA Taskbar", _("Icône de notification indisponible : impossible d'afficher "
+                                              "une notification."), parent=self.win)
             return
         self.app.notify("Home Assistant", text, force=True)
 
     # ------------------------------------------------------------------ onglet Confort
     def build_comfort(self):
         f = ttk.Frame(self.nb, padding=0)
-        self.nb.add(f, text="Confort", icon="\ue945")
+        self.nb.add(f, text=_("Confort"), icon="\ue945")
         f.columnconfigure(0, weight=1)
         f.columnconfigure(1, weight=1)
 
         # --- temps reel
-        rt = ttk.LabelFrame(f, text="Mises à jour instantanées", padding=10)
+        rt = ttk.LabelFrame(f, text=_("Mises à jour instantanées"), padding=10)
         rt.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
         self.v_rt = self.track(tk.BooleanVar(value=self.cfg.get("realtime", True)), self.key("realtime"))
-        ttk.Checkbutton(rt, text="Connexion permanente à Home Assistant (temps réel)",
+        ttk.Checkbutton(rt, text=_("Connexion permanente à Home Assistant (temps réel)"),
                         variable=self.v_rt).grid(row=0, column=0, sticky="w")
-        self.hint(rt, "La barre, la carte et les notifications réagissent en moins d'une seconde, et Home "
+        self.hint(rt, _("La barre, la carte et les notifications réagissent en moins d'une seconde, et Home "
                       "Assistant est moins sollicité. Décoché : HA Taskbar l'interroge à l'intervalle choisi "
-                      "dans l'onglet Connexion.", wrap=420, row=1, column=0, sticky="w", pady=(2, 6))
+                      "dans l'onglet Connexion."), wrap=420, row=1, column=0, sticky="w", pady=(2, 6))
         self.rt_label = ttk.Label(rt, text="", style="Hint.TLabel")
         self.rt_label.grid(row=2, column=0, sticky="w")
 
         # --- palette
-        pf = ttk.LabelFrame(f, text="Palette de commandes", padding=10)
+        pf = ttk.LabelFrame(f, text=_("Palette de commandes"), padding=10)
         pf.grid(row=1, column=0, sticky="nsew", padx=(0, 10), pady=(10, 0))
         pf.columnconfigure(1, weight=1)
-        ttk.Label(pf, text="Raccourci").grid(row=0, column=0, sticky="w", padx=(0, 10))
+        ttk.Label(pf, text=_("Raccourci")).grid(row=0, column=0, sticky="w", padx=(0, 10))
         self.v_phk = self.track(tk.StringVar(value=self.cfg.get("palette_hotkey", "")), self.set_palette_hotkey)
         ttk.Entry(pf, textvariable=self.v_phk, width=22).grid(row=0, column=1, sticky="w")
-        ttk.Button(pf, text="Ouvrir", command=self.app.open_palette).grid(row=0, column=2, padx=(8, 0))
+        ttk.Button(pf, text=_("Ouvrir"), command=self.app.open_palette).grid(row=0, column=2, padx=(8, 0))
         self.phk_info = self.hint(pf, "", wrap=420, row=1, column=0, columnspan=3, sticky="w", pady=(2, 0))
-        self.hint(pf, "Depuis n'importe quelle application : tape quelques lettres (« salon », « chauffage »…), "
+        self.hint(pf, _("Depuis n'importe quelle application : tape quelques lettres (« salon », « chauffage »…), "
                       "Entrée pour allumer / éteindre, ← → ou la molette pour régler, Tab pour la carte. "
-                      "Toutes les entités de Home Assistant y sont, même celles qui ne sont pas sur la barre.",
+                      "Toutes les entités de Home Assistant y sont, même celles qui ne sont pas sur la barre."),
                   wrap=420, row=2, column=0, columnspan=3, sticky="w", pady=(6, 0))
         self.show_phk_info()
 
         # --- barre
-        bf = ttk.LabelFrame(f, text="Sur la barre", padding=10)
+        bf = ttk.LabelFrame(f, text=_("Sur la barre"), padding=10)
         bf.grid(row=2, column=0, sticky="nsew", padx=(0, 10), pady=(10, 0))
         for r, (key, text, default) in enumerate((
-                ("compact", "Barre compacte : icônes seules, la valeur s'affiche au survol", False),
-                ("tooltips", "Infobulle au survol : valeur, dernière modification, courbe des 6 dernières heures",
+                ("compact", _("Barre compacte : icônes seules, la valeur s'affiche au survol"), False),
+                ("tooltips", _("Infobulle au survol : valeur, dernière modification, courbe des 6 dernières heures"),
                  True),
-                ("flash_changes", "Faire briller un instant une valeur qui change", True))):
+                ("flash_changes", _("Faire briller un instant une valeur qui change"), True))):
             v = self.track(tk.BooleanVar(value=self.cfg.get(key, default)), self.key(key))
             setattr(self, "v_" + key, v)
             ttk.Checkbutton(bf, text=text, variable=v).grid(row=r, column=0, sticky="w", pady=(0, 2))
-        self.hint(bf, "Ctrl + glisser un élément sur la barre pour le déplacer ou le changer de zone. "
-                      "Clic droit sur un élément : le modifier ou le masquer.", wrap=420,
+        self.hint(bf, _("Ctrl + glisser un élément sur la barre pour le déplacer ou le changer de zone. "
+                      "Clic droit sur un élément : le modifier ou le masquer."), wrap=420,
                   row=3, column=0, sticky="w", pady=(6, 0))
 
         # --- piles
-        bat = ttk.LabelFrame(f, text="Piles faibles", padding=10)
+        bat = ttk.LabelFrame(f, text=_("Piles faibles"), padding=10)
         bat.grid(row=0, column=1, sticky="nsew")
         lf = ttk.Frame(bat)
         lf.grid(row=0, column=0, sticky="w")
-        ttk.Label(lf, text="Une pile est faible en dessous de").pack(side="left")
+        ttk.Label(lf, text=_("Une pile est faible en dessous de")).pack(side="left")
         self.v_batlow = self.track(tk.StringVar(value=str(self.cfg.get("battery_low", 20))),
                                    self.key("battery_low", lambda v: max(1, min(99, int(v)))))
         ttk.Spinbox(lf, from_=1, to=99, width=4, textvariable=self.v_batlow).pack(side="left", padx=6)
         ttk.Label(lf, text="%").pack(side="left")
-        ttk.Button(bat, text="Ajouter le résumé des piles à la barre", command=self.add_batteries).grid(
+        ttk.Button(bat, text=_("Ajouter le résumé des piles à la barre"), command=self.add_batteries).grid(
             row=1, column=0, sticky="w", pady=(10, 0))
-        self.hint(bat, "Un seul élément affiche le nombre de piles faibles de toute la maison (« OK » s'il n'y en "
-                       "a pas). Sa carte et son infobulle donnent la liste.", wrap=330,
+        self.hint(bat, _("Un seul élément affiche le nombre de piles faibles de toute la maison (« OK » s'il n'y en "
+                       "a pas). Sa carte et son infobulle donnent la liste."), wrap=330,
                   row=2, column=0, sticky="w", pady=(6, 0))
 
         # --- sauvegarde
-        sv = ttk.LabelFrame(f, text="Sauvegarde des réglages", padding=10)
+        sv = ttk.LabelFrame(f, text=_("Sauvegarde des réglages"), padding=10)
         sv.grid(row=1, column=1, sticky="nsew", pady=(10, 0))
         b2 = ttk.Frame(sv)
         b2.grid(row=0, column=0, sticky="w")
-        ttk.Button(b2, text="Exporter…", command=self.export_config).pack(side="left")
-        ttk.Button(b2, text="Importer…", command=self.import_config).pack(side="left", padx=8)
-        self.hint(sv, "Un fichier avec tous tes éléments et réglages, sans le jeton d'accès : pour sauvegarder, "
+        ttk.Button(b2, text=_("Exporter…"), command=self.export_config).pack(side="left")
+        ttk.Button(b2, text=_("Importer…"), command=self.import_config).pack(side="left", padx=8)
+        self.hint(sv, _("Un fichier avec tous tes éléments et réglages, sans le jeton d'accès : pour sauvegarder, "
                       "passer sur un autre PC ou partager ta configuration. À l'import, ton jeton actuel est "
-                      "conservé.", wrap=330, row=1, column=0, sticky="w", pady=(6, 0))
+                      "conservé."), wrap=330, row=1, column=0, sticky="w", pady=(6, 0))
         self.update_rt_label()
 
     def update_rt_label(self):
@@ -1688,14 +1707,14 @@ class SettingsWindow:
             return
         app = self.app
         if not self.cfg.get("realtime", True):
-            text, style = "Désactivée", "Hint.TLabel"
+            text, style = _("Désactivée"), "Hint.TLabel"
         elif getattr(app, "rt_connected", False):
-            text, style = "✔ Connecté en temps réel", "Ok.TLabel"
+            text, style = _("✔ Connecté en temps réel"), "Ok.TLabel"
         elif getattr(app, "rt", None) is None:
-            text, style = "Renseigne l'adresse et le jeton (onglet Connexion)", "Hint.TLabel"
+            text, style = _("Renseigne l'adresse et le jeton (onglet Connexion)"), "Hint.TLabel"
         else:
             d = getattr(app, "rt_detail", "")
-            text, style = ("Connexion… (%s)" % d if d else "Connexion…"), ("Err.TLabel" if d else "Hint.TLabel")
+            text, style = (_("Connexion… (%s)") % d if d else _("Connexion…")), ("Err.TLabel" if d else "Hint.TLabel")
         if lbl.cget("text") != text:
             lbl.configure(text=text, style=style)
 
@@ -1706,25 +1725,25 @@ class SettingsWindow:
     def show_phk_info(self):
         hk = self.cfg.get("palette_hotkey", "")
         if not hk:
-            self.phk_info.configure(text="Vide = pas de raccourci (la palette reste dans le menu du clic droit).",
+            self.phk_info.configure(text=_("Vide = pas de raccourci (la palette reste dans le menu du clic droit)."),
                                     style="Hint.TLabel")
         elif parse_hotkey(hk):
-            self.phk_info.configure(text="Raccourci valide ✔", style="Ok.TLabel")
+            self.phk_info.configure(text=_("Raccourci valide ✔"), style="Ok.TLabel")
         else:
-            self.phk_info.configure(text="Raccourci invalide : il faut Ctrl, Alt, Maj ou Win + une touche "
-                                         "(ex. Ctrl+Alt+Space).", style="Err.TLabel")
+            self.phk_info.configure(text=_("Raccourci invalide : il faut Ctrl, Alt, Maj ou Win + une touche "
+                                         "(ex. Ctrl+Alt+Space)."), style="Err.TLabel")
 
     def add_batteries(self):
         if any(it.get("entity_id") == BATTERIES for it in self.cfg["items"]):
-            messagebox.showinfo("HA Taskbar", "Le résumé des piles est déjà sur la barre.", parent=self.win)
+            messagebox.showinfo("HA Taskbar", _("Le résumé des piles est déjà sur la barre."), parent=self.win)
             return
         self.add_entity(BATTERIES)
         self.nb.select(1)
 
     def export_config(self):
-        path = filedialog.asksaveasfilename(parent=self.win, title="Exporter les réglages",
+        path = filedialog.asksaveasfilename(parent=self.win, title=_("Exporter les réglages"),
                                             defaultextension=".json", initialfile="ha-taskbar-reglages.json",
-                                            filetypes=[("Réglages HA Taskbar", "*.json"), ("Tous les fichiers", "*")])
+                                            filetypes=[(_("Réglages HA Taskbar"), "*.json"), (_("Tous les fichiers"), "*")])
         if not path:
             return
         data = copy.deepcopy(self.cfg)
@@ -1735,26 +1754,26 @@ class SettingsWindow:
             with open(path, "w", encoding="utf-8") as fh:
                 json.dump(data, fh, indent=2, ensure_ascii=False)
         except OSError as e:
-            messagebox.showerror("HA Taskbar", "Impossible d'enregistrer le fichier : %s" % e, parent=self.win)
+            messagebox.showerror("HA Taskbar", _("Impossible d'enregistrer le fichier : %s") % e, parent=self.win)
             return
-        messagebox.showinfo("HA Taskbar", "Réglages exportés, sans le jeton d'accès :\n%s" % path, parent=self.win)
+        messagebox.showinfo("HA Taskbar", _("Réglages exportés, sans le jeton d'accès :\n%s") % path, parent=self.win)
 
     def import_config(self):
-        path = filedialog.askopenfilename(parent=self.win, title="Importer des réglages",
-                                          filetypes=[("Réglages HA Taskbar", "*.json"), ("Tous les fichiers", "*")])
+        path = filedialog.askopenfilename(parent=self.win, title=_("Importer des réglages"),
+                                          filetypes=[(_("Réglages HA Taskbar"), "*.json"), (_("Tous les fichiers"), "*")])
         if not path:
             return
         try:
             with open(path, encoding="utf-8") as fh:
                 data = json.load(fh)
             if not isinstance(data, dict) or not isinstance(data.get("items", []), list):
-                raise ValueError("ce n'est pas un fichier de réglages HA Taskbar")
+                raise ValueError(_("ce n'est pas un fichier de réglages HA Taskbar"))
         except (OSError, ValueError) as e:
-            messagebox.showerror("HA Taskbar", "Fichier illisible : %s" % e, parent=self.win)
+            messagebox.showerror("HA Taskbar", _("Fichier illisible : %s") % e, parent=self.win)
             return
         n = len(data.get("items", []))
-        if not messagebox.askyesno("HA Taskbar", "Remplacer tous les réglages actuels par ceux du fichier "
-                                                 "(%d élément%s) ?\n\nTon jeton d'accès est conservé."
+        if not messagebox.askyesno("HA Taskbar", _("Remplacer tous les réglages actuels par ceux du fichier "
+                                                 "(%d élément%s) ?\n\nTon jeton d'accès est conservé.")
                                    % (n, "s" if n > 1 else ""), parent=self.win):
             return
         data.pop("token_protected", None)       # jeton chiffre d'un autre PC : illisible ici
@@ -1766,14 +1785,14 @@ class SettingsWindow:
             save_config(data)
             cfg = load_config()
         except (OSError, ValueError) as e:
-            messagebox.showerror("HA Taskbar", "Import impossible : %s" % e, parent=self.win)
+            messagebox.showerror("HA Taskbar", _("Import impossible : %s") % e, parent=self.win)
             return
         app = self.app
         app.apply_config(cfg)
         self.dirty = False
         self.close()
         app.open_settings()
-        app.settings_win.status.configure(text="✔ Réglages importés")
+        app.settings_win.status.configure(text=_("✔ Réglages importés"))
 
     # ------------------------------------------------------------------ recherche dans les reglages
     def build_search(self):
@@ -1782,7 +1801,7 @@ class SettingsWindow:
         self.v_find = tk.StringVar()
         e = self.find_entry = ttk.Entry(head, textvariable=self.v_find)
         e.pack(fill="x", pady=(px(14), 0))
-        tk.Label(head, text="Rechercher un réglage", bg=pal["nav"], fg=pal["hint"],
+        tk.Label(head, text=_("Rechercher un réglage"), bg=pal["nav"], fg=pal["hint"],
                  font="SunValleyCaptionFont").pack(anchor="w", pady=(px(2), 0))
         self.find_list = tk.Listbox(self.win, activestyle="none", relief="flat", borderwidth=0, highlightthickness=1,
                                     bg=pal["card"], fg=pal["fg"], selectbackground=pal["cell_sel"],
@@ -1849,9 +1868,9 @@ class SettingsWindow:
         self.find_res = [(t, pi, w) for _h, _l, t, pi, w in res[:12]]
         lb.delete(0, "end")
         for t, pi, _w in self.find_res:
-            lb.insert("end", "  %s  —  %s" % (t if len(t) <= 60 else t[:58] + "…", self.nb.pages[pi][1]))
+            lb.insert("end", _("  %s  —  %s") % (t if len(t) <= 60 else t[:58] + "…", self.nb.pages[pi][1]))
         if not self.find_res:
-            lb.insert("end", "  Aucun réglage trouvé")
+            lb.insert("end", _("  Aucun réglage trouvé"))
         rows = max(1, len(self.find_res))
         lb.configure(height=rows)
         lb.place(in_=self.find_entry, x=0, rely=1.0, y=self.px(4), width=self.px(560))
@@ -1914,30 +1933,36 @@ class SettingsWindow:
             if not it.get("entity_id"):
                 self.nb.select(1)
                 self.select_item(i)
-                messagebox.showerror("HA Taskbar", "L'élément n°%d n'a pas d'entité." % (i + 1), parent=self.win)
+                messagebox.showerror("HA Taskbar", _("L'élément n°%d n'a pas d'entité.") % (i + 1), parent=self.win)
                 return False
         self.cfg["notifications"] = [r for r in self.cfg.get("notifications", []) if r.get("entity_id")]
         if not self.data_ok:
             self.nb.select(1)
-            messagebox.showerror("HA Taskbar", "Le champ « Données (JSON) » est invalide.", parent=self.win)
+            messagebox.showerror("HA Taskbar", _("Le champ « Données (JSON) » est invalide."), parent=self.win)
             return False
         return True
 
     def apply(self):
         if not self.validate():
             return False
+        lang_changed = self.cfg.get("language", "auto") != self.saved.get("language", "auto")
         save_config(self.cfg)
         try:
             set_startup(self.v_startup.get())
         except OSError as e:
-            messagebox.showwarning("HA Taskbar", "Impossible de régler le démarrage auto : %s" % e, parent=self.win)
+            messagebox.showwarning("HA Taskbar", _("Impossible de régler le démarrage auto : %s") % e, parent=self.win)
         self.saved = copy.deepcopy(self.cfg)
         self.dirty = False
         if self.preview_job:
             self.win.after_cancel(self.preview_job)
             self.preview_job = None
         self.app.apply_config(copy.deepcopy(self.cfg))
-        self.status.configure(text="✔ Enregistré")
+        self.status.configure(text=_("✔ Enregistré"))
+        if lang_changed and messagebox.askyesno(
+                "HA Taskbar", _("La langue sera changée au prochain lancement de HA Taskbar. Redémarrer maintenant ?"),
+                parent=self.win):
+            self.close()
+            self.app.restart()
         return True
 
     def ok(self):
@@ -1958,7 +1983,7 @@ class SettingsWindow:
         if not self.dirty:
             self.close()
             return
-        r = messagebox.askyesnocancel("HA Taskbar", "Enregistrer les modifications ?", parent=self.win)
+        r = messagebox.askyesnocancel("HA Taskbar", _("Enregistrer les modifications ?"), parent=self.win)
         if r is None:
             return
         if r:

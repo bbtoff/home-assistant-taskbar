@@ -8,6 +8,7 @@ Un ecran est designe par son nom de peripherique (ex. "\\\\.\\DISPLAY2") ; "" = 
 import ctypes
 import re
 from ctypes import wintypes
+from i18n import _
 
 user32 = ctypes.windll.user32
 
@@ -87,11 +88,11 @@ def screen_number(device):
 
 def monitor_label(m):
     n = screen_number(m["device"])
-    text = "Écran %s — %d × %d" % (n if n is not None else "?", m["width"], m["height"])
+    text = _("Écran %s — %d × %d") % (n if n is not None else "?", m["width"], m["height"])
     if m["primary"]:
         text += " (principal)"
     if not m["taskbar"]:
-        text += " — sans barre des tâches"
+        text += _(" — sans barre des tâches")
     return text
 
 

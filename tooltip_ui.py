@@ -10,6 +10,7 @@ from ctypes import wintypes
 
 from card_ui import ago, derive_palette, fnum
 from ha_core import (ACTIVE_STATES, BATTERIES, STATE_TEXT, WEATHER_TEXT, card_light, card_palette, group_state)
+from i18n import _
 
 user32 = ctypes.windll.user32
 user32.GetAncestor.restype = wintypes.HWND
@@ -120,7 +121,7 @@ class Tooltip:
                 self.chart.create_text(s(110), s(23), text="…", fill=c["dim"], font=(fam, 8))
                 threading.Thread(target=self._fetch, args=(app.ha, self.key), daemon=True).start()
         if st and st.get("last_changed"):
-            tk.Label(body, text="Modifié " + ago(st["last_changed"]), bg=c["bg"], fg=c["dim"],
+            tk.Label(body, text=_("Modifié ") + ago(st["last_changed"]), bg=c["bg"], fg=c["dim"],
                      font=(fam, 8)).pack(anchor="w", pady=(s(4), 0))
 
         win.update_idletasks()
@@ -142,13 +143,13 @@ class Tooltip:
     def value_text(self, it, st):
         if it.entity_id == BATTERIES:
             n = len((st or {}).get("attributes", {}).get("low") or [])
-            return ("%d pile%s sous %s %%" % (n, "s" if n > 1 else "", fnum(self.app.cfg.get("battery_low", 20)))
-                    if n else "Toutes les piles sont chargées")
+            return (_("%d pile%s sous %s %%") % (n, "s" if n > 1 else "", fnum(self.app.cfg.get("battery_low", 20)))
+                    if n else _("Toutes les piles sont chargées"))
         if it.is_group:
             _g, on, total = group_state(it.cfg, self.app.last_states)
-            return "%d allumé%s sur %d" % (on, "s" if on > 1 else "", total)
+            return _("%d allumé%s sur %d") % (on, "s" if on > 1 else "", total)
         if st is None:
-            return "Entité introuvable"
+            return _("Entité introuvable")
         txt = it.value.cget("text")
         if it.domain == "weather" and not it.cfg.get("attribute"):
             a = st.get("attributes", {})
@@ -156,7 +157,7 @@ class Tooltip:
             if a.get("temperature") is not None:
                 txt += " · %s %s" % (fnum(a["temperature"]), a.get("temperature_unit", "°C"))
         if self.app.offline:
-            txt += "  (Home Assistant hors ligne)"
+            txt += _("  (Home Assistant hors ligne)")
         return txt
 
     def batteries(self, body, low, fam):
@@ -165,10 +166,10 @@ class Tooltip:
             row = tk.Frame(body, bg=c["bg"])
             row.pack(fill="x")
             tk.Label(row, text=name, bg=c["bg"], fg=c["fg"], font=(fam, 8), anchor="w").pack(side="left")
-            tk.Label(row, text="faible" if eid.startswith("binary_sensor.") else "%d %%" % v, bg=c["bg"], fg="#e5534b",
+            tk.Label(row, text=_("faible") if eid.startswith("binary_sensor.") else "%d %%" % v, bg=c["bg"], fg="#e5534b",
                      font=(fam, 8, "bold")).pack(side="right", padx=(s(12), 0))
         if len(low) > 8:
-            tk.Label(body, text="… et %d autres" % (len(low) - 8), bg=c["bg"], fg=c["dim"],
+            tk.Label(body, text=_("… et %d autres") % (len(low) - 8), bg=c["bg"], fg=c["dim"],
                      font=(fam, 8)).pack(anchor="w")
 
     # ---------------- mini-courbe
@@ -190,7 +191,7 @@ class Tooltip:
         W, H = int(cv["width"]), int(cv["height"])
         fam = self.app.cfg.get("font", "Segoe UI")
         if not pts:
-            cv.create_text(W // 2, H // 2, text="Pas d'historique", fill=c["dim"], font=(fam, 8))
+            cv.create_text(W // 2, H // 2, text=_("Pas d'historique"), fill=c["dim"], font=(fam, 8))
             return
         now = datetime.datetime.now(datetime.timezone.utc)
         t0 = now - datetime.timedelta(hours=HOURS)
@@ -239,7 +240,7 @@ class Tooltip:
                 x1 = tx(pts[i + 1][0]) * gw if i + 1 < len(pts) else gw
                 col = c["accent"] if v in ACTIVE_STATES else c["track"]
                 cv.create_rectangle(x0, y0, max(x0 + 1, x1), y1, fill=col, outline="")
-        cv.create_text(W, H // 2, text="%d h" % HOURS, anchor="e", fill=c["dim"], font=(fam, 7))
+        cv.create_text(W, H // 2, text=_("%d h") % HOURS, anchor="e", fill=c["dim"], font=(fam, 7))
 
     def _tint(self, t):
         from ha_core import mix_color

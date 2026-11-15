@@ -20,3 +20,27 @@ coché, quitte HA Taskbar, puis supprime ce dossier.
 
 Code source, empreintes SHA-256 et analyses antivirus :
 https://github.com/bbtoff/home-assistant-taskbar
+
+
+HA Taskbar - portable version
+=============================
+
+This file turns on portable mode: don't delete it.
+
+- Nothing to install: run HATaskbar.exe.
+- Your settings (config.json, with your Home Assistant token) are saved
+  in this folder, and nowhere else.
+- HA Taskbar writes nothing to the registry, unless you check
+  "Start HA Taskbar with Windows" in the settings.
+
+Put this folder somewhere you can write (Documents, Desktop, USB drive…),
+not in "Program Files".
+
+To update: quit HA Taskbar (right-click > Quit), download the new .zip
+and replace the contents of this folder, keeping your config.json.
+
+To remove everything: uncheck "Start HA Taskbar with Windows" if you had
+checked it, quit HA Taskbar, then delete this folder.
+
+Source code, SHA-256 hashes and antivirus scans:
+https://github.com/bbtoff/home-assistant-taskbar

@@ -10,6 +10,7 @@ from tkinter import ttk
 
 import ui_theme
 from ha_core import FROZEN, PORTABLE, __version__, download_update, save_config
+from i18n import _
 
 
 def plain_notes(md):
@@ -34,7 +35,7 @@ class UpdateWindow:
         pal = self.pal = ui_theme.apply(app.root)
         win = self.win = tk.Toplevel(app.root)
         win.configure(bg=pal["bg"])
-        win.title("Mise à jour de HA Taskbar")
+        win.title(_("Mise à jour de HA Taskbar"))
         win.attributes("-topmost", True)
         win.resizable(False, False)
         win.protocol("WM_DELETE_WINDOW", self.later)
@@ -43,13 +44,13 @@ class UpdateWindow:
         f = ttk.Frame(win, padding=px(24))
         f.pack(fill="both", expand=True)
 
-        ttk.Label(f, text="Version %s disponible" % info["version"], style="Title.TLabel").pack(anchor="w")
-        ttk.Label(f, text="Tu as la version %s." % __version__, style="Hint.TLabel").pack(anchor="w", pady=(2, 12))
+        ttk.Label(f, text=_("Version %s disponible") % info["version"], style="Title.TLabel").pack(anchor="w")
+        ttk.Label(f, text=_("Tu as la version %s.") % __version__, style="Hint.TLabel").pack(anchor="w", pady=(2, 12))
 
         notes = tk.Text(f, height=12, width=64, wrap="word", relief="flat", borderwidth=0,
                         bg=pal["card"], fg=pal["fg"], highlightthickness=1, highlightbackground=pal["border"],
                         font="SunValleyBodyFont", padx=12, pady=10)
-        notes.insert("1.0", plain_notes(info.get("notes", "")) or "(pas de notes de version)")
+        notes.insert("1.0", plain_notes(info.get("notes", "")) or _("(pas de notes de version)"))
         notes.configure(state="disabled")
         notes.pack(fill="both", expand=True)
 
@@ -60,24 +61,24 @@ class UpdateWindow:
         bf = ttk.Frame(f)
         bf.pack(fill="x", pady=(12, 0))
         if FROZEN and not PORTABLE and info.get("asset_url"):
-            self.b_install = ttk.Button(bf, text="Installer maintenant", style="Accent.TButton", command=self.install)
-            hint = ("Le programme d'installation est téléchargé depuis GitHub et vérifié, puis HA Taskbar "
-                    "se ferme, se met à jour et redémarre tout seul. Tes réglages sont conservés.")
+            self.b_install = ttk.Button(bf, text=_("Installer maintenant"), style="Accent.TButton", command=self.install)
+            hint = (_("Le programme d'installation est téléchargé depuis GitHub et vérifié, puis HA Taskbar "
+                    "se ferme, se met à jour et redémarre tout seul. Tes réglages sont conservés."))
         elif PORTABLE:
             # Version portable : pas d'installation, on ouvre la page de la version
-            self.b_install = ttk.Button(bf, text="Ouvrir la page de la version", command=self.open_page)
-            hint = ("Tu utilises la version portable : télécharge le nouveau fichier .zip, quitte HA Taskbar "
-                    "puis remplace le contenu de son dossier. Garde ton config.json : il contient tes réglages.")
+            self.b_install = ttk.Button(bf, text=_("Ouvrir la page de la version"), command=self.open_page)
+            hint = (_("Tu utilises la version portable : télécharge le nouveau fichier .zip, quitte HA Taskbar "
+                    "puis remplace le contenu de son dossier. Garde ton config.json : il contient tes réglages."))
         else:
             # Lance depuis les sources (ou version sans installateur) : on ouvre la page de la version
-            self.b_install = ttk.Button(bf, text="Ouvrir la page de la version", command=self.open_page)
-            hint = ("Tu utilises la version « sources » : récupère la nouvelle version sur GitHub "
-                    "(git pull ou téléchargement), ou installe le programme d'installation.")
+            self.b_install = ttk.Button(bf, text=_("Ouvrir la page de la version"), command=self.open_page)
+            hint = (_("Tu utilises la version « sources » : récupère la nouvelle version sur GitHub "
+                    "(git pull ou téléchargement), ou installe le programme d'installation."))
         self.status.configure(text=hint)
         self.b_install.pack(side="right")
-        self.b_later = ttk.Button(bf, text="Plus tard", command=self.later)
+        self.b_later = ttk.Button(bf, text=_("Plus tard"), command=self.later)
         self.b_later.pack(side="right", padx=6)
-        self.b_skip = ttk.Button(bf, text="Ignorer cette version", command=self.skip)
+        self.b_skip = ttk.Button(bf, text=_("Ignorer cette version"), command=self.skip)
         self.b_skip.pack(side="left")
 
         win.update_idletasks()
@@ -118,9 +119,9 @@ class UpdateWindow:
         self.cancel_flag = False
         for b in (self.b_install, self.b_skip):
             b.configure(state="disabled")
-        self.b_later.configure(text="Annuler")
+        self.b_later.configure(text=_("Annuler"))
         self.bar.pack(fill="x", pady=(6, 0), before=self.status)
-        self.status.configure(text="Téléchargement…")
+        self.status.configure(text=_("Téléchargement…"))
         dest = os.path.join(tempfile.gettempdir(), "HATaskbar-update")
 
         def progress(done, total):
@@ -137,28 +138,28 @@ class UpdateWindow:
     def on_progress(self, done, total):
         if total:
             self.bar.configure(value=100 * done / total)
-            self.status.configure(text="Téléchargement… %.1f Mo sur %.1f Mo" % (done / 1e6, total / 1e6))
+            self.status.configure(text=_("Téléchargement… %.1f Mo sur %.1f Mo") % (done / 1e6, total / 1e6))
 
     def on_failed(self, msg):
         self.busy = False
         self.bar.pack_forget()
         for b in (self.b_install, self.b_skip):
             b.configure(state="normal")
-        self.b_later.configure(text="Plus tard")
+        self.b_later.configure(text=_("Plus tard"))
         if self.cancel_flag:
             self.close()
         else:
-            self.status.configure(text="Échec : %s. Réessaie plus tard, ou télécharge la version "
-                                       "depuis la page GitHub." % msg, style="Err.TLabel")
+            self.status.configure(text=_("Échec : %s. Réessaie plus tard, ou télécharge la version "
+                                       "depuis la page GitHub.") % msg, style="Err.TLabel")
 
     def on_ready(self, path):
-        self.status.configure(text="Vérifié ✔ Installation : HA Taskbar va redémarrer…")
+        self.status.configure(text=_("Vérifié ✔ Installation : HA Taskbar va redémarrer…"))
         self.win.update()
         try:
             # /SILENT : fenetre de progression sans question ; l'installateur ferme puis relance HA Taskbar
             subprocess.Popen([path, "/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART"], close_fds=True,
                              creationflags=getattr(subprocess, "DETACHED_PROCESS", 0x8))
         except OSError as e:
-            self.on_failed("impossible de lancer l'installation (%s)" % e)
+            self.on_failed(_("impossible de lancer l'installation (%s)") % e)
             return
         self.app.root.after(300, self.app.root.destroy)

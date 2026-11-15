@@ -1,10 +1,12 @@
 # HA Taskbar
 
+**Français** · [English](README.en.md)
+
 Affiche des **capteurs** et des **boutons Home Assistant** directement sur la **barre des tâches de Windows 11**, dans les zones libres : une **zone à gauche** et une **zone à droite** des icônes, utilisables ensemble.
 
 ![HA Taskbar sur la barre des tâches](docs/screenshots/barre.png)
 
-*À gauche : lumière allumée à 70 % (en jaune), prise éteinte et thermostat, à côté du widget météo de Windows. À droite, juste avant les icônes de notification : consommation, température extérieure et scène. Le milieu de la barre des tâches a été retiré de l'image. Les captures utilisent des données de démonstration.*
+*À gauche : lumière allumée à 70 % (en jaune), prise éteinte et thermostat, à côté du widget météo de Windows. À droite, juste avant les icônes de notification : consommation, température extérieure et scène. Le milieu de la barre des tâches a été retiré de l'image. Les captures utilisent des données de démonstration. D'autres exemples : [Exemples de configuration](#-exemples-de-configuration).*
 
 - 📊 **Valeurs en temps réel** : température, consommation, état d'une lumière…
 - 💡 **Boutons cliquables** : allumer/éteindre une lumière ou une prise, lancer une scène ou un script…
@@ -26,6 +28,13 @@ Un **programme d'installation** et une **version portable** (sans installation) 
 > ![HA Taskbar dans la barre des menus du Mac, en clair et en sombre](docs/screenshots/mac-barre.png)
 
 ---
+
+## ✨ Nouveautés de la version 1.10
+
+- 🇬🇧 **HA Taskbar parle anglais** (version Windows) : toute l'interface (barre, cartes, palette, réglages, widgets, notifications) est traduite (la version Mac reste en français pour l'instant). La langue suit celle de Windows : français si Windows est en français, anglais sinon. On peut la forcer dans **Réglages → Connexion → Langue**.
+- 📖 **README en anglais** : [README.en.md](README.en.md), avec ses propres captures.
+- 🧪 Nouvelle section **[Exemples de configuration](#-exemples-de-configuration)** : couleurs selon la valeur prêtes à copier (température, CO₂, consommation, prix de l'électricité…) et recettes pour les options des éléments.
+- Le programme d'installation et la version portable sont aussi en anglais sur un Windows anglais.
 
 ## ✨ Nouveautés de la version 1.9.1
 
@@ -84,6 +93,11 @@ Un **programme d'installation** et une **version portable** (sans installation) 
 - 🔎 **Recherche dans les réglages**, en haut à gauche de la fenêtre.
 
 Les nouvelles options sont dans **Réglages → Confort**, **Réglages → Notifications** et **Éléments → Plus d'options**.
+
+<p>
+  <img src="docs/screenshots/palette.png" alt="Palette de commandes" width="49%">
+  <img src="docs/screenshots/reglages-confort.png" alt="Réglages, page Confort" width="49%">
+</p>
 
 ## ✨ Nouveautés de la version 1.7.1
 
@@ -199,12 +213,13 @@ Le programme d'installation remplace l'ancienne version et garde tes réglages. 
 4. [Premier lancement](#-premier-lancement)
 5. [Utilisation au quotidien](#-utilisation-au-quotidien)
 6. [Les réglages en détail](#-les-réglages-en-détail)
-7. [Fichier de configuration](#-fichier-de-configuration)
-8. [Comment ça marche](#-comment-ça-marche)
-9. [Structure du projet](#-structure-du-projet)
-10. [Limites connues](#-limites-connues)
-11. [Dépannage](#-dépannage)
-12. [HA Taskbar sur Mac](#-ha-taskbar-sur-mac)
+7. [Exemples de configuration](#-exemples-de-configuration)
+8. [Fichier de configuration](#-fichier-de-configuration)
+9. [Comment ça marche](#-comment-ça-marche)
+10. [Structure du projet](#-structure-du-projet)
+11. [Limites connues](#-limites-connues)
+12. [Dépannage](#-dépannage)
+13. [HA Taskbar sur Mac](#-ha-taskbar-sur-mac)
 
 ---
 
@@ -386,6 +401,14 @@ La barre se masque automatiquement quand une application passe en plein écran (
 | **↑ ↓** | Change de ligne |
 | **Échap** | Ferme (un 2e appui sur le raccourci aussi) |
 
+![Palette de commandes](docs/screenshots/palette.png)
+
+### 💬 Infobulle
+
+Au survol d'un élément, une infobulle donne son nom complet, sa valeur, l'heure de son dernier changement et une courbe des 6 dernières heures (ou une frise allumé / éteint) :
+
+![Infobulle d'un capteur de température](docs/screenshots/infobulle.png)
+
 ### 🧩 Carte de contrôle (appui long)
 
 Un appui long sur un élément ouvre une carte juste au-dessus de la barre des tâches, dans l'esprit de la fenêtre de détail de Home Assistant. Son contenu dépend du type d'entité :
@@ -395,10 +418,11 @@ Un appui long sur un élément ouvre une carte juste au-dessus de la barre des t
 </p>
 
 <p>
-  <img src="docs/screenshots/carte-lumiere.png" alt="Carte d'une lumière" width="24%">
-  <img src="docs/screenshots/carte-thermostat.png" alt="Carte d'un thermostat" width="24%">
-  <img src="docs/screenshots/carte-media.png" alt="Carte d'un lecteur multimédia" width="24%">
-  <img src="docs/screenshots/carte-capteur.png" alt="Carte d'un capteur" width="24%">
+  <img src="docs/screenshots/carte-lumiere.png" alt="Carte d'une lumière" width="19%">
+  <img src="docs/screenshots/carte-thermostat.png" alt="Carte d'un thermostat" width="19%">
+  <img src="docs/screenshots/carte-media.png" alt="Carte d'un lecteur multimédia" width="19%">
+  <img src="docs/screenshots/carte-capteur.png" alt="Carte d'un capteur" width="19%">
+  <img src="docs/screenshots/carte-meteo.png" alt="Carte météo avec prévisions" width="19%">
 </p>
 
 | Type d'entité | Contenu de la carte |
@@ -487,6 +511,7 @@ Une clé absente reprend la valeur du thème par défaut. Après avoir enregistr
 - **Vérifier le certificat HTTPS** : à décocher pour un certificat auto-signé
 - **Rafraîchissement** : intervalle de lecture des états, en secondes (5 par défaut). Après un clic, la mise à jour est immédiate.
 - **Lancer au démarrage de Windows** : ajoute ou retire l'entrée `HATaskbar` dans `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
+- **Langue** : automatique (celle de Windows), français ou anglais. Après un changement, HA Taskbar propose de redémarrer.
 
 ### Onglet Éléments
 
@@ -543,6 +568,9 @@ Pour les scènes, boutons et scripts, la barre affiche « Activer », « Appuyer
 - **Carte de contrôle** : thème et couleurs de la carte d'appui long (voir [Thèmes de la carte](#-thèmes-de-la-carte)).
 
 ### Onglet Notifications
+
+![Onglet Notifications](docs/screenshots/reglages-notifications.png)
+
 - **Me prévenir quand Home Assistant ne répond plus** : une notification à la perte de connexion, une autre au retour
 - **Afficher les notifications de Home Assistant** : les notifications persistantes (mise à jour disponible, nouvel appareil…) et celles de tes automatisations. Pour en envoyer une vers le PC, ajoute à une automatisation l'action **Déclencher un événement** :
   ```yaml
@@ -559,6 +587,9 @@ Pour les scènes, boutons et scripts, la barre affiche « Activer », « Appuyer
 Les notifications apparaissent comme celles des autres applications, et dans le centre de notifications de Windows.
 
 ### Onglet Confort
+
+![Onglet Confort](docs/screenshots/reglages-confort.png)
+
 - **Mises à jour instantanées** : connexion permanente à Home Assistant. L'état de la connexion s'affiche dessous. Décoché, HA Taskbar interroge Home Assistant à l'intervalle de l'onglet Connexion.
 - **Palette de commandes** : son raccourci (vide = seulement depuis le menu du clic droit), et un bouton pour l'essayer.
 - **Sur la barre** : barre compacte (icônes seules), infobulle au survol, valeur qui brille quand elle change.
@@ -568,6 +599,83 @@ Les notifications apparaissent comme celles des autres applications, et dans le 
 La case **Rechercher un réglage**, en haut à gauche de la fenêtre, trouve une option dans toutes les pages et l'affiche.
 
 Tous les changements sont **prévisualisés en direct** sur la barre. **Appliquer**/**OK** enregistre, **Annuler** revient à l'état précédent.
+
+---
+
+## 🧪 Exemples de configuration
+
+Sur cette barre de démonstration, chaque élément montre une possibilité différente :
+
+![Barre de démonstration : chaque élément utilise une option différente](docs/screenshots/exemples-barre.png)
+
+| Élément | Réglage | Ce qu'on voit |
+|---|---|---|
+| **Salon** (`light.salon`) | **Grouper avec** `light.cuisine`, **Badge** Pourcentage, **Clic du milieu** Arrêt programmé dans 30 min, **Raccourci** `Ctrl+Alt+1` | « 1/2 » : une lumière allumée sur les deux, et le petit « 70 » sur l'icône est sa luminosité |
+| **Temp.** | **Couleur selon la valeur** `< 19 bleu ; > 24 orange ; > 26 rouge` | 17,8 °C : bleu, il fait frais |
+| **CO₂** | `> 800 orange ; > 1200 rouge` | 1240 ppm : rouge, il faut aérer |
+| **Conso** | `> 2000 orange ; > 3000 rouge` | 2430 W : orange |
+| **Chauffage** (`climate.salon`) | **Valeur affichée** `current_temperature`, **Unité** °C, **Décimales** 1, icône **Flamme animée** | la température de la pièce ; la flamme bouge tant que le chauffage chauffe |
+| **Piles** | entité `@batteries` (Réglages → Confort → Ajouter le résumé des piles) | 2 piles sous 20 %, en rouge |
+| **Météo** (`weather.maison`) | rien de particulier | la condition du moment, avec son icône |
+
+### 🎨 Couleur selon la valeur
+
+Dans **Éléments → Plus d'options → Couleur selon la valeur**, écris une ou plusieurs règles séparées par `;`. Chaque règle a un comparateur (`>`, `>=`, `<`, `<=` ou `=`), un nombre (virgule ou point) et une couleur. La valeur **et** l'icône prennent la couleur :
+
+![Couleur selon la valeur dans l'onglet Plus d'options](docs/screenshots/exemples-element.png)
+
+Quand plusieurs règles conviennent, **la plus précise gagne** : avec `> 24 orange ; > 26 rouge`, 27 °C est rouge ; avec `< 40 orange ; < 20 rouge`, 15 % est rouge. L'ordre d'écriture n'a pas d'importance.
+
+Règles prêtes à copier :
+
+| Capteur | Règles |
+|---|---|
+| Température intérieure (°C) | `< 19 bleu ; > 24 orange ; > 26 rouge` |
+| Température extérieure (°C) | `< 0 bleu ; > 30 rouge` |
+| Humidité (%) | `< 35 orange ; > 65 bleu` |
+| CO₂ (ppm) | `> 800 orange ; > 1200 rouge` |
+| Consommation (W) | `> 2000 orange ; > 3000 rouge` |
+| Production solaire (W) | `> 100 jaune ; > 1500 vert` |
+| Pile d'un appareil (%) | `< 40 orange ; < 20 rouge` |
+| Prix de l'électricité (€/kWh) | `< 0,15 vert ; > 0,25 rouge` |
+| Qualité de l'air, PM2.5 (µg/m³) | `> 15 orange ; > 35 rouge` |
+| Réservoir, cuve (%) | `< 25 orange ; < 10 rouge` |
+
+Couleurs : `rouge`, `orange`, `jaune`, `vert`, `bleu`, `violet`, `rose`, `gris`, `blanc`, `noir` (ou leur nom anglais), ou un code `#rrggbb` (ex. `#00b7c3`). Seules les valeurs numériques sont colorées. Si l'élément affiche un attribut (**Valeur affichée**), c'est sa valeur qui compte.
+
+### 🧩 Recettes pour les options d'un élément
+
+Les options de la lumière de la démo, dans l'onglet **Plus d'options** :
+
+![Options d'une lumière : clic du milieu, badge, groupe et raccourci](docs/screenshots/exemples-element-lumiere.png)
+
+| Je veux… | Où | Réglage |
+|---|---|---|
+| Éteindre toute une pièce d'un clic | Plus d'options → **Grouper avec** | `light.cuisine, light.couloir` |
+| Allumer une lumière sans quitter mon application | Plus d'options → **Raccourci clavier** | `Ctrl+Alt+1` |
+| Éteindre la lumière dans 30 min d'un clic du milieu | Plus d'options → **Clic du milieu** | Arrêt programmé dans 30 min |
+| Changer le sens d'un ventilateur de plafond (été / hiver) | Plus d'options → **Clic du milieu** et **Badge** | Inverser le sens de rotation, et Sens de rotation ↻ ↺ |
+| Voir la luminosité ou la batterie sur l'icône | Plus d'options → **Badge** | Pourcentage, ou Batterie |
+| Un élément seulement la nuit | Plus d'options → **Affiché de … à …** | de `22:00` à `07:00` |
+| Ranger un élément sans le supprimer | Plus d'options → **Masquer cet élément** | (ou clic droit sur la barre → Masquer) |
+| Afficher la température d'un thermostat | Général → **Valeur affichée**, **Unité**, **Décimales** | `current_temperature`, `°C`, `1` |
+| Passer le thermostat en éco d'un clic | Général → **Action au clic** et **Données (JSON)** | `climate.set_preset_mode` et `{"entity_id": "climate.salon", "preset_mode": "eco"}` |
+| Allumer une lumière à 30 % d'un clic | Général → **Action au clic** et **Données (JSON)** | `light.turn_on` et `{"entity_id": "light.salon", "brightness_pct": 30}` |
+| Un capteur qui n'ouvre rien au clic | Général → **Action au clic** | (aucune) — l'appui long ouvre toujours la carte |
+| Mettre l'élément à droite de la barre | Général → **Zone** | Droite |
+
+La même lumière, telle qu'elle est enregistrée dans `config.json` :
+
+```json
+{
+  "entity_id": "light.salon",
+  "label": "Salon",
+  "group": ["light.cuisine"],
+  "badge": "percentage",
+  "middle": "@timer30",
+  "hotkey": "Ctrl+Alt+1"
+}
+```
 
 ---
 
@@ -626,6 +734,8 @@ Notifications (en dehors de `items`) :
 
 Seul `entity_id` est obligatoire. `icon` peut valoir `"auto"` (par défaut), `"none"`, une clé de `ICONS` dans [`ha_core.py`](ha_core.py), ou une icône animée : `"flame_anim"`, `"fan_anim"`, `"bulb_anim"`, `"eq_anim"`, `"drop_anim"`, `"snow_anim"`, `"sun_anim"`, `"wifi_anim"`, `"bell_anim"`, `"washer_anim"`, `"bolt_anim"`, `"battery_anim"`, `"radar_anim"`, `"heater_anim"`, `"speaker_anim"`, `"timer_anim"`, `"rain_anim"`, `"gear_anim"` (liste dans [`anim_icons.py`](anim_icons.py)). `service` peut valoir `"none"` pour désactiver le clic. `zone` vaut `"left"` (par défaut) ou `"right"`.
 
+Langue : `"language": "auto"` (celle de Windows), `"fr"` ou `"en"`.
+
 Options de l'onglet Confort : `"realtime": true`, `"palette_hotkey": "Ctrl+Alt+Space"`, `"compact": false`, `"tooltips": true`, `"flash_changes": true`, `"battery_low": 20`.
 
 L'écran est `monitor` : vide pour l'écran principal, sinon son nom Windows (par exemple `"\\\\.\\DISPLAY2"` dans le fichier JSON).
@@ -661,6 +771,7 @@ Windows 11 ne permet plus d'ajouter des « deskbands » (barres d'outils) à la 
 | [`ha_ws.py`](ha_ws.py) | Connexion temps réel : client WebSocket minimal et abonnement aux événements de Home Assistant |
 | [`palette.py`](palette.py) | Palette de commandes (recherche dans toutes les entités) |
 | [`tooltip_ui.py`](tooltip_ui.py) | Infobulle au survol et sa mini-courbe |
+| [`i18n.py`](i18n.py), [`i18n_en.py`](i18n_en.py) | Langue de l'interface (celle de Windows ou celle choisie) et traductions anglaises |
 | [`tray.py`](tray.py) | Icône dans la zone de notification (API Windows, sans dépendance) |
 | [`update_ui.py`](update_ui.py) | Fenêtre de mise à jour : nouveautés, téléchargement vérifié, installation |
 | `config.example.json` | Exemple de configuration |
