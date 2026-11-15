@@ -66,6 +66,14 @@ W=$(grep "^cardwidth climate.clim_salon " "$LOG" | tail -1 | cut -d' ' -f3)
 if [ -n "$W" ] && [ "$W" -le 340 ]; then echo "OK    carte de la clim : largeur $W"; else echo "ECHEC carte de la clim : largeur '$W' (> 340)"; FAIL=1; fi
 stop
 
+echo "== 4c. Widgets de bureau et mini-graphique"
+start
+sleep 2
+screencapture -x "$OUT/widgets.png"
+check "widget consommation affiche" "^widget sensor.consommation shown=true"
+check "widget a deux capteurs affiche" "^widget sensor.temperature_exterieure,sensor.temperature_chambre shown=true"
+stop
+
 echo "== 5. Survol : la carte s'ouvre apres le delai, puis se referme quand la souris s'en va"
 start --demo-hover 0.8
 "$OUT/mouse" 600 400 0 move; sleep 1

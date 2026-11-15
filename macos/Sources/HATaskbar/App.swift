@@ -20,6 +20,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let model = AppModel()
     let nav = SettingsNav()
     lazy var updater = Updater(model: model)
+    lazy var history = HistoryStore(model: model)
+    lazy var widgets = WidgetController(model: model, history: history)
     private var bar: StatusBarController?
     private var settingsWindow: NSWindow?
     private let notificationDelegate = NotificationDelegate()
@@ -32,14 +34,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         let bar = StatusBarController(model: model)
         bar.updater = updater
+        bar.history = history
+        history.onChange = { [weak self] in self?.bar?.refresh() }
+        widgets.openSettings = { [weak self] id in self?.showSettings(widget: id) }
         updater.onAvailable = { [weak self] r in self?.updater.ask(r) }
         bar.openSettings = { [weak self] id in self?.showSettings(item: id) }
         bar.openPicker = { [weak self] in self?.showSettings(picker: true) }
         self.bar = bar
         model.onStatesChanged = { [weak self] in self?.bar?.refresh() }
-        model.onConfigChanged = { [weak self] in self?.bar?.refresh() }
+        model.onConfigChanged = { [weak self] in
+            self?.bar?.refresh()
+            self?.widgets.sync()
+        }
         bar.refresh()
         model.start()
+        widgets.sync()
         if model.needsSetup {
             showSettings(tab: .connection)
         }
@@ -65,8 +74,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             if let t = Demo.arg("--demo-settings") {
                 let tab: SettingsTab = ["connection": .connection, "notifications": .notifications,
-                                        "general": .general][t] ?? .items
-                showSettings(item: tab == .items ? model.config.items.first?.id : nil, tab: tab)
+                                        "general": .general, "widgets": .widgets][t] ?? .items
+                if tab == .widgets {
+                    nav.tab = .widgets
+                    showSettings(widget: model.config.widgets.first?.id)
+                } else {
+                    showSettings(item: tab == .items ? model.config.items.first?.id : nil, tab: tab)
+                }
             }
             if Demo.arg("--demo-picker") != nil {
                 showSettings(picker: true)
@@ -79,8 +93,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return false
     }
 
-    func showSettings(item: UUID? = nil, tab: SettingsTab? = nil, picker: Bool = false) {
-        if let id = item {
+    func showSettings(item: UUID? = nil, tab: SettingsTab? = nil, picker: Bool = false, widget: UUID? = nil) {
+        if let w = widget {
+            nav.tab = .widgets
+            nav.selectedWidget = w
+        } else if let id = item {
             nav.tab = .items
             nav.selected = id
         } else if let t = tab {

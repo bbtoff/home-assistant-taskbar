@@ -23,6 +23,7 @@ from tkinter import font as tkfont
 
 import anim_icons
 import screens
+from history import as_float
 from ha_core import (ACTIVE_STATES, ANIM_ICONS, BATTERIES, CONFIG_PATH, DEFAULT_CONFIG, ICON_FONTS, ICON_PATH, ICONS,
                      STATE_TEXT, WEATHER_TEXT, HomeAssistant, __version__, anim_active, bar_colors, bar_light,
                      battery_state, group_state, icon_key, in_quiet_hours, item_members, item_visible, system_light,
@@ -202,7 +203,15 @@ class Item:
                                   font=(font, fs, "bold"), cursor=cursor)
             self.title.pack(side="left")
             self.value.pack(side="left", padx=(4, 0))
-        self.widgets = [w for w in (self.frame, self.icon, self.badge, self.txt, self.title, self.value)
+        # mini-graphique des 6 dernieres heures, a droite de la valeur
+        self.spark = None
+        if cfg.get("sparkline") and not self.compact:
+            px = app.root.winfo_fpixels("1p")
+            sh = max(10, int((fs + (9 if stacked else 4)) * px))
+            self.spark = tk.Canvas(self.frame, width=int(sh * 2.4), height=sh, bg=c["bg"], highlightthickness=0,
+                                   bd=0, cursor=cursor)
+            self.spark.grid(row=0, column=2, padx=(6, 0))
+        self.widgets = [w for w in (self.frame, self.icon, self.badge, self.txt, self.title, self.value, self.spark)
                         if w is not None]
 
         for w in self.widgets:
@@ -301,6 +310,29 @@ class Item:
         if time.monotonic() < self.hold_until:
             return
         self.update(states.get(self.entity_id), states)
+        self.update_spark()
+
+    def update_spark(self):
+        cv = self.spark
+        if cv is None:
+            return
+        h = self.app.history
+        h.request(self.entity_id, 6)
+        vals = h.values(self.entity_id, 6)
+        try:
+            cv.delete("all")
+        except tk.TclError:
+            return
+        if len(vals) < 2:
+            return
+        W, H = int(cv["width"]), int(cv["height"])
+        lo, hi = min(vals), max(vals)
+        rng = (hi - lo) or 1.0
+        n = len(vals)
+        xy = []
+        for i, v in enumerate(vals):
+            xy += [1 + (W - 2) * i / (n - 1), H - 2 - (H - 4) * ((v - lo) / rng if hi > lo else 0.5)]
+        cv.create_line(xy, fill=self.value.cget("fg"), width=max(1, round(H / 12)))
 
     def update(self, st, states=None):
         c = self.app.colors
@@ -599,6 +631,11 @@ class App:
         self.items = []
         from tooltip_ui import Tooltip
         self.tip = Tooltip(self)
+        from history import HistoryCache
+        self.history = HistoryCache(self)          # mini-graphiques et widgets de bureau
+        self.history.listeners.append(self.refresh_sparks)
+        self.widget_mgr = None
+        self._hist_key = None
         # Deux zones : la fenetre principale a gauche, une 2e fenetre a droite. Les fenetres sont
         # affichees (hors ecran) avant d'y mettre quoi que ce soit : creer une Toplevel avant
         # l'affichage de la fenetre principale bloque le positionnement (bizarrerie Tk).
@@ -611,6 +648,12 @@ class App:
             cfg = copy.deepcopy(DEFAULT_CONFIG)
             self.last_error = "config.json illisible : %s" % e
         self.apply_config(cfg)
+        try:
+            from widgets_ui import WidgetManager
+            self.widget_mgr = WidgetManager(self)
+            self.widget_mgr.sync()
+        except Exception as e:
+            self.last_error = "widgets : %s" % e
 
         # Des qu'une fenetre (dont la barre des taches) passe au premier plan, on se remet au-dessus
         self._hook_cb = WINEVENTPROC(lambda *a: self.raise_now())
@@ -699,6 +742,12 @@ class App:
             self._show_status()
         self.hovered = None
         self.register_hotkeys()
+        hk = (cfg.get("ha_url"), cfg.get("token"))
+        if hk != self._hist_key:               # autre serveur : l'historique en memoire ne vaut plus
+            self._hist_key = hk
+            self.history.reset()
+        if self.widget_mgr is not None:
+            self.widget_mgr.sync()
         self.wake.set()
 
     def start_realtime(self):
@@ -740,11 +789,29 @@ class App:
                     it.refresh_from(self.last_states)
                 except tk.TclError:
                     pass
+        if self.widget_mgr is not None:
+            self.widget_mgr.on_state(eid)
         card = self.card
         if card is not None and self._card_job is None and (
                 eid == card.eid or eid in card.members or any(e == eid for e, _f in card.extra_updaters)
                 or (battery and card.eid == BATTERIES)):
             self._card_job = self.root.after(120, self._card_refresh)
+
+    def refresh_sparks(self):
+        for it in self.items:
+            try:
+                it.update_spark()
+            except tk.TclError:
+                pass
+
+    def toggle_spark(self, i):
+        def fn(items):
+            if 0 <= i < len(items):
+                if items[i].get("sparkline"):
+                    items[i].pop("sparkline", None)
+                else:
+                    items[i]["sparkline"] = True
+        self.edit_items(fn)
 
     def _card_refresh(self):
         self._card_job = None
@@ -1439,6 +1506,8 @@ class App:
                         it.refresh_from(payload)
                     if self.card is not None:
                         self.card.refresh()
+                    if self.widget_mgr is not None:
+                        self.widget_mgr.redraw_all()
                     if was_offline:
                         self.set_tray_tip()
                         if self.cfg.get("notify_offline", True):
@@ -1541,6 +1610,22 @@ class App:
             m.add_command(label="Modifier cet élément…", command=lambda: self.open_settings(select=i))
             m.add_command(label="Ouvrir la carte", command=lambda: self.open_card(item))
             m.add_command(label="Masquer de la barre", command=lambda: self.set_hidden(i, True))
+            st = self.last_states.get(item.entity_id) or {}
+            if as_float(st.get("state")) is not None and self.widget_mgr is not None:
+                spark = tk.BooleanVar(m, bool(item.cfg.get("sparkline")))
+                m._spark_var = spark
+                m.add_checkbutton(label="Mini-graphique des 6 dernières heures", variable=spark,
+                                  command=lambda: self.toggle_spark(i))
+                m.add_command(label="Créer un widget de bureau avec ce capteur",
+                              command=lambda: self.widget_mgr.add([item.entity_id]))
+                ws = [w for w in self.cfg.get("widgets", []) if item.entity_id not in w.get("entities", [])]
+                if ws:
+                    sub = tk.Menu(m, tearoff=0)
+                    for w in ws:
+                        sub.add_command(label=self.widget_mgr.title(w)[:50], command=lambda w=w: self.widget_mgr.edit(
+                            w["id"], lambda x: x.update(entities=x.get("entities", []) + [item.entity_id],
+                                                        hidden=False)))
+                    m.add_cascade(label="Ajouter à un widget", menu=sub)
             m.add_command(label="Pour le déplacer : Ctrl + glisser", state="disabled")
             m.add_separator()
         if self.last_error:
@@ -1571,6 +1656,14 @@ class App:
                 sub.add_command(label=(it.get("label") or it.get("entity_id") or "?")[:50],
                                 command=lambda n=n: self.set_hidden(n, False))
             m.add_cascade(label="Réafficher un élément masqué", menu=sub)
+        ws = self.cfg.get("widgets", [])
+        if ws and self.widget_mgr is not None:
+            sub = tk.Menu(m, tearoff=0)
+            if any(not w.get("hidden") for w in ws):
+                sub.add_command(label="Masquer tous les widgets", command=lambda: self.widget_mgr.set_all_hidden(True))
+            if any(w.get("hidden") for w in ws):
+                sub.add_command(label="Afficher tous les widgets", command=lambda: self.widget_mgr.set_all_hidden(False))
+            m.add_cascade(label="Widgets de bureau", menu=sub)
         hk = self.cfg.get("palette_hotkey")
         m.add_command(label="Palette de commandes" + ("   (%s)" % hk if parse_hotkey(hk) else ""),
                       command=self.open_palette)

@@ -12,6 +12,7 @@ Affiche des **capteurs** et des **boutons Home Assistant** directement sur la **
 - ↔️ **Deux zones** : une à gauche et une à droite de la barre des tâches, chaque élément choisit la sienne
 - 🎨 Près de 90 icônes Windows 11 qui changent de couleur selon l'état (jaune = allumé), et thème **clair / sombre** qui suit Windows
 - 🔥 **18 icônes animées** : flamme qui brûle quand le chauffage chauffe, ventilateur qui tourne, cloche qui sonne, lave-linge, pluie… Lentes et discrètes
+- 📊 **Widgets de bureau** : graphiques de tes capteurs (24 h, 7 jours, 30 jours) posés sur le bureau, et mini-courbes dans la barre
 - 🔧 Fenêtre de réglages graphique avec aperçu en direct : rien à éditer à la main
 
 <p align="center">
@@ -25,6 +26,25 @@ Un **programme d'installation** et une **version portable** (sans installation) 
 > ![HA Taskbar dans la barre des menus du Mac, en clair et en sombre](docs/screenshots/mac-barre.png)
 
 ---
+
+## ✨ Nouveautés de la version 1.9
+
+**📊 Widgets de bureau** (Windows et Mac) : des graphiques de tes capteurs, posés sur le bureau.
+
+<p align="center">
+  <img src="docs/screenshots/win-widgets-sombre.png" width="49%" alt="Widgets de bureau sous Windows : consommation sur 24 h, humidité en grand, deux températures comparées">
+  <img src="docs/screenshots/mac-widgets.png" width="49%" alt="Les mêmes widgets sur Mac">
+</p>
+
+- 📈 **Graphique sur 24 h, 7 jours ou 30 jours**, avec minimum, moyenne et maximum, ou **valeur en grand** avec sa tendance.
+- 🔀 **Plusieurs capteurs sur un même graphique**, chacun avec sa couleur : idéal pour comparer les températures des pièces ou des consommations.
+- 🖥️ Ils restent **sur le bureau, sous tes fenêtres** (ou toujours au premier plan), se déplacent à la souris, gardent leur place et se mettent à jour **en temps réel**. Ils suivent le thème clair ou sombre.
+- 🖱️ **Clic droit sur un widget** : période, taille (petit, moyen, grand), affichage, ajouter ou retirer un capteur, premier plan, masquer, supprimer.
+- ➕ Pour en créer un : **clic droit sur un capteur de la barre → Créer un widget de bureau** (Windows), ou **Réglages → Widgets → +** (Mac). Pour en ajouter un autre au même graphique : clic droit sur un capteur → **Ajouter à un widget**.
+
+**〰️ Mini-graphique dans la barre** : une petite courbe des **6 dernières heures** à côté de la valeur d'un capteur. Clic droit sur l'élément → **Mini-graphique des 6 dernières heures**, ou **Éléments → Plus d'options** (Windows) / **Éléments → Valeur affichée** (Mac).
+
+![Mini-graphique à côté de la consommation, dans la barre des menus du Mac](docs/screenshots/mac-barre-mini-graphique.png)
 
 ## ✨ Nouveautés de la version 1.8.2
 
@@ -689,9 +709,13 @@ Depuis la 1.8, HA Taskbar existe aussi pour **macOS 13 ou plus récent** (Apple 
 
 *Lumière allumée à 70 % (en jaune), chauffage en marche (la flamme s'anime), consommation et température extérieure. Données de démonstration.*
 
-Un **appui long** (ou ⌥-clic) ouvre la carte de contrôle, comme sur Windows : lumière, thermostat, historique d'un capteur…
+Un **appui long** (ou ⌥-clic, ou le survol) ouvre la carte de contrôle, comme sur Windows : lumière, thermostat, historique d'un capteur…
 
 ![Cartes de contrôle : lumière, thermostat (mode sombre) et consommation avec son historique](docs/screenshots/mac-cartes.png)
+
+Les **widgets de bureau** se créent et se règlent dans l'onglet **Widgets** :
+
+![Réglages des widgets sur Mac](docs/screenshots/mac-reglages-widgets.png)
 
 Les réglages et le choix des entités, avec la pièce de chacune :
 

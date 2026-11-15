@@ -47,13 +47,26 @@ enum Demo {
         plug.badge = nil
         var heat = ItemConfig(entityId: "climate.thermostat", label: "Chauffage", icon: "flame_anim")
         heat.cardTitle = "Thermostat du salon"
-        let power = ItemConfig(entityId: "sensor.consommation", label: "Consommation")
+        var power = ItemConfig(entityId: "sensor.consommation", label: "Consommation")
+        power.sparkline = true
         var ext = ItemConfig(entityId: "sensor.temperature_exterieure", label: "Extérieur")
         ext.decimals = 1
         ext.thresholds = "< 5 bleu ; > 25 orange ; > 30 rouge"
         let scene = ItemConfig(entityId: "scene.cinema", label: "Ciné")
         let clim = ItemConfig(entityId: "climate.clim_salon", label: "Clim", icon: "snow_anim")
         c.items = [light, plug, heat, power, ext, scene, clim]
+        // Widgets de bureau (positions pour un ecran de 1024 x 768, comme sur les Mac de GitHub)
+        if !CommandLine.arguments.contains("--demo-no-widgets") {
+            var w1 = WidgetConfig(entities: ["sensor.consommation"])
+            w1.x = 40; w1.y = 470
+            var w2 = WidgetConfig(entities: ["sensor.temperature_exterieure", "sensor.temperature_chambre"])
+            w2.title = "Températures"
+            w2.x = 40; w2.y = 250
+            var w3 = WidgetConfig(entities: ["sensor.humidite_salle_de_bain"])
+            w3.style = "value"; w3.size = "small"
+            w3.x = 360; w3.y = 525
+            c.widgets = [w1, w2, w3]
+        }
         if let keep = arg("--demo-items") {
             let idx = Set(keep.split(separator: ",").compactMap { Int($0) })
             for i in c.items.indices where !idx.contains(i) { c.items[i].hidden = true }
@@ -85,7 +98,7 @@ enum Demo {
                 "friendly_name": "Consommation de la maison", "unit_of_measurement": "W", "device_class": "power"],
                 lastChanged: ago(1)),
             EntityState(entityId: "sensor.temperature_exterieure", state: "8.4", attributes: [
-                "friendly_name": "Température extérieure", "unit_of_measurement": "°C", "device_class": "temperature"],
+                "friendly_name": "Extérieur", "unit_of_measurement": "°C", "device_class": "temperature"],
                 lastChanged: ago(4)),
             EntityState(entityId: "scene.cinema", state: ISO8601DateFormatter().string(from: ago(1500)), attributes: [
                 "friendly_name": "Soirée cinéma"], lastChanged: ago(1500)),
@@ -103,6 +116,9 @@ enum Demo {
             EntityState(entityId: "media_player.salon", state: "playing", attributes: [
                 "friendly_name": "Enceinte du salon", "volume_level": 0.35, "media_title": "Clair de lune",
                 "media_artist": "Claude Debussy", "is_volume_muted": false], lastChanged: ago(8)),
+            EntityState(entityId: "sensor.temperature_chambre", state: "19.2", attributes: [
+                "friendly_name": "Chambre", "unit_of_measurement": "°C", "device_class": "temperature"],
+                lastChanged: ago(6)),
             EntityState(entityId: "sensor.humidite_salle_de_bain", state: "62", attributes: [
                 "friendly_name": "Humidité salle de bain", "unit_of_measurement": "%", "device_class": "humidity"],
                 lastChanged: ago(3)),
@@ -143,6 +159,8 @@ enum Demo {
                 v = 380 + 1300 * meals + 160 * wobble
             case "sensor.temperature_exterieure":
                 v = 7 + 4 * sin(day - 2.2) + 0.5 * wobble
+            case "sensor.temperature_chambre":
+                v = 19 + 1.2 * sin(day - 2.8) + 0.2 * wobble
             case "sensor.humidite_salle_de_bain":
                 v = 55 + 8 * sin(day) + 3 * wobble
             default:
@@ -150,6 +168,16 @@ enum Demo {
                         (now.addingTimeInterval(-hours * 900), "off"), (now.addingTimeInterval(-720), "on")]
             }
             out.append((t, String(format: "%.1f", v)))
+        }
+        // Les derniers points rejoignent la valeur actuelle (pas de saut au bout de la courbe)
+        if let end = states[entityId].flatMap({ Double($0.state) }) {
+            let k = 12
+            for j in 0..<k {
+                let i = n - k + j
+                let t = Double(j + 1) / Double(k)
+                let v = (Double(out[i].1) ?? end) * (1 - t) + end * t
+                out[i] = (out[i].0, String(format: "%.1f", v))
+            }
         }
         return out
     }
