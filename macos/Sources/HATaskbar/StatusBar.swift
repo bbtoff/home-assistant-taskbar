@@ -8,6 +8,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     var openSettings: (_ itemId: UUID?) -> Void = { _ in }
     var openPicker: () -> Void = {}
     var updater: Updater?
+    var history: HistoryStore?
 
     private var appItem: NSStatusItem?
     private var entries: [ItemView] = []
@@ -77,6 +78,13 @@ final class StatusBarController: NSObject, NSMenuDelegate {
                                timerLeft: model.timerLeft(v.item.entityId))
             v.apply(d, compact: c.compact, animate: c.animIcons, flash: c.flashChanges && !model.offline)
             v.toolTip = c.hoverCardDelay > 0 ? nil : tooltip(v.item, d)   // la carte remplace l'infobulle
+            if v.item.sparkline == true, let h = history, !c.compact {
+                h.request(v.item.entityId, hours: 6)
+                let pts = h.points(v.item.entityId, hours: 6).map(\.value)
+                v.setSpark(pts.count >= 2 ? pts : nil)
+            } else {
+                v.setSpark(nil)
+            }
         }
         if let b = appItem?.button {
             let off = model.offline && !model.needsSetup
@@ -361,6 +369,8 @@ final class ItemView: NSView {
     private let imageView = NSImageView()
     private let label = NSTextField(labelWithString: "")
     private let badgeLabel = NSTextField(labelWithString: "")
+    private let sparkView = NSImageView()
+    private var sparkValues: [Double]?
     private var shown: ItemDisplay?
     private var compact = false
     private var holdUntil = Date.distantPast
@@ -380,7 +390,9 @@ final class ItemView: NSView {
         label.lineBreakMode = .byClipping
         badgeLabel.font = NSFont.systemFont(ofSize: 8, weight: .semibold)
         badgeLabel.textColor = .secondaryLabelColor
-        for v in [imageView, label, badgeLabel] as [NSView] { addSubview(v) }
+        sparkView.isHidden = true
+        sparkView.imageScaling = .scaleNone
+        for v in [imageView, label, badgeLabel, sparkView] as [NSView] { addSubview(v) }
         if let b = statusItem.button {
             b.title = ""
             b.image = nil
@@ -482,9 +494,29 @@ final class ItemView: NSView {
             label.frame = NSRect(x: x, y: (h - lh) / 2, width: lw, height: lh)
             x += lw
         }
+        if !sparkView.isHidden {
+            x += 4
+            sparkView.frame = NSRect(x: x, y: (h - 14) / 2, width: 34, height: 14)
+            x += 34
+        }
         x += pad
         frame = NSRect(x: 0, y: 0, width: x, height: h)
         statusItem.length = x
+    }
+
+    /// Mini-courbe a droite de la valeur (nil = aucune).
+    func setSpark(_ values: [Double]?) {
+        let color = shown.map(colorFor) ?? .labelColor
+        guard values != sparkValues || (values != nil && sparkView.image == nil) else { return }
+        sparkValues = values
+        if let v = values, let img = Sparkline.image(v, color: color.withAlphaComponent(0.85)) {
+            sparkView.image = img
+            sparkView.isHidden = false
+        } else {
+            sparkView.image = nil
+            sparkView.isHidden = true
+        }
+        layoutContent()
     }
 
     func showPending(_ text: String) {

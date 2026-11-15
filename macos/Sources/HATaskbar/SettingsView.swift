@@ -2,7 +2,7 @@ import ServiceManagement
 import SwiftUI
 import UniformTypeIdentifiers
 
-enum SettingsTab: Hashable { case connection, items, notifications, general }
+enum SettingsTab: Hashable { case connection, items, widgets, notifications, general }
 
 /// Navigation de la fenetre de reglages (onglet, element selectionne...).
 @MainActor
@@ -10,6 +10,7 @@ final class SettingsNav: ObservableObject {
     @Published var tab: SettingsTab = .items
     @Published var selected: UUID?
     @Published var showPicker = false
+    @Published var selectedWidget: UUID?
 }
 
 extension AppModel {
@@ -45,6 +46,9 @@ struct SettingsView: View {
             ItemsTab(model: model, nav: nav)
                 .tabItem { Label("Éléments", systemImage: "square.grid.2x2") }
                 .tag(SettingsTab.items)
+            WidgetsTab(model: model, nav: nav)
+                .tabItem { Label("Widgets", systemImage: "chart.xyaxis.line") }
+                .tag(SettingsTab.widgets)
             ConnectionTab(model: model)
                 .tabItem { Label("Connexion", systemImage: "network") }
                 .tag(SettingsTab.connection)
@@ -284,7 +288,9 @@ struct ItemEditor: View {
                     }
                 }
                 VStack(alignment: .leading, spacing: 4) {
-                    TextField("Couleur selon la valeur", text: optional($item.thresholds),
+                    Toggle("Mini-graphique des 6 dernières heures, à côté de la valeur", isOn: Binding(
+                    get: { item.sparkline == true }, set: { item.sparkline = $0 ? true : nil }))
+                TextField("Couleur selon la valeur", text: optional($item.thresholds),
                               prompt: Text("> 25 orange ; > 30 rouge ; < 15 bleu"))
                     let bad = parseThresholds(item.thresholds).bad
                     if !bad.isEmpty {
@@ -330,6 +336,9 @@ struct ItemEditor: View {
 
 struct EntityPicker: View {
     @ObservedObject var model: AppModel
+    var title = "Ajouter des entités"
+    var numericOnly = false                     // seulement les capteurs a valeur numerique (widgets)
+    var already: ((String) -> Bool)? = nil      // deja choisie (grisee)
     var add: ([String]) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var search = ""
@@ -343,11 +352,12 @@ struct EntityPicker: View {
     private var rows: [EntityState] {
         let q = search.lowercased()
         var out = model.sortedEntities.filter { st in
-            (domain.isEmpty || st.domain == domain)
+            (!numericOnly || Double(st.state) != nil)
+                && (domain.isEmpty || st.domain == domain)
                 && (q.isEmpty || st.name.lowercased().contains(q) || st.entityId.contains(q)
                     || (model.areas[st.entityId]?.lowercased().contains(q) ?? false))
         }
-        if domain.isEmpty && (q.isEmpty || "piles faibles batteries".contains(q)) {
+        if !numericOnly && domain.isEmpty && (q.isEmpty || "piles faibles batteries".contains(q)) {
             out.insert(EntityState(entityId: batteriesId, state: "", attributes: ["friendly_name": "Résumé des piles faibles"]), at: 0)
         }
         return out
@@ -355,7 +365,7 @@ struct EntityPicker: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Ajouter des entités").font(.title3.weight(.semibold))
+            Text(title).font(.title3.weight(.semibold))
             HStack {
                 TextField("Rechercher (nom, pièce, entity_id)", text: $search)
                     .textFieldStyle(.roundedBorder)
@@ -371,7 +381,7 @@ struct EntityPicker: View {
                     .foregroundStyle(.secondary)
             }
             List(rows, id: \.entityId) { st in
-                let already = model.config.items.contains { $0.entityId == st.entityId }
+                let already = self.already?(st.entityId) ?? model.config.items.contains { $0.entityId == st.entityId }
                 HStack {
                     Image(systemName: chosen.contains(st.entityId) || already ? "checkmark.circle.fill" : "circle")
                         .foregroundStyle(already ? Color.secondary : Color.accentColor)

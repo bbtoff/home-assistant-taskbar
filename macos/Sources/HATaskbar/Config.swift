@@ -19,11 +19,12 @@ struct ItemConfig: Codable, Identifiable, Equatable {
     var thresholds: String?      // "> 25 orange ; > 30 rouge"
     var badge: String?           // "", "percentage", "battery", "direction" ou un attribut
     var cardTitle: String?
+    var sparkline: Bool?         // mini-graphique des dernieres heures dans la barre des menus
     var favorites: [JSONValue]?
 
     enum CodingKeys: String, CodingKey {
         case entityId = "entity_id", label, icon, attribute, unit, decimals, service, data, group, hidden
-        case showFrom = "show_from", showTo = "show_to", thresholds, badge, cardTitle = "card_title", favorites
+        case showFrom = "show_from", showTo = "show_to", thresholds, badge, cardTitle = "card_title", favorites, sparkline
     }
 
     init(entityId: String, label: String? = nil, icon: String? = nil) {
@@ -55,6 +56,7 @@ struct ItemConfig: Codable, Identifiable, Equatable {
         badge = Self.str(c, .badge)
         cardTitle = Self.str(c, .cardTitle)
         favorites = try? c.decodeIfPresent([JSONValue].self, forKey: .favorites)
+        sparkline = try? c.decodeIfPresent(Bool.self, forKey: .sparkline)
     }
 
     private static func str(_ c: KeyedDecodingContainer<CodingKeys>, _ k: CodingKeys) -> String? {
@@ -80,6 +82,7 @@ struct ItemConfig: Codable, Identifiable, Equatable {
         try c.encodeIfPresent(badge.nonEmpty, forKey: .badge)
         try c.encodeIfPresent(cardTitle.nonEmpty, forKey: .cardTitle)
         if let f = favorites, !f.isEmpty { try c.encode(f, forKey: .favorites) }
+        if sparkline == true { try c.encode(true, forKey: .sparkline) }
     }
 
     static func == (a: ItemConfig, b: ItemConfig) -> Bool {
@@ -88,6 +91,7 @@ struct ItemConfig: Codable, Identifiable, Equatable {
             && a.service == b.service && a.data == b.data && a.group == b.group && a.hidden == b.hidden
             && a.showFrom == b.showFrom && a.showTo == b.showTo && a.thresholds == b.thresholds
             && a.badge == b.badge && a.cardTitle == b.cardTitle && a.favorites == b.favorites
+            && a.sparkline == b.sparkline
     }
 
     var domain: String { entityId.domain }
@@ -141,6 +145,7 @@ struct AppConfig: Codable, Equatable {
     var checkUpdates = true
     var skipVersion = ""             // version que l'utilisateur a choisi d'ignorer
     var notifications: [NotifyRule] = []
+    var widgets: [WidgetConfig] = []
     var items: [ItemConfig] = []
 
     enum CodingKeys: String, CodingKey {
@@ -149,7 +154,7 @@ struct AppConfig: Codable, Equatable {
         case clickOpensCard = "click_opens_card", hoverCardDelay = "hover_card_delay"
         case notifyOffline = "notify_offline", haNotifications = "ha_notifications"
         case quietFrom = "quiet_from", quietTo = "quiet_to", batteryLow = "battery_low"
-        case checkUpdates = "check_updates", skipVersion = "skip_version", notifications, items
+        case checkUpdates = "check_updates", skipVersion = "skip_version", notifications, items, widgets
     }
 
     init() {}
@@ -178,6 +183,7 @@ struct AppConfig: Codable, Equatable {
         checkUpdates = get(.checkUpdates, d.checkUpdates)
         skipVersion = get(.skipVersion, d.skipVersion)
         notifications = get(.notifications, d.notifications)
+        widgets = get(.widgets, d.widgets)
         items = get(.items, d.items)
     }
 }
@@ -187,6 +193,48 @@ extension Optional where Wrapped == String {
     var nonEmpty: String? {
         guard let s = self?.trimmingCharacters(in: .whitespaces), !s.isEmpty else { return nil }
         return s
+    }
+}
+
+/// Widget de bureau : graphique ou valeur d'un ou plusieurs capteurs.
+struct WidgetConfig: Codable, Identifiable, Equatable {
+    var id = UUID()
+    var entities: [String]
+    var title: String?
+    var style = "graph"              // "graph" (courbe) ou "value" (valeur en grand)
+    var hours: Double = 24           // periode du graphique
+    var size = "medium"              // small, medium, large
+    var onTop = false                // au premier plan (sinon sur le bureau, sous les fenetres)
+    var hidden = false
+    var x: Double?                   // position (coin bas gauche, coordonnees de l'ecran)
+    var y: Double?
+
+    enum CodingKeys: String, CodingKey { case id, entities, title, style, hours, size, onTop = "on_top", hidden, x, y }
+
+    init(entities: [String]) { self.entities = entities }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = WidgetConfig(entities: [])
+        id = (try? c.decodeIfPresent(UUID.self, forKey: .id)) ?? UUID()
+        entities = (try? c.decodeIfPresent([String].self, forKey: .entities)) ?? []
+        title = (try? c.decodeIfPresent(String.self, forKey: .title)).flatMap { $0 }
+        style = (try? c.decodeIfPresent(String.self, forKey: .style)) ?? d.style
+        hours = (try? c.decodeIfPresent(Double.self, forKey: .hours)) ?? d.hours
+        size = (try? c.decodeIfPresent(String.self, forKey: .size)) ?? d.size
+        onTop = (try? c.decodeIfPresent(Bool.self, forKey: .onTop)) ?? false
+        hidden = (try? c.decodeIfPresent(Bool.self, forKey: .hidden)) ?? false
+        x = (try? c.decodeIfPresent(Double.self, forKey: .x)).flatMap { $0 }
+        y = (try? c.decodeIfPresent(Double.self, forKey: .y)).flatMap { $0 }
+    }
+
+    /// Taille de la fenetre (points).
+    var pixelSize: CGSize {
+        switch size {
+        case "small": return CGSize(width: 220, height: style == "value" ? 110 : 140)
+        case "large": return CGSize(width: 420, height: style == "value" ? 170 : 250)
+        default: return CGSize(width: 300, height: style == "value" ? 130 : 185)
+        }
     }
 }
 
