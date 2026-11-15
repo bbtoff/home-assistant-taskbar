@@ -206,10 +206,12 @@ struct WidgetConfig: Codable, Identifiable, Equatable {
     var size = "medium"              // small, medium, large
     var onTop = false                // au premier plan (sinon sur le bureau, sous les fenetres)
     var hidden = false
+    var icon: String?                // icone du widget ("auto" ou absente = celle du capteur, "none" = aucune)
+    var image: String?               // logo : nom d'un fichier du dossier images/ des reglages
     var x: Double?                   // position (coin bas gauche, coordonnees de l'ecran)
     var y: Double?
 
-    enum CodingKeys: String, CodingKey { case id, entities, title, style, hours, size, onTop = "on_top", hidden, x, y }
+    enum CodingKeys: String, CodingKey { case id, entities, title, style, hours, size, onTop = "on_top", hidden, x, y, icon, image }
 
     init(entities: [String]) { self.entities = entities }
 
@@ -224,6 +226,8 @@ struct WidgetConfig: Codable, Identifiable, Equatable {
         size = (try? c.decodeIfPresent(String.self, forKey: .size)) ?? d.size
         onTop = (try? c.decodeIfPresent(Bool.self, forKey: .onTop)) ?? false
         hidden = (try? c.decodeIfPresent(Bool.self, forKey: .hidden)) ?? false
+        icon = (try? c.decodeIfPresent(String.self, forKey: .icon)).flatMap { $0 }
+        image = (try? c.decodeIfPresent(String.self, forKey: .image)).flatMap { $0 }
         x = (try? c.decodeIfPresent(Double.self, forKey: .x)).flatMap { $0 }
         y = (try? c.decodeIfPresent(Double.self, forKey: .y)).flatMap { $0 }
     }

@@ -30,6 +30,9 @@ check() {   # check <nom> <motif attendu> [motif interdit]
     echo "      journal : $(grep -v '^frame' "$LOG" | tr '\n' ' ')"
 }
 
+echo "== 0. Icones : tous les symboles existent"
+if "$APP" --check-icons; then echo "OK    icones"; else echo "ECHEC icones introuvables (voir ci-dessus)"; FAIL=1; fi
+
 echo "== 1. Clic simple sur une lumiere : action, pas de carte"
 start
 "$OUT/mouse" $POS 0.08; sleep 2
@@ -73,6 +76,25 @@ screencapture -x "$OUT/widgets.png"
 check "widget consommation affiche" "^widget sensor.consommation shown=true"
 check "widget a deux capteurs affiche" "^widget sensor.temperature_exterieure,sensor.temperature_chambre shown=true"
 stop
+
+echo "== 4d. Mini-graphique visible sur une barre des menus sombre (application en theme clair)"
+swiftc -O Tests/pixels.swift -o "$OUT/pixels" || exit 1
+osascript -e 'tell application "System Events" to tell appearance preferences to set dark mode to true' || true
+sleep 2
+start --demo-app-light
+sleep 2
+SP=$(grep "^spark sensor.consommation " "$LOG" | tail -1 | cut -d' ' -f3-6)
+screencapture -x "$OUT/mini-graphique-barre-sombre.png"
+if [ -n "$SP" ]; then
+    read LIGHT DARK <<< "$("$OUT/pixels" "$OUT/mini-graphique-barre-sombre.png" $SP)"
+    if [ "${LIGHT:-0}" -ge 8 ]; then echo "OK    mini-graphique visible ($LIGHT pixels clairs)"
+    else echo "ECHEC mini-graphique invisible sur barre sombre ($LIGHT clairs, $DARK sombres)"; FAIL=1; fi
+else
+    echo "ECHEC mini-graphique absent"; FAIL=1
+fi
+stop
+osascript -e 'tell application "System Events" to tell appearance preferences to set dark mode to false' || true
+sleep 2
 
 echo "== 5. Survol : la carte s'ouvre apres le delai, puis se referme quand la souris s'en va"
 start --demo-hover 0.8

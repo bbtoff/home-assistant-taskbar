@@ -1,6 +1,7 @@
 import AppKit
 import Charts
 import SwiftUI
+import UniformTypeIdentifiers
 
 // MARK: - Fenetres des widgets
 
@@ -83,6 +84,12 @@ final class WidgetController {
         st.submenu = style
         m.addItem(st)
         m.addItem(item("Toujours au premier plan", checked: w.onTop) { [weak self] in self?.update(id) { $0.onTop.toggle() } })
+        m.addItem(item("Choisir un logo (image)…") { [weak self] in
+            if let name = WidgetImages.choose() { self?.update(id) { $0.image = name } }
+        })
+        if w.image != nil {
+            m.addItem(item("Retirer le logo") { [weak self] in self?.update(id) { $0.image = nil } })
+        }
         m.addItem(.separator())
         m.addItem(item("Modifier le widget…") { [weak self] in self?.openSettings(id) })
         m.addItem(item("Masquer") { [weak self] in self?.update(id) { $0.hidden = true } })
@@ -271,7 +278,8 @@ struct WidgetView: View {
     private func content(_ w: WidgetConfig) -> some View {
         let single = w.entities.count == 1
         VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline) {
+            HStack(alignment: .center, spacing: 6) {
+                WidgetBadge(model: model, widget: w, size: 18)
                 Text(w.title.nonEmpty ?? (single ? name(w.entities[0]) : "Capteurs"))
                     .font(.headline)
                     .lineLimit(1)
@@ -490,6 +498,19 @@ struct WidgetEditor: View {
         Form {
             Section {
                 TextField("Titre", text: optional($widget.title), prompt: Text("automatique"))
+                IconPicker(title: "Icône", icon: $widget.icon)
+                    .disabled(widget.image != nil)
+                LabeledContent("Logo") {
+                    HStack {
+                        if widget.image != nil {
+                            WidgetBadge(model: model, widget: widget, size: 22)
+                            Button("Retirer") { widget.image = nil }
+                        }
+                        Button(widget.image == nil ? "Choisir une image…" : "Changer…") {
+                            if let name = WidgetImages.choose() { widget.image = name }
+                        }
+                    }
+                }
                 Picker("Affichage", selection: $widget.style) {
                     Text("Graphique").tag("graph")
                     Text("Valeur en grand").tag("value")
@@ -541,5 +562,94 @@ struct WidgetEditor: View {
             }
         }
         .formStyle(.grouped)
+    }
+}
+
+// MARK: - Icone ou logo d'un widget
+
+/// Logos des widgets : images copiees dans le dossier des reglages (images/), pour qu'elles survivent
+/// au deplacement ou a la suppression du fichier d'origine.
+enum WidgetImages {
+    static var directory: URL { ConfigStore.directory.appendingPathComponent("images", isDirectory: true) }
+    private static var cache: [String: NSImage] = [:]
+
+    static func image(_ name: String) -> NSImage? {
+        if let i = cache[name] { return i }
+        let url = directory.appendingPathComponent(name)
+        guard let i = NSImage(contentsOf: url) else { return nil }
+        cache[name] = i
+        return i
+    }
+
+    /// Demande une image a l'utilisateur, la copie dans images/ et renvoie son nom.
+    @MainActor
+    static func choose() -> String? {
+        let p = NSOpenPanel()
+        p.allowedContentTypes = [.png, .jpeg, .heic, .tiff, .gif, .svg]
+        p.message = "Choisis un logo ou une image pour le widget (carré de préférence)"
+        NSApp.activate(ignoringOtherApps: true)
+        guard p.runModal() == .OK, let src = p.url else { return nil }
+        do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let ext = src.pathExtension.isEmpty ? "png" : src.pathExtension.lowercased()
+            let name = UUID().uuidString.prefix(8).lowercased() + "." + ext
+            try FileManager.default.copyItem(at: src, to: directory.appendingPathComponent(name))
+            return name
+        } catch {
+            NSLog("HA Taskbar : copie du logo impossible : \(error)")
+            return nil
+        }
+    }
+}
+
+/// Icone (SF Symbol) ou logo affiche en tete d'un widget.
+struct WidgetBadge: View {
+    @ObservedObject var model: AppModel
+    let widget: WidgetConfig
+    let size: CGFloat
+
+    var body: some View {
+        if let name = widget.image, let img = WidgetImages.image(name) {
+            Image(nsImage: img)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: size, height: size)
+                .clipShape(RoundedRectangle(cornerRadius: size * 0.22))
+        } else if widget.icon != "none", let eid = widget.entities.first {
+            let st = model.states[eid]
+            let item = ItemConfig(entityId: eid, icon: widget.icon ?? "auto")
+            let d = displayFor(item, states: model.states, offline: model.offline,
+                               batteryLow: model.config.batteryLow, timerLeft: nil)
+            if let sym = resolveSymbol(item, st).0 {
+                Image(systemName: sym)
+                    .font(.system(size: size * 0.8))
+                    .foregroundStyle(d.tone == .on ? Color(nsColor: .haOn) : Color.secondary)
+                    .frame(width: size, height: size)
+            }
+        }
+    }
+}
+
+/// Choix d'une icone (Automatique, Aucune, ou une icone de la liste).
+struct IconPicker: View {
+    let title: String
+    @Binding var icon: String?
+    var animated = false
+
+    var body: some View {
+        Picker(title, selection: Binding(get: { icon ?? "auto" }, set: { icon = $0 == "auto" ? nil : $0 })) {
+            Text("Automatique").tag("auto")
+            Text("Aucune").tag("none")
+            Divider()
+            ForEach(Icons.all, id: \.key) { i in
+                Label(i.name, systemImage: i.symbol).tag(i.key)
+            }
+            if animated {
+                Divider()
+                ForEach(Icons.animated, id: \.key) { a in
+                    Label(a.name + " ✦", systemImage: Icons.symbol(a.base)).tag(a.key)
+                }
+            }
+        }
     }
 }

@@ -7,6 +7,9 @@ Configuration (config.json, cle "widgets") :
 (la version macOS utilise "x" / "y" pour sa propre position)."""
 import copy
 import ctypes
+import math
+import os
+import shutil
 import datetime
 import tkinter as tk
 import uuid
@@ -14,7 +17,8 @@ from tkinter import font as tkfont
 from ctypes import wintypes
 
 from card_ui import derive_palette, fnum
-from ha_core import STATE_TEXT, card_light, card_palette, mix_color, save_config
+from ha_core import (ACTIVE_STATES, CONFIG_DIR, ICONS, STATE_TEXT, card_light, card_palette, mix_color, resolve_icon,
+                     save_config)
 from history import as_float
 
 user32 = ctypes.windll.user32
@@ -160,6 +164,44 @@ class DesktopWidget:
         txt = fnum(v) if abs(v) >= 100 or v == int(v) else fnum(v, 1)
         return "%s %s" % (txt, unit) if unit else txt
 
+    def draw_badge(self, cv, x, y, c):
+        """Logo (image) ou icone du widget, a gauche du titre. Renvoie la largeur occupee."""
+        size = self.s(18)
+        name = self.w.get("image")
+        if name:
+            img = self.logo(name, size)
+            if img is not None:
+                cv.create_image(x, y - self.s(1), image=img, anchor="nw")
+                return img.width() + self.s(6)
+        icon = self.w.get("icon") or "auto"
+        font = self.app.icon_font
+        ents = self.w.get("entities") or []
+        if icon == "none" or not font or not ents:
+            return 0
+        st = self.app.last_states.get(ents[0])
+        glyph = resolve_icon({"entity_id": ents[0], "icon": icon}, st)
+        if not glyph:
+            return 0
+        on = bool(st) and st.get("state") in ACTIVE_STATES and not ents[0].startswith("sensor.")
+        cv.create_text(x, y + self.s(1), text=glyph, anchor="nw", fill=c["accent"] if on else c["dim"],
+                       font=(font, 12))
+        return self.s(22)
+
+    def logo(self, name, size):
+        """Image du dossier images/ des reglages, reduite a environ `size` pixels (PNG ou GIF)."""
+        key = (name, size)
+        if getattr(self, "_logo_key", None) == key:
+            return self._logo
+        self._logo_key, self._logo = key, None
+        path = os.path.join(CONFIG_DIR, "images", os.path.basename(name))
+        try:
+            img = tk.PhotoImage(master=self.win, file=path)
+            f = max(1, math.ceil(max(img.width(), img.height()) / float(size)))
+            self._logo = img.subsample(f, f) if f > 1 else img
+        except (tk.TclError, OSError):
+            self._logo = None
+        return self._logo
+
     def color(self, i, c):
         k = SERIES[i % len(SERIES)]
         return c[k] if k in c else k
@@ -185,7 +227,8 @@ class DesktopWidget:
         x0, x1 = pad, W - pad
         y = pad
         title = w.get("title") or (self.name(ents[0]) if single else "Capteurs")
-        cv.create_text(x0, y, text=title[:40], anchor="nw", fill=c["fg"], font=(fam, 10, "bold"))
+        tx0 = x0 + self.draw_badge(cv, x0, y, c)
+        cv.create_text(tx0, y, text=title[:40], anchor="nw", fill=c["fg"], font=(fam, 10, "bold"))
         if not value_style:
             cv.create_text(x1, y + self.s(2), text=period_label(hours), anchor="ne", fill=c["dim"], font=(fam, 8))
         if self.app.offline:
@@ -336,6 +379,26 @@ class WidgetManager:
         self._save()
         self.sync()
 
+    def choose_logo(self, wid):
+        """Copie une image choisie dans le dossier images/ des reglages et l'utilise comme logo."""
+        from tkinter import filedialog, messagebox
+        path = filedialog.askopenfilename(parent=self.app.root, title="Logo du widget",
+                                          filetypes=[("Images", "*.png *.gif"), ("Tous les fichiers", "*")])
+        if not path:
+            return
+        try:
+            tk.PhotoImage(master=self.app.root, file=path)          # lisible par Tk ?
+            folder = os.path.join(CONFIG_DIR, "images")
+            os.makedirs(folder, exist_ok=True)
+            ext = os.path.splitext(path)[1].lower() or ".png"
+            name = uuid.uuid4().hex[:8] + ext
+            shutil.copyfile(path, os.path.join(folder, name))
+        except (tk.TclError, OSError) as e:
+            messagebox.showerror("HA Taskbar", "Image illisible : %s\n(formats acceptés : PNG et GIF)" % e,
+                                 parent=self.app.root)
+            return
+        self.edit(wid, lambda w: w.update(image=name))
+
     def remove(self, wid):
         self.app.cfg["widgets"] = [w for w in self.config() if w.get("id") != wid]
         self._save()
@@ -392,6 +455,20 @@ class WidgetManager:
             sub.add_radiobutton(label=label, value=s, variable=var(tk.StringVar, w.get("style") or "graph"),
                                 command=lambda s=s: self.edit(wid, lambda w: w.update(style=s)))
         m.add_cascade(label="Affichage", menu=sub)
+        sub = tk.Menu(m, tearoff=0)
+        cur = w.get("icon") or "auto"
+        icon_var = var(tk.StringVar, cur)
+        sub.add_radiobutton(label="Automatique (celle du capteur)", value="auto", variable=icon_var,
+                            command=lambda: self.edit(wid, lambda w: w.pop("icon", None)))
+        sub.add_radiobutton(label="Aucune", value="none", variable=icon_var,
+                            command=lambda: self.edit(wid, lambda w: w.update(icon="none")))
+        for n, (key, (_g, label)) in enumerate(ICONS.items()):
+            sub.add_radiobutton(label=label, value=key, variable=icon_var, columnbreak=(n % 30 == 0),
+                                command=lambda key=key: self.edit(wid, lambda w: w.update(icon=key)))
+        m.add_cascade(label="Icône", menu=sub)
+        m.add_command(label="Choisir un logo (image PNG ou GIF)…", command=lambda: self.choose_logo(wid))
+        if w.get("image"):
+            m.add_command(label="Retirer le logo", command=lambda: self.edit(wid, lambda w: w.pop("image", None)))
         m.add_checkbutton(label="Toujours au premier plan", variable=var(tk.BooleanVar, bool(w.get("on_top"))),
                           command=lambda: self.edit(wid, lambda w: w.update(on_top=not w.get("on_top"))))
         others = [(e, n) for e, n in self.numeric_entities() if e not in w.get("entities", [])]
