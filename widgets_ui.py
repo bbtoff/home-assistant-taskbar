@@ -10,6 +10,7 @@ import ctypes
 import datetime
 import tkinter as tk
 import uuid
+from tkinter import font as tkfont
 from ctypes import wintypes
 
 from card_ui import derive_palette, fnum
@@ -26,7 +27,7 @@ SWP_FLAGS = 0x0001 | 0x0002 | 0x0010          # NOSIZE | NOMOVE | NOACTIVATE
 
 SIZES = {"small": (220, 140, 110), "medium": (300, 185, 130), "large": (420, 250, 170)}   # l, h, h (valeur)
 PERIODS = [("24 heures", 24), ("7 jours", 168), ("30 jours", 720)]
-SERIES = ["accent", "#f7630c", "#16c60c", "#e3008c", "#b146c2", "#00b7c3"]
+SERIES = ["accent", "#3a96dd", "#16c60c", "#e3008c", "#b146c2", "#f7630c"]
 
 
 def period_label(h):
@@ -192,8 +193,9 @@ class DesktopWidget:
         y += self.s(20)
         if single:
             big = 30 if value_style and w.get("size") == "large" else 24 if value_style else 17
-            cv.create_text(x0, y, text=self.value(ents[0]), anchor="nw", fill=c["fg"], font=(fam, big))
-            y += self.s(big * (1.35 if value_style else 1.6))
+            f = tkfont.Font(root=self.app.root, family=fam, size=big)
+            cv.create_text(x0, y, text=self.value(ents[0]), anchor="nw", fill=c["fg"], font=f)
+            y += f.metrics("linespace") + self.s(4)
         else:
             for i, e in enumerate(ents[:6]):
                 cv.create_oval(x0, y + self.s(5), x0 + self.s(7), y + self.s(12), fill=self.color(i, c), outline="")

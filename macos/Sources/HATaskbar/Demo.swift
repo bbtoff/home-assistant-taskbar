@@ -169,6 +169,16 @@ enum Demo {
             }
             out.append((t, String(format: "%.1f", v)))
         }
+        // Les derniers points rejoignent la valeur actuelle (pas de saut au bout de la courbe)
+        if let end = states[entityId].flatMap({ Double($0.state) }) {
+            let k = 12
+            for j in 0..<k {
+                let i = n - k + j
+                let t = Double(j + 1) / Double(k)
+                let v = (Double(out[i].1) ?? end) * (1 - t) + end * t
+                out[i] = (out[i].0, String(format: "%.1f", v))
+            }
+        }
         return out
     }
 

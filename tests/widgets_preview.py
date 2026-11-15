@@ -17,8 +17,15 @@ OUT = sys.argv[1] if len(sys.argv) > 1 else "."
 NOW = datetime.datetime.now(datetime.timezone.utc)
 
 
-def series(fn, hours=24, n=160):
-    return [(NOW - datetime.timedelta(hours=hours * (n - i) / n), fn(i / n * hours)) for i in range(n)]
+def series(fn, end, hours=24, n=160):
+    """Serie fictive dont les derniers points rejoignent la valeur actuelle `end`."""
+    pts = [(NOW - datetime.timedelta(hours=hours * (n - i) / n), fn(i / n * hours)) for i in range(n)]
+    k = 12
+    for j in range(k):
+        i = n - k + j
+        t = (j + 1) / k
+        pts[i] = (pts[i][0], pts[i][1] * (1 - t) + end * t)
+    return pts
 
 
 class FakeApp:
@@ -58,10 +65,10 @@ class FakeApp:
         self.history = HistoryCache(self)
         h = self.history
         h.series[("sensor.consommation", 24)] = series(
-            lambda t: 380 + 1300 * (math.exp(-(t - 12.5) ** 2 / 2) + 1.4 * math.exp(-(t - 19.5) ** 2 / 3)))
-        h.series[("sensor.temperature_exterieure", 24)] = series(lambda t: 7 + 4 * math.sin(t / 24 * 6.28 - 2.2))
-        h.series[("sensor.temperature_chambre", 24)] = series(lambda t: 19 + 1.2 * math.sin(t / 24 * 6.28 - 2.8))
-        h.series[("sensor.humidite_salle_de_bain", 24)] = series(lambda t: 55 + 8 * math.sin(t / 24 * 6.28))
+            lambda t: 380 + 1300 * (math.exp(-(t - 12.5) ** 2 / 2) + 1.4 * math.exp(-(t - 19.5) ** 2 / 3)), 1240)
+        h.series[("sensor.temperature_exterieure", 24)] = series(lambda t: 7 + 4 * math.sin(t / 24 * 6.28 - 2.2), 8.4)
+        h.series[("sensor.temperature_chambre", 24)] = series(lambda t: 19 + 1.2 * math.sin(t / 24 * 6.28 - 2.8), 19.2)
+        h.series[("sensor.humidite_salle_de_bain", 24)] = series(lambda t: 55 + 8 * math.sin(t / 24 * 6.28), 62)
         for k in list(h.series):
             h.fetched[k] = time.monotonic()
 
