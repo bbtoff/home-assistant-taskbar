@@ -37,6 +37,8 @@ class FakeApp:
             {"id": "w3", "entities": ["sensor.humidite_salle_de_bain"], "style": "value", "size": "small",
              "win_x": 380, "win_y": 40},
         ]
+        for w in self.cfg["widgets"]:
+            w["on_top"] = True            # au premier plan : la console du test ne les cache pas
         self.light = light
         self.colors = ha_core.bar_colors(self.cfg, light)
         self.offline = False
@@ -90,7 +92,12 @@ def main():
         ok = ok and n == 3 and drawn
         try:
             from PIL import ImageGrab
-            ImageGrab.grab(bbox=(0, 0, 900, 560)).save(os.path.join(OUT, "widgets-windows-%s.png"
+            ws = [dw.win for dw in mgr.widgets.values()]
+            pad = 24
+            box = (min(w.winfo_rootx() for w in ws) - pad, min(w.winfo_rooty() for w in ws) - pad,
+                   max(w.winfo_rootx() + w.winfo_width() for w in ws) + pad,
+                   max(w.winfo_rooty() + w.winfo_height() for w in ws) + pad)
+            ImageGrab.grab(bbox=box).save(os.path.join(OUT, "widgets-windows-%s.png"
                                                                     % ("clair" if light else "sombre")))
         except Exception as e:
             print("capture impossible :", e)
