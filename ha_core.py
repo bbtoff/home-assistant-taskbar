@@ -14,7 +14,7 @@ from anim_icons import ANIM_ICONS
 import i18n
 from i18n import _
 
-__version__ = "1.9.1"
+__version__ = "1.10.0"
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 # Version installee (exe PyInstaller) : la config va dans %APPDATA%\HATaskbar,

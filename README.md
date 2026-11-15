@@ -35,9 +35,6 @@ Un **programme d'installation** et une **version portable** (sans installation) 
 - 📖 **README en anglais** : [README.en.md](README.en.md), avec ses propres captures.
 - 🧪 Nouvelle section **[Exemples de configuration](#-exemples-de-configuration)** : couleurs selon la valeur prêtes à copier (température, CO₂, consommation, prix de l'électricité…) et recettes pour les options des éléments.
 - Le programme d'installation et la version portable sont aussi en anglais sur un Windows anglais.
-
-## ✨ Nouveautés de la version 1.9.1
-
 - 🖼️ **Icône ou logo dans les widgets** : l'icône du capteur, une icône au choix, ou ta propre image (clic droit sur le widget → **Icône** / **Choisir un logo…** ; sur Mac aussi dans **Réglages → Widgets**).
 - 🍎 **80 icônes de plus sur Mac** (luminaires, électroménager, énergie, jardin, animaux…) et mini-graphique qui suit la couleur de la barre des menus.
 

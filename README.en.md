@@ -32,12 +32,13 @@ An **installer** and a **portable version** (no installation) are provided: noth
 
 ## ✨ What's new in 1.10
 
+- 🖼️ **Icon or logo in widgets**: the sensor's icon, an icon of your choice, or your own image (right-click a widget → **Icon** / **Choose a logo…**).
 - 🇬🇧 **HA Taskbar speaks English** (Windows version): the whole interface (bar, cards, palette, settings, widgets, notifications) is translated. The language follows Windows: French if Windows is in French, English otherwise. You can force it in **Settings → Connection → Language**.
 - 📖 **This README in English**, with its own screenshots.
 - 🧪 New **[Configuration examples](#-configuration-examples)** section: ready-to-copy color rules (temperature, CO₂, power, electricity price…) and recipes for item options.
 - The installer and the portable version are in English on an English Windows.
 
-## ✨ What's new in 1.9 and 1.9.1
+## ✨ What's new in 1.9
 
 **📊 Desktop widgets** (Windows and Mac): charts of your sensors, right on the desktop.
 
