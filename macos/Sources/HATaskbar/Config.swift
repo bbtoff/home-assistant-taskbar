@@ -121,10 +121,11 @@ struct NotifyRule: Codable, Identifiable, Equatable {
 
     enum CodingKeys: String, CodingKey { case entityId = "entity_id", to, message, camera }
 
-    init(entityId: String = "", to: String = "", message: String = "") {
+    init(entityId: String = "", to: String = "", message: String = "", camera: String? = nil) {
         self.entityId = entityId
         self.to = to
         self.message = message
+        self.camera = camera
     }
 
     init(from decoder: Decoder) throws {

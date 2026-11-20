@@ -290,8 +290,12 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     /// Carte d'un element quelconque (du panneau...), sous l'icone Maison (mode demonstration).
     func openCard(entity: String) {
-        guard let b = appItem?.button,
-              let item = model.config.items.first(where: { $0.entityId == entity }) else { return }
+        guard let b = appItem?.button else { return }
+        guard let item = model.config.items.first(where: { $0.entityId == entity }) else {
+            let base = model.config.haURL.trimmingCharacters(in: CharacterSet(charactersIn: "/ "))
+            if let u = URL(string: base + "/history?entity_id=" + entity) { NSWorkspace.shared.open(u) }
+            return
+        }
         let host = NSHostingController(rootView: CardView(model: model, itemId: item.id, edit: {}))
         host.sizingOptions = .preferredContentSize
         let p = NSPopover()

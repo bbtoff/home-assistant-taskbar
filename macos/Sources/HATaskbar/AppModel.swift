@@ -18,6 +18,8 @@ final class AppModel: ObservableObject {
     /// Appele apres chaque changement d'etat ou de configuration (barre des menus).
     var onStatesChanged: (() -> Void)?
     var onConfigChanged: (() -> Void)?
+    /// Fenetre camera (sonnette...) : camera, texte, forcee (bouton Tester).
+    var onCamera: ((String, String, Bool) -> Void)?
 
     private(set) var client: HAClient?
     private var realtime: Realtime?
@@ -381,13 +383,34 @@ final class AppModel: ObservableObject {
     }
 
     private func checkRules(_ eid: String, old: EntityState?, new: EntityState) {
-        guard old != nil else { return }
+        guard let old = old, !old.isUnavailable, !new.isUnavailable else { return }
         for r in config.notifications where r.entityId == eid {
-            if !r.to.isEmpty && r.to != new.state { continue }
-            let name = new.name
-            let msg = r.message.isEmpty ? "\(name) : \(translate(new.state, domain: new.domain))" : r.message
-            notify(name, msg)
+            if !r.to.isEmpty && r.to != new.state && r.to != translate(new.state, domain: new.domain) { continue }
+            let msg = ruleMessage(r, new)
+            notify(new.name, msg)
+            if let cam = r.camera { onCamera?(cam, msg, false) }
         }
+    }
+
+    /// Texte d'une regle : son message, ou « {name} : {state} ». Pour une sonnette (event, bouton),
+    /// l'etat est une date : seul le nom a du sens.
+    func ruleMessage(_ r: NotifyRule, _ st: EntityState) -> String {
+        let name = st.name
+        let unit = st.str("unit_of_measurement").map { " " + $0 } ?? ""
+        let state = translate(st.state, domain: st.domain) + unit
+        var text = r.message.trimmingCharacters(in: .whitespaces)
+        if text.isEmpty {
+            text = ["event", "button", "input_button"].contains(st.domain) ? "{name}" : "{name} : {state}"
+        }
+        return text.replacingOccurrences(of: "{name}", with: name).replacingOccurrences(of: "{state}", with: state)
+    }
+
+    /// Bouton « Tester » d'une regle : notification et fenetre camera, meme en pause.
+    func testRule(_ r: NotifyRule) {
+        let st = states[r.entityId] ?? EntityState(entityId: r.entityId, state: r.to.isEmpty ? "on" : r.to)
+        let msg = ruleMessage(r, st)
+        notify(st.name, msg, force: true)
+        if let cam = r.camera { onCamera?(cam, msg, true) }
     }
 
     func notify(_ title: String, _ body: String, force: Bool = false) {

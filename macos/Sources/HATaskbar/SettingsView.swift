@@ -504,23 +504,47 @@ struct NotificationsTab: View {
             }
             Section {
                 ForEach(model.config.notifications) { r in
-                    HStack {
-                        TextField("Entité", text: ruleBinding(r.id, \.entityId), prompt: Text("binary_sensor.porte"))
-                        TextField("Quand l'état devient", text: ruleBinding(r.id, \.to), prompt: Text("on (vide = tout)"))
-                            .frame(width: 150)
-                        TextField("Message", text: ruleBinding(r.id, \.message), prompt: Text("La porte est ouverte"))
-                        Button {
-                            model.update { $0.notifications.removeAll { $0.id == r.id } }
-                        } label: { Image(systemName: "trash") }
-                            .buttonStyle(.borderless)
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            TextField("Entité", text: ruleBinding(r.id, \.entityId), prompt: Text("binary_sensor.porte"))
+                            TextField("Quand l'état devient", text: ruleBinding(r.id, \.to), prompt: Text("on (vide = tout)"))
+                                .frame(width: 150)
+                            TextField("Message", text: ruleBinding(r.id, \.message), prompt: Text("{name} : {state}"))
+                            Button {
+                                model.update { $0.notifications.removeAll { $0.id == r.id } }
+                            } label: { Image(systemName: "trash") }
+                                .buttonStyle(.borderless)
+                        }
+                        .labelsHidden()
+                        HStack {
+                            Picker("Afficher la caméra", selection: Binding(
+                                get: { model.config.notifications.first { $0.id == r.id }?.camera ?? "" },
+                                set: { v in
+                                    model.update { c in
+                                        if let i = c.notifications.firstIndex(where: { $0.id == r.id }) {
+                                            c.notifications[i].camera = v.isEmpty ? nil : v
+                                        }
+                                    }
+                                })) {
+                                Text("(aucune)").tag("")
+                                ForEach(model.sortedEntities.filter { ["camera", "image"].contains($0.domain) },
+                                        id: \.entityId) { c in Text(c.name).tag(c.entityId) }
+                                if let c = r.camera, model.states[c] == nil { Text(c).tag(c) }
+                            }
+                            .frame(maxWidth: 320)
+                            Spacer()
+                            Button("Tester") { model.testRule(r) }
+                                .disabled(r.entityId.isEmpty)
+                        }
+                        .font(.callout)
                     }
-                    .labelsHidden()
+                    .padding(.vertical, 2)
                 }
                 Button("Ajouter une règle") { model.update { $0.notifications.append(NotifyRule()) } }
             } header: {
                 Text("Quand une entité change d'état")
             } footer: {
-                Text("Depuis une automatisation : déclenche l'événement « ha_taskbar_notify » avec les données title et message.")
+                Text("Message : {name} et {state} sont remplacés par le nom et l'état. Avec une caméra, une fenêtre s'ouvre en haut à droite avec l'image en direct (sonnette…) ; « Tester » l'ouvre même en pause. Depuis une automatisation : déclenche l'événement « ha_taskbar_notify » avec les données title et message.")
                     .foregroundStyle(.secondary)
             }
         }

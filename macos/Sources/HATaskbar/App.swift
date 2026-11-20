@@ -34,6 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     lazy var history = HistoryStore(model: model)
     lazy var widgets = WidgetController(model: model, history: history)
     lazy var panel = PanelController(model: model)
+    lazy var doorbell = DoorbellController(model: model)
     private var bar: StatusBarController?
     private var settingsWindow: NSWindow?
     private let notificationDelegate = NotificationDelegate()
@@ -54,6 +55,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if let id = id { self?.showSettings(item: id) } else { self?.showSettings() }
         }
         bar.onPanel = { [weak self] anchor in self?.panel.toggle(anchor: anchor) }
+        model.onCamera = { [weak self] cam, text, force in self?.doorbell.show(camera: cam, text: text, force: force) }
+        doorbell.openCard = { [weak self] cam in self?.bar?.openCard(entity: cam) }
         updater.onAvailable = { [weak self] r in self?.updater.ask(r) }
         bar.openSettings = { [weak self] id in self?.showSettings(item: id) }
         bar.openPicker = { [weak self] in self?.showSettings(picker: true) }
@@ -116,6 +119,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             if let e = Demo.arg("--demo-card-entity"), !e.isEmpty {
                 bar?.openCard(entity: e)
+            }
+            if Demo.arg("--demo-doorbell") != nil {
+                model.testRule(NotifyRule(entityId: "binary_sensor.sonnette", to: "on", message: "On sonne à la porte",
+                                          camera: "camera.entree"))
             }
             if Demo.arg("--demo-panel") != nil {
                 bar?.openPanel()
