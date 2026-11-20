@@ -802,4 +802,90 @@ EN = {
     "Retirer un capteur": "Remove a sensor",
     "Remettre en haut à droite": "Move back to the top right",
     "Masquer": "Hide",
+    # ------------------------------------------------------------------ camera, icones de Windows
+    "Masqués pour ne pas recouvrir les icônes de Windows": "Hidden so they don't cover the Windows icons",
+    "Ne pas recouvrir les icônes de Windows (bouton « +N »)": "Don't cover the Windows icons (“+N” button)",
+    "Chargement de l'image…": "Loading the image…",
+    "Image indisponible : %s": "Image unavailable: %s",
+    "Caméra dans\nla carte": "Camera in\nthe card",
+    "Image en direct en haut de la carte (appui long) : la caméra de l'entrée pour une sonnette ou un portail, "
+    "par exemple.":
+        "Live image at the top of the card (long press): the front door camera for a doorbell or a gate, "
+        "for example.",
+    "enregistre": "recording",
+    "en direct": "streaming",
+    # ------------------------------------------------------------------ panneau, icone de la zone de notification
+    "Ranger dans le panneau": "Move to the panel",
+    "Panneau": "Panel",
+    "Toujours afficher l'icône de HA Taskbar près de l'horloge": "Always show the HA Taskbar icon next to the clock",
+    "Sinon, Windows la range dans la flèche « ^ » de la zone de notification.":
+        "Otherwise Windows tucks it away behind the “^” arrow of the notification area.",
+    "Panneau (un seul bouton sur la barre)": "Panel (a single button on the bar)",
+    "Titre": "Title",
+    "Valeur sur le bouton": "Value on the button",
+    "Bouton dans la zone": "Button in zone",
+    "Regrouper par pièce": "Group by area",
+    "Range un élément dans le panneau avec Éléments → Zone → Panneau, ou clic droit sur l'élément → Ranger dans "
+    "le panneau. Le bouton n'apparaît que si le panneau contient quelque chose. Dans le panneau : clic pour "
+    "l'action, molette pour régler, appui long pour la carte.":
+        "Put an item in the panel with Items → Zone → Panel, or right-click the item → Move to the panel. The "
+        "button only shows when the panel has something in it. In the panel: click for the action, wheel to "
+        "adjust, long press for the card.",
+    "(aucune) — seulement le titre": "(none) — title only",
+    "Autres": "Other",
+    "Mettre sur la barre (zone gauche)": "Put on the bar (left zone)",
+    "Mettre sur la barre (zone droite)": "Put on the bar (right zone)",
+    "Aucun élément ne correspond.": "No matching item.",
+    "Le panneau est vide.": "The panel is empty.",
+    "Caméra indisponible dans Home Assistant": "Camera unavailable in Home Assistant",
+    "Réglages": "Settings",
+    "%s pile(s) faible(s)": "%s low batter(ies)",
+    "Home Assistant hors ligne": "Home Assistant offline",
+    "En direct": "Live",
+    "Connecté": "Connected",
+    "%d allumé(s)": "%d on",
+    "Barre — zone gauche": "Bar — left zone",
+    "Barre — zone droite": "Bar — right zone",
+    "(vide — fais glisser un élément ici)": "(empty — drag an item here)",
+    "Ouvrir le panneau": "Open the panel",
+    "Le panneau est vide : range d'abord un élément dans la partie « Panneau » de l'onglet Éléments.":
+        "The panel is empty: first put an item in the “Panel” part of the Items tab.",
+    # ------------------------------------------------------------------ 1.11 : minuteurs, Assist, sonnette, ecrans
+    "Démarrer pour": "Start for",
+    "Minuteur arrêté": "Timer stopped",
+    "Terminer": "Finish",
+    "Minuteur en cours": "Timer running",
+    "Minuteur en pause": "Timer paused",
+    "Reprendre": "Resume",
+    "Garder ouverte": "Keep open",
+    "se ferme dans %d s": "closes in %d s",
+    "Assist réfléchit…": "Assist is thinking…",
+    "Demander à Assist : « %s »": "Ask Assist: “%s”",
+    "Assist n'est pas disponible dans ce Home Assistant.": "Assist is not available on this Home Assistant.",
+    "Entrée : action  ·  ← → : régler  ·  Tab : carte  ·  Ctrl+Entrée : Assist  ·  Échap : fermer":
+        "Enter: action  ·  ← →: adjust  ·  Tab: card  ·  Ctrl+Enter: Assist  ·  Esc: close",
+    "Assist ne répond pas : %s": "Assist is not responding: %s",
+    "Fait.": "Done.",
+    "Assist n'a pas compris.": "Assist did not understand.",
+    "Ctrl+Entrée": "Ctrl+Enter",
+    "(barre principale)": "(main taskbar)",
+    "Avec plusieurs écrans : la barre des tâches où afficher l'élément. Si cet écran est débranché, l'élément "
+    "revient sur la barre principale.":
+        "With several screens: the taskbar that shows the item. If that screen is unplugged, the item goes back "
+        "to the main taskbar.",
+    "Une fenêtre s'ouvre en bas à droite avec l'image en direct (par exemple quand on sonne). Elle se ferme "
+    "seule après une minute ; un clic sur l'image ouvre la carte.":
+        "A window opens at the bottom right with the live picture (for example when someone rings). It closes "
+        "by itself after a minute; click the picture to open the card.",
+    "Écran %s (débranché)": "Screen %s (unplugged)",
+    "  · écran %s": "  · screen %s",
+    "   + caméra": "   + camera",
+    "Afficher la caméra": "Show camera",
+    "Entité inconnue dans Home Assistant. Tu voulais dire « %s » (%s) ? Clique ici pour la prendre.":
+        "Unknown entity in Home Assistant. Did you mean “%s” (%s)? Click here to use it.",
+    "Entité inconnue dans Home Assistant. Tape une partie de son nom pour la retrouver.":
+        "Unknown entity in Home Assistant. Type part of its name to find it.",
+    "Taille du panneau par défaut": "Default panel size",
+    "Tape quelques lettres du nom, de la pièce ou de l'entité.":
+        "Type a few letters of the name, the room or the entity.",
 }

@@ -14,7 +14,7 @@ from anim_icons import ANIM_ICONS
 import i18n
 from i18n import _
 
-__version__ = "1.10.0"
+__version__ = "1.11.0"
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 # Version installee (exe PyInstaller) : la config va dans %APPDATA%\HATaskbar,
@@ -74,6 +74,13 @@ DEFAULT_CONFIG = {
     "tooltips": True,                # infobulle au survol (etat, mini-courbe)
     "flash_changes": True,           # une valeur qui change brille un instant
     "battery_low": 20,               # seuil des piles faibles (%) pour l'element "@batteries"
+    "avoid_overlap": True,           # ne pas recouvrir les boutons de Windows (elements en trop -> « +N »)
+    "tray_always_visible": True,     # icone toujours visible pres de l'horloge (pas rangee dans « ^ »)
+    "panel_title": "",               # panneau : titre ("" = « Maison »)
+    "panel_value": "",               # panneau : entite dont la valeur s'affiche sur le bouton
+    "panel_zone": "right",           # panneau : zone de la barre ou se trouve le bouton
+    "panel_by_area": True,           # panneau : elements regroupes par piece
+    "panel_opacity": 1.0,            # panneau : opacite (0,5 a 1)
     "language": "auto",              # langue de l'interface : "auto" (celle de Windows), "fr" ou "en"
     "items": [],
 }
@@ -183,7 +190,50 @@ def migrate_zones(cfg, data):
 
 
 def item_zone(it):
-    return "right" if it.get("zone") == "right" else "left"
+    """"left", "right" ou "panel" (dans le panneau qui s'ouvre depuis le bouton de la barre)."""
+    z = it.get("zone")
+    return z if z in ("right", "panel") else "left"
+
+
+PANEL = "@panel"          # bouton du panneau sans valeur affichee
+
+
+def set_tray_visible(visible, exe_path, tip_prefix="HA Taskbar"):
+    """Windows 11 range les nouvelles icones dans la fleche « ^ ». Il garde ce choix dans
+    HKCU / Control Panel / NotifyIconSettings (une cle par icone, valeur IsPromoted) et l'applique tout de
+    suite. Renvoie le nombre d'icones reglees (0 si Windows ne l'a pas encore enregistree)."""
+    import winreg
+    base = r"Control Panel\NotifyIconSettings"
+    done = 0
+    try:
+        root = winreg.OpenKey(winreg.HKEY_CURRENT_USER, base)
+    except OSError:
+        return 0
+    with root:
+        i = 0
+        while True:
+            try:
+                name = winreg.EnumKey(root, i)
+            except OSError:
+                break
+            i += 1
+            try:
+                with winreg.OpenKey(root, name, 0, winreg.KEY_READ | winreg.KEY_SET_VALUE) as k:
+                    exe = winreg.QueryValueEx(k, "ExecutablePath")[0]
+                    try:
+                        tip = winreg.QueryValueEx(k, "InitialTooltip")[0]
+                    except OSError:
+                        tip = ""
+                    if os.path.normcase(exe) != os.path.normcase(exe_path):
+                        continue
+                    # depuis les sources, python.exe porte aussi les icones d'autres programmes
+                    if not FROZEN and not str(tip).startswith(tip_prefix):
+                        continue
+                    winreg.SetValueEx(k, "IsPromoted", 0, winreg.REG_DWORD, 1 if visible else 0)
+                    done += 1
+            except OSError:
+                continue
+    return done
 
 
 # --------------------------------------------------------------------------- themes clair / sombre
@@ -323,11 +373,70 @@ def needs_setup(cfg):
 
 
 # --------------------------------------------------------------------------- etats
-ACTIVE_STATES = {"on", "open", "opening", "playing", "home", "unlocked", "heat", "cool", "heat_cool", "auto"}
+ACTIVE_STATES = {"on", "open", "opening", "playing", "home", "unlocked", "heat", "cool", "heat_cool", "auto",
+                 "active"}
 STATE_TEXT = {"on": "ON", "off": "OFF", "unavailable": _("indispo"), "unknown": "?",
               "open": _("ouvert"), "closed": _("fermé"), "playing": _("lecture"), "paused": _("pause"),
               "idle": _("inactif"), "home": _("présent"), "not_home": _("absent"),
-              "locked": _("fermé"), "unlocked": _("ouvert")}
+              "locked": _("fermé"), "unlocked": _("ouvert"), "recording": _("enregistre"),
+              "streaming": _("en direct"), "active": _("en cours")}
+
+
+# --------------------------------------------------------------------------- minuteurs (timer.*)
+def _hms(text):
+    """'0:04:12' (ou '1 day, 0:04:12') -> secondes."""
+    try:
+        days = 0
+        if "day" in str(text):
+            d, text = str(text).split(",", 1)
+            days = int(d.split()[0])
+        parts = [float(x) for x in str(text).strip().split(":")]
+        while len(parts) < 3:
+            parts.insert(0, 0.0)
+        return days * 86400 + parts[0] * 3600 + parts[1] * 60 + parts[2]
+    except (TypeError, ValueError):
+        return None
+
+
+def timer_remaining(st, now=None):
+    """Secondes restantes d'un minuteur Home Assistant (actif : d'apres finishes_at, en pause : remaining,
+    inactif : sa duree). None si inconnu."""
+    if not st:
+        return None
+    a = st.get("attributes", {})
+    if st.get("state") == "active" and a.get("finishes_at"):
+        try:
+            end = datetime.datetime.fromisoformat(str(a["finishes_at"]).replace("Z", "+00:00"))
+            now = now or datetime.datetime.now(datetime.timezone.utc)
+            return max(0.0, (end - now).total_seconds())
+        except ValueError:
+            pass
+    if st.get("state") in ("active", "paused") and a.get("remaining"):
+        return _hms(a["remaining"])
+    return _hms(a.get("duration")) if a.get("duration") else None
+
+
+PICTURE_SKIP = ("camera", "image")          # deja montres en grand (apercu camera)
+
+
+def picture_of(st):
+    """Adresse de l'image d'une entite (photo d'une personne, pochette du titre en cours...), ou None."""
+    if not st or st.get("state") in ("unavailable", "unknown"):
+        return None
+    if st.get("entity_id", "").split(".", 1)[0] in PICTURE_SKIP:
+        return None
+    a = st.get("attributes", {})
+    if st.get("entity_id", "").startswith("media_player.") and st.get("state") in ("off", "idle", "standby"):
+        return None
+    return a.get("entity_picture_local") or a.get("entity_picture") or None
+
+
+def fmt_hms(sec):
+    """Compte a rebours : 4:05, 1:04:05."""
+    sec = int(round(sec or 0))
+    h, rest = divmod(sec, 3600)
+    m, s = divmod(rest, 60)
+    return "%d:%02d:%02d" % (h, m, s) if h else "%d:%02d" % (m, s)
 
 
 # --------------------------------------------------------------------------- actions
@@ -337,6 +446,7 @@ DEFAULT_ACTIONS = {
     "cover": "toggle", "automation": "toggle", "media_player": "media_play_pause",
     "script": "turn_on", "scene": "turn_on",
     "button": "press", "input_button": "press",
+    "timer": "start",                       # en cours : met en pause (voir App.click_item)
 }
 
 
@@ -720,6 +830,19 @@ def value_glyph(item, st, key):
     return None
 
 
+CAMERA_DOMAINS = ("camera", "image")
+CAMERA_REFRESH_S = 2.0        # apercu d'une camera : une image toutes les 2 s
+
+
+def camera_of(item):
+    """Camera a montrer dans la carte d'un element : la sienne (camera.*, image.*), ou celle choisie dans
+    ses options ("camera"). None sinon."""
+    eid = item.get("entity_id", "")
+    if eid.split(".", 1)[0] in CAMERA_DOMAINS:
+        return eid
+    return item.get("camera") or None
+
+
 def auto_icon(entity_id, st):
     """Icone par defaut selon le domaine / device_class / unite de l'entite."""
     if entity_id == BATTERIES:
@@ -838,6 +961,16 @@ class HomeAssistant:
     def config(self):
         return self._request("GET", "/api/config")
 
+    def converse(self, text, conversation_id=None, timeout=30):
+        """Phrase envoyee a Assist (comme a la voix) -> (reponse, erreur ?, conversation_id)."""
+        body = {"text": text}
+        if conversation_id:
+            body["conversation_id"] = conversation_id
+        r = self._request("POST", "/api/conversation/process", body, timeout=timeout) or {}
+        resp = r.get("response") or {}
+        speech = ((resp.get("speech") or {}).get("plain") or {}).get("speech") or ""
+        return speech, resp.get("response_type") == "error", r.get("conversation_id")
+
     def states(self):
         return {s["entity_id"]: s for s in self._request("GET", "/api/states")}
 
@@ -873,6 +1006,30 @@ class HomeAssistant:
                                               "Content-Type": "application/json"})
         with urllib.request.urlopen(req, timeout=timeout, context=self.ctx) as resp:
             return resp.read().decode("utf-8", "replace")
+
+    def camera_image(self, entity_id, timeout=10):
+        """Image actuelle d'une camera (camera.*) ou d'une entite image (image.*), en octets (JPEG le plus
+        souvent)."""
+        kind = "image_proxy" if entity_id.startswith("image.") else "camera_proxy"
+        req = urllib.request.Request("%s/api/%s/%s" % (self.url, kind, urllib.parse.quote(entity_id)),
+                                     headers={"Authorization": "Bearer " + self.token})
+        with urllib.request.urlopen(req, timeout=timeout, context=self.ctx) as resp:
+            return resp.read()
+
+    def picture(self, path, timeout=10):
+        """Photo d'une personne, pochette d'un lecteur... (attribut entity_picture) en octets. Un chemin
+        relatif est lu sur Home Assistant avec le jeton ; une adresse externe sans le jeton."""
+        if path.startswith("/"):
+            url, headers = self.url + path, {"Authorization": "Bearer " + self.token}
+        elif path.startswith(self.url + "/"):
+            url, headers = path, {"Authorization": "Bearer " + self.token}
+        elif path.startswith(("http://", "https://")):
+            url, headers = path, {"User-Agent": "HA-Taskbar"}
+        else:
+            raise ValueError("adresse d'image inconnue")
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=timeout, context=self.ctx) as resp:
+            return resp.read(8 * 1024 * 1024)
 
     def forecast(self, entity_id, kind="daily"):
         """Previsions meteo (service weather.get_forecasts, Home Assistant 2023.9+)."""

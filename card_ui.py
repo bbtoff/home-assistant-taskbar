@@ -16,6 +16,7 @@ from ha_core import (ACTIVE_STATES, BATTERIES, ICONS, STATE_TEXT, WEATHER_ICON, 
                      card_light, card_palette, group_state, item_members, load_config, parse_time, resolve_icon,
                      resolve_service, save_config)
 from i18n import _, decimal_sep
+from ha_core import CAMERA_DOMAINS, CAMERA_REFRESH_S, camera_of, fmt_hms, picture_of, timer_remaining
 
 user32 = ctypes.windll.user32
 user32.GetAncestor.restype = wintypes.HWND
@@ -598,6 +599,7 @@ class Card:
         if self.want_history:
             threading.Thread(target=self._fetch_history, args=(app.ha, 24), daemon=True).start()
         if not self.is_group and self.domain not in ("scene", "script", "automation", "person", "zone", "sun",
+                                                     "camera", "image",
                                                      "weather") and self.eid != BATTERIES:
             threading.Thread(target=self._fetch_device, args=(app.ha,), daemon=True).start()
         self._tick_1s()
@@ -686,6 +688,9 @@ class Card:
             self.tog = Toggle(hdr, self, lambda on: self.call("%s.turn_%s" % (self.domain, "on" if on else "off")))
             self.tog.grid(row=0, column=2, rowspan=2, sticky="e")
 
+        self.cam_eid = camera_of(self.cfg)
+        if self.cam_eid:
+            self._b_camera_view()
         if self.is_group:
             sec = self.section(_("Membres du groupe"))
             for eid in self.members:
@@ -700,12 +705,13 @@ class Card:
                 self._b_value(a)
 
         if self.domain in TIMER_DOMAINS or self.is_group:
-            self._b_timer()
+            self._b_auto_off()
         # entites du meme appareil (remplie quand Home Assistant a repondu)
         self.dev_sec = tk.Frame(self.body, bg=c["bg"])
         self.dev_sec.pack(fill="x")
 
         self.want_history = (self.domain not in ACTION_DOMAINS and not self.is_group
+                             and self.domain not in CAMERA_DOMAINS
                              and self.domain != "weather" and self.eid != BATTERIES)
         if self.want_history:
             sec = self.section(top=16)
@@ -736,7 +742,7 @@ class Card:
         link.bind("<Button-1>", lambda e: self._open_ha())
 
     # -- arret programme
-    def _b_timer(self):
+    def _b_auto_off(self):
         sec = self.section(_("Arrêt programmé"))
         eid = self.eid
         info = tk.Label(sec, text="", bg=self.c["bg"], fg=self.c["accent"], font=self.f_text_b, anchor="w")
@@ -890,6 +896,59 @@ class Card:
         for e in shown:
             self._entity_row(self.dev_sec, e)
 
+    # -- minuteur Home Assistant (timer.*) : compte a rebours, commandes, durees rapides
+    def _b_timer(self, a):
+        s, c = self.s, self.c
+        sec = self.section(top=12)
+        big = tk.Label(sec, text="", bg=c["bg"], fg=c["fg"], font=self.f_big)
+        big.pack(anchor="w")
+        bar = tk.Canvas(sec, width=self.iw, height=s(8), bg=c["bg"], highlightthickness=0)
+        bar.pack(pady=(s(2), s(10)))
+        row = tk.Frame(sec, bg=c["bg"])
+        row.pack(fill="x")
+        w = (self.iw - 2 * s(8)) // 3
+        b_go = Btn(row, self, _("Démarrer"), width=w, primary=True)
+        b_go.pack(side="left")
+        Btn(row, self, _("Annuler"), width=w, command=lambda: self.call("timer.cancel")).pack(side="left", padx=(s(8), 0))
+        Btn(row, self, _("Terminer"), width=w, command=lambda: self.call("timer.finish")).pack(side="left", padx=(s(8), 0))
+        sec2 = self.section(_("Démarrer pour"))
+        Chips(sec2, self, [(m, _("%d min") % m if m < 60 else _("%d h") % (m // 60)) for m in (1, 5, 10, 15, 30, 60)],
+              lambda m: self.call("timer.start", duration="%02d:%02d:00" % divmod(m, 60)), "tdur").pack(anchor="w")
+
+        def upd(st=None):
+            st = st or self.state() or {}
+            state = st.get("state")
+            left = timer_remaining(st)
+            total = None
+            dur = st.get("attributes", {}).get("duration")
+            if dur:
+                total = timer_remaining({"state": "idle", "attributes": {"duration": dur}})
+            big.configure(text=fmt_hms(left) if left is not None else "—",
+                          fg=c["accent"] if state == "active" else (c["fg"] if state == "paused" else c["dim"]))
+            bar.delete("all")
+            y = s(4)
+            bar.create_line(s(4), y, self.iw - s(4), y, fill=c["track"], width=s(6), capstyle="round")
+            if state in ("active", "paused") and total and left is not None:
+                f = max(0.0, min(1.0, left / total))
+                if f > 0:
+                    bar.create_line(s(4), y, s(4) + (self.iw - s(8)) * f, y, fill=c["accent"], width=s(6),
+                                    capstyle="round")
+            if state == "active":
+                b_go.set(text=_("Pause"))
+                b_go.command = lambda: self.call("timer.pause")
+            else:
+                b_go.set(text=_("Reprendre") if state == "paused" else _("Démarrer"))
+                b_go.command = lambda: self.call("timer.start")
+        self.updaters.append(upd)
+
+        def tick():
+            if not self.alive:
+                return
+            if (self.state() or {}).get("state") == "active":
+                upd()
+            self.root.after(500, tick)
+        self.root.after(500, tick)
+
     # -- valeur en grand (capteurs, personnes, meteo...)
     def _b_value(self, a):
         sec = self.section(top=12)
@@ -914,6 +973,53 @@ class Card:
             big.configure(text=txt)
             unit.configure(text=u)
         self.updaters.append(upd)
+
+    # -- camera : image rafraichie toutes les 2 s tant que la carte est ouverte
+    def _b_camera(self, a):
+        pass                     # l'image est deja en haut de la carte (_b_camera_view)
+
+    def _b_image(self, a):
+        pass
+
+    def _b_camera_view(self):
+        c, s = self.c, self.s
+        sec = self.section(top=12)
+        self.cam_box = tk.Label(sec, text=_("Chargement de l'image…"), bg=c["surface"], fg=c["dim"],
+                                font=self.f_small, width=1, height=1)
+        self.cam_box.pack(fill="x", ipady=s(50))
+        self.cam_img = None
+        if self.cam_eid != self.eid:
+            st = self.app.last_states.get(self.cam_eid) or {}
+            name = st.get("attributes", {}).get("friendly_name") or self.cam_eid
+            tk.Label(sec, text=name, bg=c["bg"], fg=c["dim"], font=self.f_small, anchor="w").pack(
+                anchor="w", pady=(s(3), 0))
+        threading.Thread(target=self._fetch_camera, args=(self.app.ha, self.cam_eid), daemon=True).start()
+
+    def _fetch_camera(self, ha, eid):
+        import imaging
+        w = self.iw
+        while self.alive:
+            try:
+                png, _w, _h = imaging.to_png(ha.camera_image(eid), w, int(w * 0.75))
+                self.q.put(("cam", png))
+                delay = CAMERA_REFRESH_S
+            except Exception as e:
+                code = getattr(e, "code", None)
+                msg = _("Caméra indisponible dans Home Assistant") if code in (404, 500, 503)                     else str(getattr(e, "reason", e))
+                self.q.put(("cam_err", msg))
+                delay = 15.0 if code else 5.0
+            end = time.monotonic() + delay
+            while self.alive and time.monotonic() < end:
+                time.sleep(0.1)
+
+    def _show_camera(self, png):
+        try:
+            img = tk.PhotoImage(master=self.root, data=png)
+        except tk.TclError:
+            return
+        self.cam_img = img
+        self.cam_box.configure(image=img, text="", width=img.width(), height=img.height())
+        self.cam_box.pack_configure(ipady=0)
 
     # -- meteo : conditions actuelles et previsions
     def _b_weather(self, a):
@@ -1312,9 +1418,41 @@ class Card:
     def _b_media_player(self, a):
         c, s = self.c, self.s
         sec = self.section(top=12)
+        # pochette du titre en cours (coins arrondis), au-dessus du titre
+        art = tk.Label(sec, bg=c["bg"], bd=0)
+        self._art = {"url": None, "img": None}
+        side = min(self.iw, s(220))
+
+        def show_art(png, url):
+            if not self.alive or self._art["url"] != url:
+                return
+            if not png:
+                art.pack_forget()
+                return
+            try:
+                img = tk.PhotoImage(master=self.root, data=png)
+            except tk.TclError:
+                return
+            self._art["img"] = img
+            art.configure(image=img)
+            if not art.winfo_ismapped():
+                art.pack(pady=(0, s(10)), before=title)
+
+        def upd_art(st):
+            url = picture_of(st)
+            if url == self._art["url"]:
+                return
+            self._art["url"] = url
+            if not url:
+                art.pack_forget()
+                return
+            png = self.app.pictures.get(url, side, side, "rounded", lambda p, u=url: show_art(p, u))
+            if png is not None:
+                show_art(png, url)
         title = tk.Label(sec, text="", bg=c["bg"], fg=c["fg"], font=self.f_text_b, anchor="w",
                          wraplength=self.iw, justify="left")
         title.pack(anchor="w")
+        self.updaters.append(upd_art)
         artist = tk.Label(sec, text="", bg=c["bg"], fg=c["dim"], font=self.f_text, anchor="w")
         artist.pack(anchor="w")
         row = tk.Frame(sec, bg=c["bg"])
@@ -1575,12 +1713,41 @@ class Card:
             return _("En cours") if s == "on" else _("Script")
         if d in ("button", "input_button"):
             return _("Dernier appui ") + ago(s) if parse_time(s) else _("Bouton")
+        if d == "timer":
+            return {"active": _("Minuteur en cours"), "paused": _("Minuteur en pause")}.get(s, _("Minuteur arrêté"))
         if d == "weather":
             return WEATHER_TEXT.get(s, _("Météo"))
         if d in ("sensor", "binary_sensor", "weather", "sun", "person", "device_tracker"):
             return {"binary_sensor": _("Détecteur"), "weather": _("Météo"), "sun": _("Soleil"), "person": _("Personne"),
                     "device_tracker": _("Localisation")}.get(d, _("Capteur"))
         return STATE_TEXT.get(s, s)
+
+    def _header_picture(self, st):
+        """Photo d'une personne, logo d'une mise a jour... a la place de l'icone de l'en-tete
+        (la pochette d'un lecteur est montree en grand plus bas)."""
+        url = None if self.domain == "media_player" or self.is_group else picture_of(st)
+        if url == getattr(self, "_hpic_url", None):
+            if url and getattr(self, "_hpic", None) is not None:
+                self.h_icon.configure(image=self._hpic, text="")
+            return
+        self._hpic_url, self._hpic = url, None
+        if not url:
+            self.h_icon.configure(image="")
+            return
+        d = self.s(44)
+        shape = "circle" if self.domain in ("person", "device_tracker") else "rounded"
+
+        def show(png, u=url):
+            if not self.alive or u != self._hpic_url or not png:
+                return
+            try:
+                self._hpic = tk.PhotoImage(master=self.root, data=png)
+            except tk.TclError:
+                return
+            self.h_icon.configure(image=self._hpic, text="")
+        png = self.app.pictures.get(url, d, d, shape, show)
+        if png is not None:
+            show(png)
 
     def refresh(self):
         if not self.alive:
@@ -1596,6 +1763,7 @@ class Card:
                 "color_temp", "brightness", "onoff", "white"):
             icon_fg = rgb_hex(a["rgb_color"])
         self.h_icon.configure(text=resolve_icon(self.cfg, st) or "", fg=icon_fg)
+        self._header_picture(st)
         self.h_sub.configure(text=self.subtitle(st))
         if self.tog is not None and not self.held("toggle"):
             if self.is_group:
@@ -1754,6 +1922,12 @@ class Card:
                         self.chart.set_data(*data)
                 elif kind == "device":
                     self._build_device(data)
+                elif kind == "cam":
+                    self._show_camera(data)
+                elif kind == "cam_err":
+                    if self.cam_img is None:
+                        self.cam_box.configure(text=data[:90] if data.startswith(_("Caméra")) else
+                                               _("Image indisponible : %s") % data[:80])
                 elif kind == "forecast":
                     self._build_forecast(data[1], data[0] or "daily")
                 elif data[1] == self.hist_hours:

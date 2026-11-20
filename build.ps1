@@ -69,7 +69,7 @@ Write-Host "== PyInstaller"
     --add-data "$here\sv_ttk;sv_ttk" `
     --hidden-import settings_ui --hidden-import card_ui --hidden-import update_ui --hidden-import ui_theme --hidden-import tray --hidden-import screens `
     --hidden-import ha_ws --hidden-import palette --hidden-import tooltip_ui --hidden-import widgets_ui --hidden-import history `
-    --hidden-import i18n --hidden-import i18n_en `
+    --hidden-import i18n --hidden-import i18n_en --hidden-import imaging --hidden-import taskbar_uia --hidden-import panel_ui --hidden-import pictures --hidden-import doorbell_ui --hidden-import autocomplete `
     --distpath "$BuildRoot\dist" --workpath "$BuildRoot\work" --specpath "$BuildRoot" `
     "$here\ha_taskbar.py"
 if ($LASTEXITCODE) { throw "PyInstaller a echoue" }

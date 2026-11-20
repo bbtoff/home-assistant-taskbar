@@ -135,3 +135,65 @@ class SideNav(ttk.Frame):
         self.title.configure(text=text)
         for i in range(len(self.rows)):
             self._paint(i)
+
+
+class ScrollFrame:
+    """Cadre qui defile a la molette quand son contenu est plus haut que la place disponible.
+    Utilisation : sf = ScrollFrame(parent, pal) ; construire le contenu dans sf.inner ; placer sf.outer."""
+
+    def __init__(self, parent, pal, padding=0):
+        self.outer = ttk.Frame(parent)
+        self.outer.columnconfigure(0, weight=1)
+        self.outer.rowconfigure(0, weight=1)
+        self.canvas = tk.Canvas(self.outer, highlightthickness=0, borderwidth=0, bg=pal["bg"])
+        self.bar = ttk.Scrollbar(self.outer, orient="vertical", command=self.canvas.yview)
+        self.canvas.configure(yscrollcommand=self.bar.set)
+        self.canvas.grid(row=0, column=0, sticky="nsew")
+        self.inner = ttk.Frame(self.canvas, padding=padding)
+        self.inner._scrollframe = self
+        self._win = self.canvas.create_window(0, 0, window=self.inner, anchor="nw")
+        self.inner.bind("<Configure>", lambda e: self._update())
+        self.canvas.bind("<Configure>", lambda e: (self.canvas.itemconfigure(self._win, width=e.width),
+                                                   self._update()))
+        # molette : liee a la fenetre (etiquette commune a tous ses widgets), disparait avec elle
+        self.outer.winfo_toplevel().bind("<MouseWheel>", self._wheel, add="+")
+
+    def _update(self):
+        self.canvas.configure(scrollregion=(0, 0, self.inner.winfo_reqwidth(), self.inner.winfo_reqheight()))
+        need = self.inner.winfo_reqheight() > self.canvas.winfo_height() > 1
+        if need and not self.bar.winfo_ismapped():
+            self.bar.grid(row=0, column=1, sticky="ns")
+        elif not need and self.bar.winfo_ismapped():
+            self.bar.grid_remove()
+            self.canvas.yview_moveto(0)
+
+    def _wheel(self, e):
+        try:
+            if not self.canvas.winfo_ismapped() or not self.bar.winfo_ismapped():
+                return
+            w = e.widget if isinstance(e.widget, tk.Misc) else None
+            if w is None or w.winfo_class() in ("Treeview", "Listbox", "Text", "TSpinbox", "TCombobox"):
+                return
+            x, y = self.canvas.winfo_pointerxy()
+            cx, cy = self.canvas.winfo_rootx(), self.canvas.winfo_rooty()
+            if cx <= x < cx + self.canvas.winfo_width() and cy <= y < cy + self.canvas.winfo_height():
+                self.canvas.yview_scroll(-1 if e.delta > 0 else 1, "units")
+        except (tk.TclError, KeyError):
+            pass
+
+
+def scroll_into_view(widget):
+    """Fait defiler le ScrollFrame qui contient `widget` pour le montrer."""
+    w = widget
+    while w is not None:
+        sf = getattr(w, "_scrollframe", None)
+        if sf is not None:
+            try:
+                sf.inner.update_idletasks()
+                y = widget.winfo_rooty() - sf.inner.winfo_rooty()
+                h = max(1, sf.inner.winfo_reqheight())
+                sf.canvas.yview_moveto(max(0.0, (y - 40) / float(h)))
+            except tk.TclError:
+                pass
+            return
+        w = w.master

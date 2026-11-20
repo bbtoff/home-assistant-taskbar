@@ -1,12 +1,14 @@
 """Palette de commandes (raccourci global, Ctrl+Alt+Espace par defaut) : recherche parmi toutes les
 entites de Home Assistant, Entree pour l'action, fleches gauche / droite ou molette pour regler."""
 import ctypes
+import queue
+import threading
 import tkinter as tk
 import unicodedata
 from ctypes import wintypes
 
 from card_ui import derive_palette, fnum
-from ha_core import (ACTIVE_STATES, STATE_TEXT, WEATHER_TEXT, card_light, card_palette, resolve_icon,
+from ha_core import (ACTIVE_STATES, ICONS, STATE_TEXT, WEATHER_TEXT, card_light, card_palette, resolve_icon,
                      resolve_service)
 from i18n import _
 
@@ -19,6 +21,7 @@ user32.GetWindowLongW.argtypes = [wintypes.HWND, ctypes.c_int]
 user32.SetWindowLongW.argtypes = [wintypes.HWND, ctypes.c_int, ctypes.c_long]
 
 ROWS = 8
+ASSIST = "@assist"       # ligne speciale : envoyer la phrase tapee a Assist
 # Domaines sans interet dans la palette
 SKIP_DOMAINS = {"persistent_notification", "zone", "conversation", "tts", "stt", "event", "image", "tag",
                 "update", "assist_satellite", "wake_word", "todo", "calendar", "ai_task"}
@@ -84,6 +87,8 @@ class Palette:
         self.sel = 0
         self.pending = {}
         self.alive = True
+        self.conv_id = None                       # Assist : la conversation continue tant que la palette est ouverte
+        self.assist_q = queue.Queue()
         light = card_light(app.cfg, getattr(app, "light", False))
         base, _r = card_palette(app.cfg, app.colors, light)
         c = self.c = derive_palette(base)
@@ -108,6 +113,13 @@ class Palette:
         self.entry = tk.Entry(top, textvariable=self.v, font=(fam, 13), relief="flat", bd=0, bg=c["surface"],
                               fg=c["fg"], insertbackground=c["fg"], width=40)
         self.entry.pack(side="left", fill="x", expand=True, padx=(s(10), 0))
+        # reponse d'Assist (cachee tant qu'il n'y en a pas)
+        self.answer = tk.Frame(body, bg=c["bg"], padx=s(8), pady=s(6))
+        self.ans_icon = tk.Label(self.answer, text=ICONS["message"][0], bg=c["bg"], fg=c["accent"], font=(ifont, 12))
+        self.ans_icon.pack(side="left", anchor="n")
+        self.ans_text = tk.Label(self.answer, text="", bg=c["bg"], fg=c["fg"], font=(fam, 10), anchor="w",
+                                 justify="left", wraplength=s(560))
+        self.ans_text.pack(side="left", fill="x", expand=True, padx=(s(8), 0))
         self.rows = []
         for i in range(ROWS):
             r = tk.Frame(body, bg=c["bg"], padx=s(8), pady=s(5), cursor="hand2")
@@ -127,7 +139,8 @@ class Palette:
                 w.bind("<Motion>", lambda e, i=i: self.hover(i))
             self.rows.append(ws)
         self.empty = tk.Label(body, text="", bg=c["bg"], fg=c["dim"], font=(fam, 9))
-        tk.Label(body, text=_("Entrée : action   ·   ← → ou molette : régler   ·   Tab : carte   ·   Échap : fermer"),
+        tk.Label(body, text=_("Entrée : action  ·  ← → : régler  ·  Tab : carte  ·  Ctrl+Entrée : Assist  ·  "
+                              "Échap : fermer"),
                  bg=c["bg"], fg=c["dim"], font=(fam, 8)).pack(anchor="w", pady=(s(8), 0), side="bottom")
 
         e = self.entry
@@ -136,6 +149,7 @@ class Palette:
         e.bind("<Next>", lambda ev: self.move(ROWS))
         e.bind("<Prior>", lambda ev: self.move(-ROWS))
         e.bind("<Return>", lambda ev: self.act())
+        e.bind("<Control-Return>", lambda ev: self.ask())
         e.bind("<KP_Enter>", lambda ev: self.act())
         e.bind("<Tab>", lambda ev: self.card())
         e.bind("<Left>", lambda ev: self.adjust(-1))
@@ -191,6 +205,14 @@ class Palette:
             out.append((-score, fn, eid, name, area))
         out.sort()
         self.results = [(eid, name, area) for _s, _f, eid, name, area in out[:ROWS]]
+        # une phrase (deux mots ou plus) : proposer de la demander a Assist, en tete si aucune entite ne correspond
+        text = self.v.get().strip()
+        if len(text.split()) >= 2:
+            row = (ASSIST, _("Demander à Assist : « %s »") % text, "")
+            if self.results:
+                self.results = self.results[:ROWS - 1] + [row]
+            else:
+                self.results = [row]
         self.total = len(out)
         self.sel = 0
         self.render()
@@ -203,8 +225,18 @@ class Palette:
         for i, (r, ic, nm, ar, val) in enumerate(self.rows):
             if i < len(self.results):
                 eid, name, area = self.results[i]
-                st = states.get(eid) or {}
                 bg = c["surface"] if i == self.sel else c["bg"]
+                if eid == ASSIST:
+                    for w in (r, ic, nm, ar, val):
+                        w.configure(bg=bg)
+                    ic.configure(text=ICONS["message"][0], fg=c["accent"])
+                    nm.configure(text=name[:70])
+                    ar.configure(text="")
+                    val.configure(text=_("Ctrl+Entrée") if i else "", fg=c["dim"])
+                    if not r.winfo_ismapped():
+                        r.pack(fill="x")
+                    continue
+                st = states.get(eid) or {}
                 cfg = self.on_bar.get(eid) or {"entity_id": eid}
                 on = st.get("state") in ACTIVE_STATES and not eid.startswith("sensor.")
                 for w in (r, ic, nm, ar, val):
@@ -247,6 +279,8 @@ class Palette:
 
     def act(self):
         eid, cfg = self.current()
+        if eid == ASSIST:
+            return self.ask()
         if eid is None:
             return "break"
         if eid.split(".", 1)[0] in ("climate", "water_heater", "number", "input_number", "select",
@@ -257,8 +291,57 @@ class Palette:
         self.app.click_item(cfg)
         return "break"
 
+    # ---------------- Assist
+    def ask(self):
+        """Envoie la phrase tapee a Assist ; la reponse s'affiche sous la zone de saisie."""
+        text = self.v.get().strip()
+        if not text or self.app.ha is None:
+            return "break"
+        self._show_answer(_("Assist réfléchit…"), dim=True)
+        self.entry.selection_range(0, "end")
+        threading.Thread(target=self._ask, args=(self.app.ha, text, self.conv_id), daemon=True).start()
+        self.win.after(100, self._poll_answer)
+        return "break"
+
+    def _ask(self, ha, text, conv_id):
+        try:
+            speech, err, conv = ha.converse(text, conv_id)
+            self.assist_q.put((speech or (_("Fait.") if not err else _("Assist n'a pas compris.")), err, conv))
+        except Exception as e:
+            code = getattr(e, "code", None)
+            msg = _("Assist n'est pas disponible dans ce Home Assistant.") if code == 404 else \
+                _("Assist ne répond pas : %s") % getattr(e, "reason", e)
+            self.assist_q.put((msg, True, conv_id))
+
+    def _poll_answer(self):
+        if not self.alive:
+            return
+        try:
+            speech, err, conv = self.assist_q.get_nowait()
+        except queue.Empty:
+            self.win.after(100, self._poll_answer)
+            return
+        self.conv_id = conv or self.conv_id
+        self._show_answer(speech, error=err)
+
+    def _show_answer(self, text, error=False, dim=False):
+        c = self.c
+        self.ans_text.configure(text=text, fg="#e5534b" if error else (c["dim"] if dim else c["fg"]))
+        if not self.answer.winfo_ismapped():
+            self.answer.pack(fill="x", pady=(self.s(6), 0), after=self.entry.master)
+        self._resize()
+
+    def _resize(self):
+        self.win.update_idletasks()
+        w = self.s(620)
+        h = self.win.winfo_reqheight()
+        mx, my, mw, mh = self.app.monitor_rect()
+        self.win.geometry("%dx%d+%d+%d" % (w, h, mx + (mw - w) // 2, my + mh // 4))
+
     def card(self):
         eid, cfg = self.current()
+        if eid == ASSIST:
+            return self.ask()
         if eid is not None:
             self.close()
             self.app.open_card(cfg)
@@ -266,7 +349,7 @@ class Palette:
 
     def adjust(self, d):
         eid, _cfg = self.current()
-        if eid is not None:
+        if eid is not None and eid != ASSIST:
             self.app.wheel(_Row(self, eid), d)
         return "break"
 

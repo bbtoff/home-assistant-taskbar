@@ -32,9 +32,11 @@ AUTO = "(auto)"
 NO_ACTION = _("(aucune)")
 STATE_ATTR = _("(état)")
 NEW_LABEL = _("Nouvel élément")
-ZONE_TEXT = {"left": _("Gauche"), "right": _("Droite")}
+ZONE_TEXT = {"left": _("Gauche"), "right": _("Droite"), "panel": _("Panneau")}
 ALL_DOMAINS = _("(tous les types)")
 ALL_AREAS = _("(toutes les pièces)")
+NO_CAMERA = _("(aucune)")
+MAIN_SCREEN = _("(barre principale)")
 BATTERIES_NAME = _("Piles faibles")
 THRESH_HINT = (_("Ex. « > 25 orange ; > 30 rouge ; < 15 bleu ». Couleurs : rouge, orange, jaune, vert, bleu, "
                "violet, rose, gris, ou #rrggbb. La règle la plus précise gagne."))
@@ -482,6 +484,13 @@ class SettingsWindow:
         self.hint(f, _("S'applique au prochain lancement de HA Taskbar."), row=12, column=1, sticky="w",
                   pady=(2, 0))
 
+        self.v_trayvis = self.track(tk.BooleanVar(value=self.cfg.get("tray_always_visible", True)),
+                                    self.key("tray_always_visible"))
+        ttk.Checkbutton(f, text=_("Toujours afficher l'icône de HA Taskbar près de l'horloge"),
+                        variable=self.v_trayvis).grid(row=13, column=1, columnspan=2, sticky="w", pady=(16, 0))
+        self.hint(f, _("Sinon, Windows la range dans la flèche « ^ » de la zone de notification."),
+                  row=14, column=1, columnspan=2, sticky="w", pady=(2, 0))
+
     def check_update_now(self):
         self.update_label.configure(text=_("Recherche…"), style="Hint.TLabel")
 
@@ -551,10 +560,9 @@ class SettingsWindow:
         left.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
         left.rowconfigure(0, weight=1)
         left.columnconfigure(0, weight=1)
-        self.tree = ttk.Treeview(left, columns=("label", "entity", "action", "zone"), show="headings",
+        self.tree = ttk.Treeview(left, columns=("label", "entity", "action"), show="headings",
                                  selectmode="browse")
-        for col, title, w in (("label", _("Libellé"), 95), ("entity", _("Entité"), 140), ("action", _("Clic"), 100),
-                              ("zone", _("Zone"), 60)):
+        for col, title, w in (("label", _("Libellé"), 130), ("entity", _("Entité"), 165), ("action", _("Clic"), 100)):
             self.tree.heading(col, text=title)
             self.tree.column(col, width=self.px(w), minwidth=self.px(50))
         sb = ttk.Scrollbar(left, orient="vertical", command=self.tree.yview)
@@ -562,6 +570,14 @@ class SettingsWindow:
         self.tree.grid(row=0, column=0, sticky="nsew")
         sb.grid(row=0, column=1, sticky="ns")
         self.tree.bind("<<TreeviewSelect>>", self.on_select)
+        # glisser un element sous une autre partie (zone gauche, zone droite, panneau) ou a une autre place
+        self.tree.bind("<ButtonPress-1>", self._tree_press, add="+")
+        self.tree.bind("<B1-Motion>", self._tree_motion, add="+")
+        self.tree.bind("<ButtonRelease-1>", self._tree_release, add="+")
+        self.tree.tag_configure("group", font="SunValleyBodyStrongFont", background=self.pal["nav"])
+        self.tree.tag_configure("hint", foreground=self.pal["hint"])
+        self._tree_drag = None
+        self.add_zone = "left"
         self.empty_label = ttk.Label(left, style="Empty.TLabel", justify="center", anchor="center",
                                      text=_("La barre est vide.\n\nClique sur « Ajouter des entités… »\n"
                                           "pour choisir parmi tes entités Home Assistant."))
@@ -581,10 +597,13 @@ class SettingsWindow:
         box.rowconfigure(0, weight=1)
         inb = ttk.Notebook(box)
         inb.grid(row=0, column=0, sticky="nsew")
-        right = ttk.Frame(inb, padding=10)
-        adv = self.adv = ttk.Frame(inb, padding=10)
-        inb.add(right, text=_("Général"))
-        inb.add(adv, text=_("Plus d'options"))
+        self.item_nb = inb
+        sf_right = ui_theme.ScrollFrame(inb, self.pal, padding=10)
+        sf_adv = ui_theme.ScrollFrame(inb, self.pal, padding=10)
+        right = sf_right.inner
+        adv = self.adv = sf_adv.inner
+        inb.add(sf_right.outer, text=_("Général"))
+        inb.add(sf_adv.outer, text=_("Plus d'options"))
         right.columnconfigure(1, weight=1)
         adv.columnconfigure(1, weight=1)
         self.v_eid, self.v_label, self.v_attr = tk.StringVar(), tk.StringVar(), tk.StringVar()
@@ -597,7 +616,11 @@ class SettingsWindow:
         self.cb_eid = ttk.Combobox(right, textvariable=self.v_eid, postcommand=self.filter_entities)
         self.cb_eid.grid(row=0, column=1, sticky="ew", pady=(4, 0))
         self.cb_eid.bind("<KeyRelease>", self.filter_entities)
-        self.eid_info = self.hint(right, "", row=1, column=1, sticky="w")
+        from autocomplete import EntityAutocomplete
+        self.ac_eid = EntityAutocomplete(self.cb_eid, self.v_eid, self)
+        self.eid_info = self.hint(right, "", wrap=265, row=1, column=1, sticky="w")
+        self.eid_info.bind("<Button-1>", self.use_suggestion)
+        self._suggest = None
 
         row(2, _("Libellé"))
         lf = ttk.Frame(right)
@@ -649,29 +672,38 @@ class SettingsWindow:
         self.e_ctitle = ttk.Entry(right, textvariable=self.v_ctitle)
         self.e_ctitle.grid(row=11, column=1, sticky="ew", pady=(4, 0))
         self.hint(right, _("Vide = nom de l'entité dans Home Assistant. Aussi modifiable avec le crayon ✎ "
-                         "de la carte (appui long)."), wrap=300, row=12, column=1, sticky="w")
+                         "de la carte (appui long)."), wrap=265, row=12, column=1, sticky="w")
 
         row(13, _("Zone"))
         self.v_zone = tk.StringVar(value="left")
         zf = ttk.Frame(right)
         zf.grid(row=13, column=1, sticky="w", pady=(4, 0))
         self.rb_zones = [ttk.Radiobutton(zf, text=t, value=v, variable=self.v_zone)
-                         for t, v in ((_("Gauche"), "left"), (_("Droite"), "right"))]
+                         for t, v in ((_("Gauche"), "left"), (_("Droite"), "right"), (_("Panneau"), "panel"))]
         for rb in self.rb_zones:
             rb.pack(side="left", padx=(0, 12))
         self.hint(right, _("Côté de la barre des tâches où s'affiche l'élément. Les décalages se règlent "
-                         "dans l'onglet Apparence."), wrap=300, row=14, column=1, sticky="w")
+                         "dans l'onglet Apparence."), wrap=265, row=14, column=1, sticky="w")
+        row(15, _("Écran"))
+        self._screen_map = {}
+        self.v_screen = tk.StringVar(value=MAIN_SCREEN)
+        self.cb_screen = ttk.Combobox(right, textvariable=self.v_screen, state="readonly",
+                                      postcommand=self.fill_screens)
+        self.cb_screen.grid(row=15, column=1, sticky="ew", pady=(4, 0))
+        self.hint(right, _("Avec plusieurs écrans : la barre des tâches où afficher l'élément. Si cet écran "
+                         "est débranché, l'élément revient sur la barre principale."), wrap=265, row=16,
+                  column=1, sticky="w")
 
         self.build_item_advanced(adv)
         for v in (self.v_eid, self.v_label, self.v_attr, self.v_unit, self.v_dec, self.v_service, self.v_icon,
-                  self.v_ctitle, self.v_zone, self.v_middle, self.v_badge, self.v_group, self.v_hotkey,
-                  self.v_from, self.v_to, self.v_thresh, self.v_hidden, self.v_spark):
+                  self.v_ctitle, self.v_zone, self.v_screen, self.v_middle, self.v_badge, self.v_group, self.v_hotkey,
+                  self.v_from, self.v_to, self.v_thresh, self.v_hidden, self.v_spark, self.v_camera):
             v.trace_add("write", self.on_item_field)
         self.t_data.bind("<KeyRelease>", self.on_item_field)
         self.item_widgets = [self.cb_eid, self.e_label, self.cb_attr, self.e_unit, self.cb_dec,
-                             self.cb_service, self.t_data, self.b_icon, self.e_ctitle] + self.rb_zones + [
+                             self.cb_service, self.t_data, self.b_icon, self.e_ctitle] + self.rb_zones + [self.cb_screen,
                                  self.cb_middle, self.cb_badge, self.e_group, self.e_hotkey, self.e_from, self.e_to,
-                                 self.e_thresh, self.cb_hidden]
+                                 self.e_thresh, self.cb_hidden, self.cb_camera]
 
         self.refresh_tree()
         if self.cfg["items"]:
@@ -687,14 +719,14 @@ class SettingsWindow:
         self.v_middle = tk.StringVar()
         self.cb_middle = ttk.Combobox(adv, textvariable=self.v_middle)
         self.cb_middle.grid(row=0, column=1, sticky="ew", pady=(6, 0))
-        self.hint(adv, _("Clic avec la molette de la souris sur l'élément."), wrap=300, row=1, column=1, sticky="w")
+        self.hint(adv, _("Clic avec la molette de la souris sur l'élément."), wrap=265, row=1, column=1, sticky="w")
 
         row(2, _("Badge"))
         self.v_badge = tk.StringVar()
         self.cb_badge = ttk.Combobox(adv, textvariable=self.v_badge)
         self.cb_badge.grid(row=2, column=1, sticky="ew", pady=(6, 0))
         self.hint(adv, _("Petite info en bas à droite de l'icône. Un arrêt programmé en cours s'y affiche "
-                       "toujours (⏲ minutes restantes)."), wrap=300, row=3, column=1, sticky="w")
+                       "toujours (⏲ minutes restantes)."), wrap=265, row=3, column=1, sticky="w")
 
         row(4, _("Grouper avec"))
         self.v_group = tk.StringVar()
@@ -704,14 +736,14 @@ class SettingsWindow:
         self.e_group.bind("<KeyRelease>", self._remember_group)
         self.hint(adv, _("Autres entités commandées par le même bouton, séparées par des virgules "
                        "(ex. light.salon, light.cuisine). Le clic allume tout, ou éteint tout si l'une "
-                       "d'elles est allumée."), wrap=300, row=5, column=1, sticky="w")
+                       "d'elles est allumée."), wrap=265, row=5, column=1, sticky="w")
 
         row(6, _("Raccourci clavier"))
         self.v_hotkey = tk.StringVar()
         self.e_hotkey = ttk.Entry(adv, textvariable=self.v_hotkey)
         self.e_hotkey.grid(row=6, column=1, sticky="ew", pady=(6, 0))
         self.hotkey_info = self.hint(adv, _("Ex. Ctrl+Alt+1, Ctrl+Maj+L, F9. Fonctionne partout dans Windows "
-                                          "et fait la même chose qu'un clic."), wrap=300,
+                                          "et fait la même chose qu'un clic."), wrap=265,
                                      row=7, column=1, sticky="w")
 
         row(8, _("Affiché"))
@@ -725,27 +757,65 @@ class SettingsWindow:
         self.e_to = ttk.Entry(hf, textvariable=self.v_to, width=7)
         self.e_to.pack(side="left", padx=6)
         self.hours_info = self.hint(adv, _("Vide = toujours. Ex. de 22:00 à 07:00 pour un élément de nuit. "
-                                         "Hors de cette plage, l'élément disparaît de la barre."), wrap=300,
+                                         "Hors de cette plage, l'élément disparaît de la barre."), wrap=265,
                                     row=9, column=1, sticky="w")
 
         row(10, _("Couleur selon\nla valeur"))
         self.v_thresh = tk.StringVar()
         self.e_thresh = ttk.Entry(adv, textvariable=self.v_thresh)
         self.e_thresh.grid(row=10, column=1, sticky="ew", pady=(6, 0))
-        self.thresh_info = self.hint(adv, THRESH_HINT, wrap=300, row=11, column=1, sticky="w")
+        self.thresh_info = self.hint(adv, THRESH_HINT, wrap=265, row=11, column=1, sticky="w")
 
         self.v_hidden = tk.BooleanVar(value=False)
         self.cb_hidden = ttk.Checkbutton(adv, text=_("Masquer cet élément de la barre"), variable=self.v_hidden)
         self.cb_hidden.grid(row=12, column=1, sticky="w", pady=(8, 0))
         self.hint(adv, _("Il reste dans la liste. Aussi depuis la barre : clic droit sur l'élément → Masquer."),
-                  wrap=300, row=13, column=1, sticky="w")
+                  wrap=265, row=13, column=1, sticky="w")
 
         self.v_spark = tk.BooleanVar(value=False)
         ttk.Checkbutton(adv, text=_("Mini-graphique des 6 dernières heures"), variable=self.v_spark
                         ).grid(row=14, column=1, sticky="w", pady=(8, 0))
         self.hint(adv, _("Une petite courbe à droite de la valeur (capteurs à valeur numérique). Pour un grand "
                        "graphique : clic droit sur l'élément → Créer un widget de bureau."),
-                  wrap=300, row=15, column=1, sticky="w")
+                  wrap=265, row=15, column=1, sticky="w")
+
+        row(16, _("Caméra dans\nla carte"))
+        self.v_camera = tk.StringVar()
+        self.cb_camera = ttk.Combobox(adv, textvariable=self.v_camera, postcommand=self.fill_cameras)
+        self.cb_camera.grid(row=16, column=1, sticky="ew", pady=(6, 0))
+        self.hint(adv, _("Image en direct en haut de la carte (appui long) : la caméra de l'entrée pour une "
+                         "sonnette ou un portail, par exemple."), wrap=265, row=17, column=1, sticky="w")
+
+    def screen_label(self, device):
+        """Texte de la liste « Écran » pour un ecran (""= barre principale)."""
+        if not device:
+            return MAIN_SCREEN
+        import screens
+        for m in screens.monitors():
+            if m["device"] == device:
+                label = screens.monitor_label(m)
+                break
+        else:
+            n = screens.screen_number(device)
+            label = _("Écran %s (débranché)") % (n if n is not None else device)
+        self._screen_map[label] = device
+        return label
+
+    def fill_screens(self):
+        import screens
+        main = self.app.taskbar()
+        vals = [MAIN_SCREEN]
+        for m in screens.monitors():
+            if m["taskbar"] and m["taskbar"] != main:
+                vals.append(self.screen_label(m["device"]))
+        cur = self.v_screen.get()
+        if cur and cur not in vals:
+            vals.append(cur)
+        self.cb_screen["values"] = vals
+
+    def fill_cameras(self):
+        cams = sorted(e for e in self.entities if e.split(".", 1)[0] in ("camera", "image"))
+        self.cb_camera["values"] = [NO_CAMERA] + cams
 
     def filter_group(self):
         text = self.v_group.get().split(",")[-1].strip()
@@ -790,12 +860,27 @@ class SettingsWindow:
         label = it.get("label", "")
         if it.get("hidden"):
             label += _("  (masqué)")
-        return label, it.get("entity_id", ""), self.action_text(it), ZONE_TEXT[item_zone(it)]
+        if it.get("screen") and item_zone(it) != "panel":
+            import screens
+            n = screens.screen_number(it["screen"])
+            label += _("  · écran %s") % (n if n is not None else "?")
+        return "    " + label, it.get("entity_id", ""), self.action_text(it)
+
+    ZONES = (("left", _("Barre — zone gauche")), ("right", _("Barre — zone droite")), ("panel", _("Panneau")))
 
     def refresh_tree(self):
+        """Liste en 3 parties : zone gauche, zone droite et panneau, chacune avec son titre."""
         self.tree.delete(*self.tree.get_children())
-        for i, it in enumerate(self.cfg["items"]):
-            self.tree.insert("", "end", iid=str(i), values=self.tree_values(it))
+        items = self.cfg["items"]
+        for zone, title in self.ZONES:
+            idx = [i for i, it in enumerate(items) if item_zone(it) == zone]
+            self.tree.insert("", "end", iid="grp:" + zone, values=("%s  (%d)" % (title, len(idx)), "", ""),
+                             tags=("group",))
+            for i in idx:
+                self.tree.insert("", "end", iid=str(i), values=self.tree_values(items[i]))
+            if not idx:
+                self.tree.insert("", "end", iid="empty:" + zone, tags=("hint",),
+                                 values=("    " + _("(vide — fais glisser un élément ici)"), "", ""))
         if self.cfg["items"]:
             self.empty_label.place_forget()
         else:
@@ -814,13 +899,68 @@ class SettingsWindow:
         IconPicker(self)
 
     def add_entity(self, eid):
-        self.cfg["items"].append({"entity_id": eid, "label": self.friendly(eid) or eid})
+        it = {"entity_id": eid, "label": self.friendly(eid) or eid}
+        if self.add_zone in ("right", "panel"):          # dans la partie selectionnee
+            it["zone"] = self.add_zone
+        self.cfg["items"].append(it)
         self.refresh_tree()
         self.select_item(len(self.cfg["items"]) - 1)
         self.changed()
 
     def refresh_tree_row(self, i):
-        self.tree.item(str(i), values=self.tree_values(self.cfg["items"][i]))
+        if self.tree.exists(str(i)):
+            self.tree.item(str(i), values=self.tree_values(self.cfg["items"][i]))
+
+    # -- glisser-deposer dans la liste
+    def _tree_press(self, e):
+        row = self.tree.identify_row(e.y)
+        self._tree_drag = row if row.isdigit() else None
+        self._tree_moved = False
+
+    def _tree_motion(self, e):
+        if self._tree_drag is None:
+            return
+        self._tree_moved = True
+        self.tree.configure(cursor="fleur")
+        target = self.tree.identify_row(e.y)
+        if target and target != self._tree_drag:
+            self.tree.selection_set(target)
+
+    def _tree_release(self, e):
+        src, self._tree_drag = self._tree_drag, None
+        self.tree.configure(cursor="")
+        if src is None or not getattr(self, "_tree_moved", False):
+            self.on_select()            # simple clic : la selection a ete ignoree pendant l'appui
+            return
+        target = self.tree.identify_row(e.y)
+        items = self.cfg["items"]
+        i = int(src)
+        if not target or target == src:
+            self.select_item(i)
+            return
+        if target.startswith(("grp:", "empty:")):
+            zone = target.split(":", 1)[1]
+            # en tete de sa partie : avant le premier element de cette zone
+            first = next((j for j, it in enumerate(items) if item_zone(it) == zone and j != i), None)
+            before = first
+        else:
+            j = int(target)
+            zone = item_zone(items[j])
+            before = j
+        moved = items.pop(i)
+        if before is None:
+            pos = len(items)
+        else:
+            pos = before - 1 if before > i else before
+        items.insert(pos, moved)
+        if zone == "left":
+            moved.pop("zone", None)
+        else:
+            moved["zone"] = zone
+        self.cur = None
+        self.refresh_tree()
+        self.select_item(pos)
+        self.changed()
 
     def select_item(self, i):
         if 0 <= i < len(self.cfg["items"]):
@@ -832,8 +972,18 @@ class SettingsWindow:
         self.load_item_fields()
 
     def on_select(self, _e=None):
+        if self._tree_drag is not None:
+            return                       # glisser en cours : la selection suit seulement la souris
         sel = self.tree.selection()
+        if sel and not sel[0].isdigit():                 # titre d'une partie : on retient sa zone
+            self.add_zone = sel[0].split(":", 1)[1]
+            if self.cur is not None:
+                self.cur = None
+                self.load_item_fields()
+            return
         new = int(sel[0]) if sel else None
+        if new is not None:
+            self.add_zone = item_zone(self.cfg["items"][new])
         if new != self.cur:
             self.cur = new
             self.load_item_fields()
@@ -845,6 +995,7 @@ class SettingsWindow:
         self.v_label.set(it.get("label", ""))
         self.v_ctitle.set(it.get("card_title", ""))
         self.v_zone.set(item_zone(it))
+        self.v_screen.set(self.screen_label(it.get("screen") or ""))
         self.v_icon.set(it.get("icon") or "auto")
         self.v_attr.set(it.get("attribute") or STATE_ATTR)
         self.v_unit.set(it.get("unit", ""))
@@ -863,6 +1014,7 @@ class SettingsWindow:
         self.v_thresh.set(it.get("thresholds", ""))
         self.v_hidden.set(bool(it.get("hidden")))
         self.v_spark.set(bool(it.get("sparkline")))
+        self.v_camera.set(it.get("camera") or NO_CAMERA)
         self.show_thresh_info(it.get("thresholds", ""))
         self.t_data.configure(state="normal")
         self.t_data.delete("1.0", "end")
@@ -890,6 +1042,8 @@ class SettingsWindow:
         self.cb_badge["values"] = [t for _k, t in BADGE_CHOICES] + sorted(st.get("attributes", {}))
 
     def update_item_hints(self):
+        self._suggest = None
+        self.eid_info.configure(cursor="")
         if self.cur is None:
             self.eid_info.configure(text=_("Sélectionne un élément ou clique sur « Ajouter des entités… »."),
                                     style="Hint.TLabel")
@@ -914,10 +1068,26 @@ class SettingsWindow:
             self.eid_info.configure(text=_("Teste la connexion (onglet Connexion) pour avoir la liste des entités."),
                                     style="Hint.TLabel")
         elif eid:
-            self.eid_info.configure(text=_("Entité inconnue dans Home Assistant."), style="Err.TLabel")
+            from autocomplete import closest
+            self._suggest = closest(self.entities, eid)
+            if self._suggest:
+                self.eid_info.configure(text=_("Entité inconnue dans Home Assistant. Tu voulais dire « %s » "
+                                             "(%s) ? Clique ici pour la prendre.")
+                                        % (self._suggest, self.friendly(self._suggest) or self._suggest),
+                                        style="Err.TLabel", cursor="hand2")
+                return self._svc_hint(it, eid)
+            self.eid_info.configure(text=_("Entité inconnue dans Home Assistant. Tape une partie de son nom "
+                                         "pour la retrouver."), style="Err.TLabel")
         else:
-            self.eid_info.configure(text=_("Tape quelques lettres puis ouvre la liste."), style="Hint.TLabel")
+            self.eid_info.configure(text=_("Tape quelques lettres du nom, de la pièce ou de l'entité."),
+                                    style="Hint.TLabel")
+        self._svc_hint(it, eid)
 
+    def use_suggestion(self, e=None):
+        if self._suggest and self.cur is not None and str(self.eid_info.cget("cursor")) == "hand2":
+            self.v_eid.set(self._suggest)
+
+    def _svc_hint(self, it, eid):
         if it.get("service") in (None, ""):
             d = default_service(eid)
             self.svc_info.configure(text=_("Auto : %s") % d if d else _("Auto : aucune action (affichage seul)"))
@@ -929,6 +1099,7 @@ class SettingsWindow:
             return
         it = self.cfg["items"][self.cur]
         old_eid = it.get("entity_id", "")
+        old_zone = item_zone(it)
         eid = self.v_eid.get().strip()
         it["entity_id"] = eid
         it["label"] = self.v_label.get()
@@ -937,10 +1108,16 @@ class SettingsWindow:
             it["card_title"] = ctitle
         else:
             it.pop("card_title", None)
-        if self.v_zone.get() == "right":
-            it["zone"] = "right"
+        if self.v_zone.get() in ("right", "panel"):
+            it["zone"] = self.v_zone.get()
         else:
             it.pop("zone", None)
+        scr = self._screen_map.get(self.v_screen.get(), it.get("screen") or "") \
+            if self.v_screen.get() != MAIN_SCREEN else ""
+        if scr:
+            it["screen"] = scr
+        else:
+            it.pop("screen", None)
         icon = self.v_icon.get()
         if icon in ("", "auto"):
             it.pop("icon", None)
@@ -1029,6 +1206,11 @@ class SettingsWindow:
             it["hidden"] = True
         else:
             it.pop("hidden", None)
+        cam = self.v_camera.get().strip()
+        if cam and cam != NO_CAMERA and "." in cam:
+            it["camera"] = cam
+        else:
+            it.pop("camera", None)
         if self.v_spark.get():
             it["sparkline"] = True
         else:
@@ -1062,7 +1244,14 @@ class SettingsWindow:
                 it["label"] = fn
             self.update_item_choices()
         self.update_item_hints()
-        self.refresh_tree_row(self.cur)
+        if item_zone(it) != old_zone:            # change de partie : la liste le range sous son titre
+            cur = self.cur
+            self.refresh_tree()
+            self.tree.selection_set(str(cur))
+            self.tree.see(str(cur))
+            self.add_zone = item_zone(it)
+        else:
+            self.refresh_tree_row(self.cur)
         self.changed()
 
     def show_thresh_info(self, text):
@@ -1077,7 +1266,10 @@ class SettingsWindow:
             self.thresh_info.configure(text=THRESH_HINT, style="Hint.TLabel")
 
     def add_item(self):
-        self.cfg["items"].append({"entity_id": "", "label": NEW_LABEL})
+        it = {"entity_id": "", "label": NEW_LABEL}
+        if self.add_zone in ("right", "panel"):
+            it["zone"] = self.add_zone
+        self.cfg["items"].append(it)
         self.refresh_tree()
         self.select_item(len(self.cfg["items"]) - 1)
         self.cb_eid.focus_set()
@@ -1102,19 +1294,27 @@ class SettingsWindow:
         self.changed()
 
     def move_item(self, d):
+        """Monte ou descend l'element dans sa partie (zone gauche, zone droite ou panneau)."""
         i = self.cur
-        if i is None or not 0 <= i + d < len(self.cfg["items"]):
+        if i is None:
             return
         items = self.cfg["items"]
-        items[i], items[i + d] = items[i + d], items[i]
+        zone = item_zone(items[i])
+        j = i + d
+        while 0 <= j < len(items) and item_zone(items[j]) != zone:
+            j += d
+        if not 0 <= j < len(items):
+            return
+        items[i], items[j] = items[j], items[i]
         self.refresh_tree()
-        self.select_item(i + d)
+        self.select_item(j)
         self.changed()
 
     # ------------------------------------------------------------------ onglet Apparence
     def build_appearance(self):
-        f = ttk.Frame(self.nb, padding=0)
-        self.nb.add(f, text=_("Apparence"), icon="")
+        sf = ui_theme.ScrollFrame(self.nb, self.pal)
+        f = sf.inner
+        self.nb.add(sf.outer, text=_("Apparence"), icon="")
         f.columnconfigure(0, weight=3)
         f.columnconfigure(1, weight=2)
 
@@ -1231,6 +1431,10 @@ class SettingsWindow:
         self.v_anim = self.track(tk.BooleanVar(value=self.cfg.get("anim_icons", True)), self.key("anim_icons"))
         ttk.Checkbutton(look, text=_("Animer les icônes animées (mouvement lent et discret)"),
                         variable=self.v_anim).grid(row=7, column=0, columnspan=2, sticky="w")
+        self.v_avoid = self.track(tk.BooleanVar(value=self.cfg.get("avoid_overlap", True)), self.key("avoid_overlap"))
+        ttk.Checkbutton(look, text=_("Ne pas recouvrir les icônes de Windows (bouton « +N »)"),
+                        variable=self.v_avoid).grid(row=8, column=0, columnspan=2,
+                                                                                    sticky="w")
 
         # --- theme et couleurs de la barre
         col = ttk.LabelFrame(f, text=_("Thème et couleurs de la barre"), padding=10)
@@ -1504,6 +1708,8 @@ class SettingsWindow:
                                     postcommand=lambda: self.cbn_eid.configure(
                                         values=self.entity_list(self.vn_eid.get())))
         self.cbn_eid.grid(row=0, column=1, sticky="ew")
+        from autocomplete import EntityAutocomplete
+        self.ac_neid = EntityAutocomplete(self.cbn_eid, self.vn_eid, self)
         ttk.Label(ed, text=_("Quand l'état devient")).grid(row=1, column=0, sticky="w", padx=(0, 10), pady=(8, 0))
         self.cbn_to = ttk.Combobox(ed, textvariable=self.vn_to, postcommand=self.fill_rule_states)
         self.cbn_to.grid(row=1, column=1, sticky="ew", pady=(8, 0))
@@ -1513,9 +1719,17 @@ class SettingsWindow:
         self.hint(ed, _("Vide = « {name} : {state} ». {name} = nom de l'entité, {state} = nouvel état, "
                       "{old} = état d'avant. Ex. « La machine à laver a terminé »."), wrap=640,
                   row=3, column=1, sticky="w", pady=(2, 0))
-        for v in (self.vn_eid, self.vn_to, self.vn_msg):
+        ttk.Label(ed, text=_("Afficher la caméra")).grid(row=4, column=0, sticky="w", padx=(0, 10), pady=(8, 0))
+        self.vn_cam = tk.StringVar()
+        self.cbn_cam = ttk.Combobox(ed, textvariable=self.vn_cam, state="readonly", postcommand=lambda: self.cbn_cam.configure(
+            values=[NO_CAMERA] + sorted(e for e in self.entities if e.split(".", 1)[0] in ("camera", "image"))))
+        self.cbn_cam.grid(row=4, column=1, sticky="ew", pady=(8, 0))
+        self.hint(ed, _("Une fenêtre s'ouvre en bas à droite avec l'image en direct (par exemple quand on sonne). "
+                      "Elle se ferme seule après une minute ; un clic sur l'image ouvre la carte."), wrap=640,
+                  row=5, column=1, sticky="w", pady=(2, 0))
+        for v in (self.vn_eid, self.vn_to, self.vn_msg, self.vn_cam):
             v.trace_add("write", self.on_rule_field)
-        self.rule_widgets = [self.cbn_eid, self.cbn_to, self.en_msg]
+        self.rule_widgets = [self.cbn_eid, self.cbn_to, self.en_msg, self.cbn_cam]
         self.refresh_rules()
         self.load_rule()
 
@@ -1538,7 +1752,12 @@ class SettingsWindow:
         self.ntree.delete(*self.ntree.get_children())
         for i, r in enumerate(self.cfg["notifications"]):
             self.ntree.insert("", "end", iid=str(i), values=(
-                r.get("entity_id", ""), r.get("to") or ANY_CHANGE, r.get("message") or _("{name} : {state}")))
+                r.get("entity_id", ""), r.get("to") or ANY_CHANGE, self.rule_msg(r)))
+
+    @staticmethod
+    def rule_msg(r):
+        msg = r.get("message") or _("{name} : {state}")
+        return msg + (_("   + caméra") if r.get("camera") else "")
 
     def on_nselect(self, _e=None):
         sel = self.ntree.selection()
@@ -1551,9 +1770,11 @@ class SettingsWindow:
         self.vn_eid.set(r.get("entity_id", ""))
         self.vn_to.set(r.get("to") or ANY_CHANGE)
         self.vn_msg.set(r.get("message", ""))
+        self.vn_cam.set(r.get("camera") or NO_CAMERA)
         self.loading = False
         for w in self.rule_widgets:
-            w.configure(state="normal" if self.n_cur is not None else "disabled")
+            on = "readonly" if w is self.cbn_cam else "normal"
+            w.configure(state=on if self.n_cur is not None else "disabled")
 
     def fill_rule_states(self):
         eid = self.vn_eid.get().strip()
@@ -1586,8 +1807,13 @@ class SettingsWindow:
             r["message"] = msg
         else:
             r.pop("message", None)
+        cam = self.vn_cam.get().strip()
+        if cam and cam != NO_CAMERA:
+            r["camera"] = cam
+        else:
+            r.pop("camera", None)
         self.ntree.item(str(self.n_cur), values=(r.get("entity_id", ""), r.get("to") or ANY_CHANGE,
-                                                  r.get("message") or _("{name} : {state}")))
+                                                  self.rule_msg(r)))
         self.changed()
 
     def add_rule(self):
@@ -1618,16 +1844,19 @@ class SettingsWindow:
             text = text.format(name=name, state=r.get("to") or st.get("state", "?"), old="?")
         except (KeyError, IndexError, ValueError):
             pass
-        if getattr(self.app, "tray", None) is None:
+        if getattr(self.app, "tray", None) is None and not r.get("camera"):
             messagebox.showinfo("HA Taskbar", _("Icône de notification indisponible : impossible d'afficher "
                                               "une notification."), parent=self.win)
             return
         self.app.notify("Home Assistant", text, force=True)
+        if r.get("camera"):
+            self.app.show_camera_popup(r["camera"], text, force=True)
 
     # ------------------------------------------------------------------ onglet Confort
     def build_comfort(self):
-        f = ttk.Frame(self.nb, padding=0)
-        self.nb.add(f, text=_("Confort"), icon="\ue945")
+        sf = ui_theme.ScrollFrame(self.nb, self.pal)
+        f = sf.inner
+        self.nb.add(sf.outer, text=_("Confort"), icon="\ue945")
         f.columnconfigure(0, weight=1)
         f.columnconfigure(1, weight=1)
 
@@ -1689,6 +1918,51 @@ class SettingsWindow:
                        "a pas). Sa carte et son infobulle donnent la liste."), wrap=330,
                   row=2, column=0, sticky="w", pady=(6, 0))
 
+        # --- panneau
+        pn = ttk.LabelFrame(f, text=_("Panneau (un seul bouton sur la barre)"), padding=10)
+        pn.grid(row=2, column=1, sticky="nsew", pady=(10, 0))
+        pn.columnconfigure(1, weight=1)
+        ttk.Label(pn, text=_("Titre")).grid(row=0, column=0, sticky="w", padx=(0, 10))
+        self.v_ptitle = self.track(tk.StringVar(value=self.cfg.get("panel_title", "")),
+                                   self.key("panel_title", str.strip))
+        ttk.Entry(pn, textvariable=self.v_ptitle, width=18).grid(row=0, column=1, sticky="w")
+        ttk.Label(pn, text=_("Valeur sur le bouton")).grid(row=1, column=0, sticky="w", padx=(0, 10), pady=(8, 0))
+        self.cb_pvalue = ttk.Combobox(pn, state="readonly", width=26, postcommand=self.fill_panel_values)
+        self.cb_pvalue.grid(row=1, column=1, sticky="w", pady=(8, 0))
+        self.cb_pvalue.bind("<<ComboboxSelected>>", self.on_panel_value)
+        self.fill_panel_values()
+        ttk.Label(pn, text=_("Bouton dans la zone")).grid(row=2, column=0, sticky="w", padx=(0, 10), pady=(8, 0))
+        zf = ttk.Frame(pn)
+        zf.grid(row=2, column=1, sticky="w", pady=(8, 0))
+        self.v_pzone = self.track(tk.StringVar(value="left" if self.cfg.get("panel_zone") == "left" else "right"),
+                                  self.key("panel_zone"))
+        for t, v in ((_("Gauche"), "left"), (_("Droite"), "right")):
+            ttk.Radiobutton(zf, text=t, value=v, variable=self.v_pzone).pack(side="left", padx=(0, 12))
+        self.v_parea = self.track(tk.BooleanVar(value=self.cfg.get("panel_by_area", True)), self.key("panel_by_area"))
+        ttk.Checkbutton(pn, text=_("Regrouper par pièce"), variable=self.v_parea).grid(
+            row=3, column=0, columnspan=2, sticky="w", pady=(8, 0))
+        ttk.Label(pn, text=_("Opacité")).grid(row=5, column=0, sticky="w", padx=(0, 10), pady=(8, 0))
+        of = ttk.Frame(pn)
+        of.grid(row=5, column=1, sticky="ew", pady=(8, 0))
+        self.pop_label = ttk.Label(of, width=5)
+        self.v_popac = tk.DoubleVar(value=float(self.cfg.get("panel_opacity", 1.0)))
+
+        def set_popac(v):
+            v = round(max(0.5, min(1.0, float(v))), 2)
+            self.cfg["panel_opacity"] = v
+            self.pop_label.configure(text="%d %%" % round(v * 100))
+        ttk.Scale(of, from_=0.5, to=1.0, orient="horizontal", variable=self.v_popac).pack(
+            side="left", fill="x", expand=True)
+        self.pop_label.pack(side="left", padx=(6, 0))
+        set_popac(self.v_popac.get())
+        self.track(self.v_popac, set_popac)
+        ttk.Button(pn, text=_("Ouvrir le panneau"), command=self.try_panel).grid(
+            row=6, column=0, columnspan=2, sticky="w", pady=(10, 0))
+        self.hint(pn, _("Range un élément dans le panneau avec Éléments → Zone → Panneau, ou clic droit sur "
+                        "l'élément → Ranger dans le panneau. Le bouton n'apparaît que si le panneau contient "
+                        "quelque chose. Dans le panneau : clic pour l'action, molette pour régler, appui long "
+                        "pour la carte."), wrap=330, row=4, column=0, columnspan=2, sticky="w", pady=(6, 0))
+
         # --- sauvegarde
         sv = ttk.LabelFrame(f, text=_("Sauvegarde des réglages"), padding=10)
         sv.grid(row=1, column=1, sticky="nsew", pady=(10, 0))
@@ -1700,6 +1974,38 @@ class SettingsWindow:
                       "passer sur un autre PC ou partager ta configuration. À l'import, ton jeton actuel est "
                       "conservé."), wrap=330, row=1, column=0, sticky="w", pady=(6, 0))
         self.update_rt_label()
+
+    def try_panel(self):
+        """Ouvre le vrai panneau avec les reglages en cours d'edition."""
+        if self.preview_job:
+            self.win.after_cancel(self.preview_job)
+            self.preview()
+        if self.app.panel_btn is None:
+            messagebox.showinfo("HA Taskbar", _("Le panneau est vide : range d'abord un élément dans la partie "
+                                                "« Panneau » de l'onglet Éléments."), parent=self.win)
+            return
+        self.app.toggle_panel()
+
+    def panel_value_choices(self):
+        out = [("", _("(aucune) — seulement le titre"))]
+        for it in self.cfg.get("items", []):
+            eid = it.get("entity_id", "")
+            if eid and eid not in [e for e, _t in out]:
+                out.append((eid, "%s — %s" % (it.get("label") or eid, eid)))
+        return out
+
+    def fill_panel_values(self):
+        self.panel_values = self.panel_value_choices()
+        self.cb_pvalue["values"] = [t for _e, t in self.panel_values]
+        cur = self.cfg.get("panel_value", "")
+        idx = next((i for i, (e, _t) in enumerate(self.panel_values) if e == cur), 0)
+        self.cb_pvalue.current(idx)
+
+    def on_panel_value(self, _e=None):
+        i = self.cb_pvalue.current()
+        if 0 <= i < len(self.panel_values):
+            self.cfg["panel_value"] = self.panel_values[i][0]
+            self.changed()
 
     def update_rt_label(self):
         lbl = getattr(self, "rt_label", None)
@@ -1906,6 +2212,8 @@ class SettingsWindow:
             except tk.TclError:
                 pass
             child, parent = parent, parent.master
+        self.win.update_idletasks()
+        ui_theme.scroll_into_view(w)
         self.highlight(w)
         return "break"
 

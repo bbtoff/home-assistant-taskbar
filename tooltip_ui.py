@@ -36,6 +36,8 @@ class Tooltip:
         self.q = queue.Queue()
         self.chart = None
         self.key = None
+        self.cam = None              # (label, entite) de l'apercu camera en cours
+        self.cam_img = None
         self._poll()
 
     # ---------------- cycle de vie
@@ -43,7 +45,7 @@ class Tooltip:
         if item is self.item and (self.win is not None or self.job is not None):
             return
         self.hide()
-        if item is None or not self.app.cfg.get("tooltips", True):
+        if item is None or not self.app.cfg.get("tooltips", True) or getattr(item, "no_tooltip", False):
             return
         self.item = item
         self.job = self.app.root.after(DELAY_MS, self.show)
@@ -59,11 +61,23 @@ class Tooltip:
                 pass
         self.win = self.chart = self.key = None
         self.item = None
+        self.cam = self.cam_img = None
 
     def _poll(self):
         try:
             while True:
                 key, pts = self.q.get_nowait()
+                if key == "cam":
+                    eid, png = pts
+                    if self.cam is not None and self.cam[1] == eid:
+                        try:
+                            self.cam_img = tk.PhotoImage(master=self.app.root, data=png)
+                            self.cam[0].configure(image=self.cam_img, text="", width=self.cam_img.width(),
+                                                  height=self.cam_img.height())
+                            self._reposition()
+                        except tk.TclError:
+                            pass
+                    continue
                 self.cache[key] = (time.monotonic(), pts)
                 if key == self.key and self.chart is not None:
                     self._draw(pts)
@@ -100,6 +114,12 @@ class Tooltip:
         tk.Label(body, text=self.value_text(it, st), bg=c["bg"], fg=c["accent"], font=(fam, 9), anchor="w",
                  justify="left", wraplength=s(260)).pack(anchor="w")
 
+        cam = it.entity_id if it.domain in ("camera", "image") else None
+        if cam:
+            lb = tk.Label(body, text="…", bg=c["surface"], fg=c["dim"], font=(fam, 8), width=30, height=6)
+            lb.pack(anchor="w", pady=(s(6), 0))
+            self.cam = (lb, cam)
+            threading.Thread(target=self._fetch_cam, args=(app.ha, cam, s(240)), daemon=True).start()
         if it.entity_id == BATTERIES:
             self.batteries(body, a.get("low") or [], fam)
         elif it.is_group:
@@ -108,7 +128,7 @@ class Tooltip:
                 txt = "%s : %s" % (m.get("attributes", {}).get("friendly_name") or eid,
                                    STATE_TEXT.get(m.get("state"), m.get("state") or "?"))
                 tk.Label(body, text=txt, bg=c["bg"], fg=c["dim"], font=(fam, 8), anchor="w").pack(anchor="w")
-        elif st and it.domain not in NO_HISTORY:
+        elif st and it.domain not in NO_HISTORY and not cam:
             self.chart = tk.Canvas(body, width=s(220), height=s(46), bg=c["bg"], highlightthickness=0)
             self.chart.pack(anchor="w", pady=(s(6), 0))
             attr = it.cfg.get("attribute") or ("current_temperature" if it.domain in ("climate", "water_heater")
@@ -128,17 +148,28 @@ class Tooltip:
         hwnd = user32.GetAncestor(win.winfo_id(), 2)
         ex = user32.GetWindowLongW(hwnd, -20)
         user32.SetWindowLongW(hwnd, -20, (ex | 0x80 | 0x08000000) & ~0x40000)   # toolwindow, sans focus
-        w, h = win.winfo_reqwidth(), win.winfo_reqheight()
         anchor = app.anchor_for(it)
         if anchor is None:
             self.hide()
             return
-        cx, top, xmin, xmax = anchor
-        x = max(xmin + s(6), min(xmax - s(6) - w, cx - w // 2))
-        y = top - h - s(8)
+        self.hwnd = hwnd
+        self.anchor = anchor
+        self._reposition(show=True)
+
+    def _reposition(self, show=False):
+        """Place l'infobulle au-dessus de l'element (et la replace quand sa taille change)."""
+        win = self.win
+        if win is None:
+            return
+        win.update_idletasks()
+        w, h = win.winfo_reqwidth(), win.winfo_reqheight()
+        cx, top, xmin, xmax = self.anchor
+        x = max(xmin + self.s(6), min(xmax - self.s(6) - w, cx - w // 2))
+        y = top - h - self.s(8)
         win.geometry("%dx%d+%d+%d" % (w, h, x, y))
-        win.deiconify()
-        user32.SetWindowPos(hwnd, -1, x, y, w, h, 0x0010)      # HWND_TOPMOST, SWP_NOACTIVATE
+        if show:
+            win.deiconify()
+        user32.SetWindowPos(self.hwnd, -1, x, y, w, h, 0x0010)      # HWND_TOPMOST, SWP_NOACTIVATE
 
     def value_text(self, it, st):
         if it.entity_id == BATTERIES:
@@ -171,6 +202,14 @@ class Tooltip:
         if len(low) > 8:
             tk.Label(body, text=_("… et %d autres") % (len(low) - 8), bg=c["bg"], fg=c["dim"],
                      font=(fam, 8)).pack(anchor="w")
+
+    def _fetch_cam(self, ha, eid, width):
+        try:
+            import imaging
+            png, _w, _h = imaging.to_png(ha.camera_image(eid), width, int(width * 0.75))
+            self.q.put(("cam", (eid, png)))
+        except Exception:
+            pass
 
     # ---------------- mini-courbe
     def _fetch(self, ha, key):

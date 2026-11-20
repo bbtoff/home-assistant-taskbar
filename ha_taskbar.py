@@ -29,6 +29,7 @@ from ha_core import (ACTIVE_STATES, ANIM_ICONS, BATTERIES, CONFIG_PATH, DEFAULT_
                      STATE_TEXT, WEATHER_TEXT, HomeAssistant, __version__, anim_active, bar_colors, bar_light,
                      battery_state, group_state, icon_key, in_quiet_hours, item_members, item_visible, system_light,
                      item_zone, latest_release, load_config, mix_color, needs_setup, parse_hotkey, parse_thresholds,
+                     PANEL, set_tray_visible, fmt_hms, timer_remaining,
                      resolve_icon, resolve_service, restart_command, save_config, threshold_color, update_available)
 from i18n import _
 
@@ -338,6 +339,9 @@ class Item:
 
     def update(self, st, states=None):
         c = self.app.colors
+        if self.entity_id == PANEL:              # bouton du panneau sans valeur : son titre seul
+            self.show(ICONS["home"][0], self.cfg.get("label") or _("Maison"), c["fg"], c["fg"])
+            return
         if self.entity_id == BATTERIES:          # resume des piles faibles
             st = battery_state(states if states is not None else self.app.last_states,
                                self.app.cfg.get("battery_low", 20))
@@ -379,6 +383,11 @@ class Item:
             text = "%d%%" % round(attrs["brightness"] * 100 / 255)
         if self.domain == "fan" and st.get("state") == "on" and attrs.get("percentage") and not attr:
             text = "%d%%" % attrs["percentage"]
+
+        if self.domain == "timer" and not attr and st.get("state") in ("active", "paused", "idle"):
+            left = timer_remaining(st)
+            if left is not None:
+                text = fmt_hms(left) + ("  ⏸" if st.get("state") == "paused" else "")
 
         # Scenes / boutons : l'etat est la date du dernier declenchement -> on affiche l'action
         if not attr and st.get("state") not in ("unavailable", "unknown"):
@@ -460,18 +469,47 @@ class Item:
                 self.icon.configure(image=fr[i])
 
 
+class PanelButton(Item):
+    """Bouton de la barre qui ouvre le panneau (elements dont la zone est "panel"). Il affiche l'icone
+    Maison et, au choix, la valeur d'une entite (avec ses couleurs selon la valeur)."""
+    no_tooltip = True
+
+    def __init__(self, app, parent, cfg):
+        super().__init__(app, parent, cfg)
+        if self.entity_id == PANEL:              # pas de valeur : le titre prend la place de la valeur
+            self.title.configure(text="")
+
+    def on_press(self, _e=None):
+        self.app.toggle_panel(self)
+        return "break"
+
+    def on_click(self, _e=None):
+        self.app.toggle_panel(self)
+
+    def on_middle(self, _e=None):
+        self.app.toggle_panel(self)
+        return "break"
+
+    def on_wheel(self, e):
+        pass
+
+
 class Zone:
     """Une zone de la barre (gauche ou droite) : une fenetre sans bordure, toujours au premier plan,
     plus une fenetre "attrape-clics" en mode fond transparent."""
 
-    def __init__(self, app, side, win):
+    def __init__(self, app, side, win, screen=""):
         self.app = app
         self.side = side
+        self.screen = screen     # "" = barre principale, sinon ecran d'une autre barre des taches
         self.win = win
         self.hit = None
         self.hit_hwnd = None
         self.container = None
         self.items = []
+        self.more = None         # bouton « +N » : elements qui recouvriraient les boutons de Windows
+        self.overflow = []       # ces elements
+        self._fit_key = None
         self.wanted = False      # la zone a quelque chose a afficher
         self.shown = True
         self.geom = None
@@ -505,6 +543,64 @@ class Zone:
         self.container.pack(fill="both", expand=True)
         self.container.bind("<Button-3>", self.app.show_menu)
         self.items = []
+        self.more = None
+        self.overflow = []
+        self._fit_key = None
+        self.geom = None
+
+    def fit(self, avail):
+        """Ne garde que les elements qui tiennent dans `avail` pixels (None = tous) ; les autres passent
+        dans le bouton « +N ». Zone gauche : on retire depuis la fin ; zone droite : depuis le debut."""
+        fixed = [it for it in self.items if isinstance(it, PanelButton)]
+        items = [it for it in self.items if not isinstance(it, PanelButton)]
+        widths = [it.frame.winfo_reqwidth() for it in items]
+        if avail is not None and fixed:
+            avail -= sum(it.frame.winfo_reqwidth() for it in fixed)
+        if avail is not None:
+            # autres widgets de la zone (voyant « ● HA »...) : leur place est prise aussi
+            own = {it.frame for it in self.items} | {self.more}
+            avail -= sum(w.winfo_reqwidth() for w in self.container.pack_slaves() if w not in own)
+        if avail is None or sum(widths) <= avail:
+            keep = list(items)
+        else:
+            more_w = self.more.winfo_reqwidth() if self.more is not None else 36
+            room, keep = avail - more_w, []
+            order = list(zip(items, widths))
+            if self.side == "right":
+                order.reverse()
+            for it, w in order:
+                if w > room:
+                    break
+                keep.append(it)
+                room -= w
+            if self.side == "right":
+                keep.reverse()
+        hidden = [it for it in items if it not in keep]
+        key = (tuple(id(it) for it in keep), len(hidden))
+        if key == self._fit_key:
+            return
+        self._fit_key = key
+        self.overflow = hidden
+        for it in self.items:
+            it.frame.pack_forget()
+        if self.more is not None:
+            self.more.pack_forget()
+        if self.side == "left":                  # bouton du panneau : du cote du bord de la zone
+            for it in fixed:
+                it.frame.pack(side="left", fill="y")
+        if hidden:
+            if self.more is None:
+                self.more = self.app.make_more(self)
+            self.more.configure(text="+%d" % len(hidden))
+        if hidden and self.side == "right":
+            self.more.pack(side="left", fill="y")
+        for it in keep:
+            it.frame.pack(side="left", fill="y")
+        if hidden and self.side == "left":
+            self.more.pack(side="left", fill="y")
+        if self.side == "right":
+            for it in fixed:
+                it.frame.pack(side="left", fill="y")
         self.geom = None
 
     # ---------------- mode transparent : fenetre attrape-clics
@@ -540,6 +636,17 @@ class Zone:
 
     def hwnds(self):
         return [h for h in (self.hwnd, self.hit_hwnd) if h]
+
+    def destroy(self):
+        """Zone d'un autre ecran qui ne sert plus."""
+        for w in (self.hit, self.win):
+            if w is not None:
+                try:
+                    w.destroy()
+                except tk.TclError:
+                    pass
+        self.hit = self.hit_hwnd = None
+        self.items = []
 
     def show(self, on):
         if on == self.shown:
@@ -581,6 +688,8 @@ class Zone:
 
 
 class App:
+    item_class = Item            # le panneau calcule l'affichage d'un element avec Item.update
+
     def __init__(self):
         self.q = queue.Queue()
         self.wake = threading.Event()
@@ -589,6 +698,9 @@ class App:
         self.hidden = False
         self.menu_open = False   # menu clic droit affiche : les zones ne se remettent pas devant
         self.settings_win = None
+        self.cam_popup = None
+        from pictures import Pictures
+        self.pictures = Pictures(self)
         self.hovered = None
         self.card = None         # carte de controle ouverte (appui long)
         self.anim_photos = {}    # images Tk des icones animees, par (icone, taille, etat, couleurs)
@@ -619,6 +731,12 @@ class App:
         self._marker = None
         self._card_job = None
         self.notify_paused_until = 0.0
+        self.tb_buttons = None   # boutons de Windows sur la barre des taches (taskbar_uia)
+        self.panel_items = []    # elements ranges dans le panneau
+        self.panel_btn = None    # bouton de la barre qui ouvre le panneau
+        self.panel_win = None    # panneau ouvert
+        self._panel_closed_at = 0.0
+        self._tray_visible = None
 
         self.root = tk.Tk()
         self.root.withdraw()
@@ -671,6 +789,11 @@ class App:
             self.tray = None
         self.register_hotkeys()
         self.root.bind("<Destroy>", self._on_destroy, add="+")
+        try:
+            from taskbar_uia import TaskbarButtons
+            self.tb_buttons = TaskbarButtons(self.taskbar)
+        except Exception:
+            self.tb_buttons = None
 
         threading.Thread(target=self.poll_loop, daemon=True).start()
         self.tick()
@@ -716,21 +839,50 @@ class App:
         self.drag = None
         self._marker = None
 
-        zones = {z.side: z for z in self.zones}
+        # zones des autres ecrans : recreees a chaque application (elles peuvent avoir change)
+        for z in self.zones:
+            if z.screen:
+                z.destroy()
+        self.zones = [z for z in self.zones if not z.screen]
+        others = self.screen_devices()
+        self._screens_sig = tuple(sorted(others))
+        zones = {("", z.side): z for z in self.zones}
         for z in self.zones:
             z.style(cfg, self.colors)
         self.items = []
+        self.panel_items = []
+        self.panel_btn = None
+        if self.panel_win is not None:
+            self.panel_win.close()
         self._vis_sig = self.visibility_sig(cfg)
         for it_cfg in cfg.get("items", []):
             if not item_visible(it_cfg):          # hors de sa plage horaire d'affichage
                 continue
-            z = zones[item_zone(it_cfg)]
+            if item_zone(it_cfg) == "panel":
+                self.panel_items.append(it_cfg)
+                continue
+            scr = it_cfg.get("screen") or ""
+            if scr not in others:                 # ecran absent (ou barre principale) : sur la barre principale
+                scr = ""
+            key = (scr, item_zone(it_cfg))
+            z = zones.get(key)
+            if z is None:
+                z = zones[key] = Zone(self, key[1], tk.Toplevel(self.root), screen=scr)
+                z.style(cfg, self.colors)
+                self.zones.append(z)
             it = Item(self, z.container, it_cfg)
             it.frame.pack(side="left", fill="y")
             z.items.append(it)
             self.items.append(it)
+        if self.panel_items:
+            z = zones[("", "left" if cfg.get("panel_zone") == "left" else "right")]
+            self.panel_btn = PanelButton(self, z.container, self.panel_button_cfg(cfg))
+            self.panel_btn.frame.pack(side="left", fill="y")
+            z.items.append(self.panel_btn)
+            self.items.append(self.panel_btn)
         # Zone principale (message d'erreur "● HA", invite si la barre est vide) : la gauche si elle sert
-        self.main_zone = zones["left"] if zones["left"].items or not self.items else zones["right"]
+        self.main_zone = zones[("", "left")] if zones[("", "left")].items or not self.items \
+            else zones[("", "right")]
         for z in self.zones:
             z.wanted = bool(z.items) or z is self.main_zone
 
@@ -752,6 +904,7 @@ class App:
         if self.last_error:
             self._show_status()
         self.hovered = None
+        self.apply_tray_visible()
         self.register_hotkeys()
         hk = (cfg.get("ha_url"), cfg.get("token"))
         if hk != self._hist_key:               # autre serveur : l'historique en memoire ne vaut plus
@@ -760,6 +913,57 @@ class App:
         if self.widget_mgr is not None:
             self.widget_mgr.sync()
         self.wake.set()
+
+    # ---------------- panneau (un seul bouton sur la barre, liste verticale au-dessus)
+    def panel_button_cfg(self, cfg):
+        title = cfg.get("panel_title") or _("Maison")
+        eid = cfg.get("panel_value") or ""
+        src = next((it for it in cfg.get("items", []) if it.get("entity_id") == eid), None) if eid else None
+        if src is None and eid:
+            src = {"entity_id": eid}
+        if src is None:
+            return {"entity_id": PANEL, "label": title, "icon": "home", "service": "none"}
+        b = {k: v for k, v in src.items() if k in ("entity_id", "attribute", "unit", "decimals", "thresholds")}
+        b.update(label=title, icon="home", service="none")
+        return b
+
+    def toggle_panel(self, button=None):
+        import time as _t
+        if self.panel_win is not None and self.panel_win.alive:
+            self.panel_win.close()
+            return
+        if _t.monotonic() - self._panel_closed_at < 0.35:
+            return                      # le clic sur le bouton vient de fermer le panneau : ne pas le rouvrir
+        from panel_ui import Panel
+        self.close_card()
+        self.tip.hide()
+        self._cancel_press()
+        self.panel_win = Panel(self, button or self.panel_btn, self.panel_items)
+
+    def set_zone(self, i, zone):
+        def fn(items):
+            if 0 <= i < len(items):
+                if zone == "left":
+                    items[i].pop("zone", None)
+                else:
+                    items[i]["zone"] = zone
+        self.edit_items(fn)
+
+    def apply_tray_visible(self):
+        """Icone toujours visible pres de l'horloge (Windows 11 range les nouvelles dans « ^ »)."""
+        want = bool(self.cfg.get("tray_always_visible", True))
+        if self.tray is None or want == self._tray_visible:
+            return
+        exe = sys.executable
+
+        def run():
+            # la cle de l'icone n'existe qu'apres son premier affichage : quelques essais
+            for _n in range(6):
+                if set_tray_visible(want, exe):
+                    return
+                time.sleep(2)
+        self._tray_visible = want
+        threading.Thread(target=run, daemon=True).start()
 
     def start_realtime(self):
         """(Re)lance la connexion temps reel si l'adresse, le jeton ou les options ont change."""
@@ -802,6 +1006,8 @@ class App:
                     pass
         if self.widget_mgr is not None:
             self.widget_mgr.on_state(eid)
+        if self.panel_win is not None:
+            self.panel_win.schedule_refresh()
         card = self.card
         if card is not None and self._card_job is None and (
                 eid == card.eid or eid in card.members or any(e == eid for e, _f in card.extra_updaters)
@@ -904,20 +1110,29 @@ class App:
         x, y = self.root.winfo_pointerxy()
         zone = next((z for z in self.zones if z.shown and z.contains(x, y)), None)
         if zone is None:
-            tb = self.taskbar()
-            if not tb:
-                return None
-            r = get_rect(tb)
-            if not (r.top - 60 <= y <= r.bottom + 20 and r.left <= x <= r.right):
+            found = None
+            for scr in [""] + sorted({z.screen for z in self.zones if z.screen}):
+                tb = screens.find_taskbar(scr) if scr else self.taskbar()
+                if not tb:
+                    continue
+                r = get_rect(tb)
+                if r.top - 60 <= y <= r.bottom + 20 and r.left <= x <= r.right:
+                    found = scr, r
+                    break
+            if found is None:
                 return None            # relache loin de la barre : annule
+            scr, r = found
             side = "left" if x < (r.left + r.right) / 2 else "right"
-            zone = next(z for z in self.zones if z.side == side)
-        idx = len(zone.items)
-        for i, it in enumerate(zone.items):
-            if x < it.frame.winfo_rootx() + it.frame.winfo_width() / 2:
-                idx = i
+            zone = next((z for z in self.zones if z.screen == scr and z.side == side), None)
+            if zone is None:           # cote vide de cet ecran : zone virtuelle, l'element y sera range
+                import types
+                zone = types.SimpleNamespace(side=side, screen=scr, items=[], shown=False)
+        target = None                   # element devant lequel deposer (None = a la fin)
+        for it in zone.items:
+            if it.frame.winfo_ismapped() and x < it.frame.winfo_rootx() + it.frame.winfo_width() / 2:
+                target = it
                 break
-        return zone, idx
+        return zone, target
 
     def drag_motion(self, _e=None):
         if self.drag is None:
@@ -928,12 +1143,12 @@ class App:
             if m is not None:
                 m.place_forget()
             return
-        zone, idx = t
+        zone, target = t
         if m is None or m.master is not zone.container:
             if m is not None:
                 m.destroy()
             m = self._marker = tk.Frame(zone.container, bg=self.colors["on"], width=3)
-        x = zone.items[idx].frame.winfo_x() if idx < len(zone.items) else zone.container.winfo_width() - 3
+        x = target.frame.winfo_x() if target is not None else zone.container.winfo_width() - 3
         m.place(x=max(0, x - 1), y=0, relheight=1.0, width=3)
         m.lift()
 
@@ -955,13 +1170,15 @@ class App:
         src = self.item_index(item)
         if t is None or src is None:
             return
-        zone, idx = t
-        if zone.side == item.zone and item in zone.items and idx in (zone.items.index(item),
-                                                                      zone.items.index(item) + 1):
-            return                      # relache a sa place
-        before = self.item_index(zone.items[idx]) if idx < len(zone.items) else None
+        zone, target = t
+        shown = [it for it in zone.items if it.frame.winfo_ismapped()]
+        if item in shown:
+            nxt = shown[shown.index(item) + 1] if shown.index(item) + 1 < len(shown) else None
+            if target is item or target is nxt:
+                return                  # relache a sa place
+        before = self.item_index(target) if target is not None else None
         last = self.item_index(zone.items[-1]) if zone.items else None
-        side = zone.side
+        side, scr = zone.side, zone.screen
 
         def fn(items):
             if not 0 <= src < len(items):
@@ -980,6 +1197,10 @@ class App:
                 moved["zone"] = "right"
             else:
                 moved.pop("zone", None)
+            if scr:
+                moved["screen"] = scr
+            else:
+                moved.pop("screen", None)
         self.edit_items(fn)
 
     @staticmethod
@@ -999,6 +1220,8 @@ class App:
         if not svc:
             return False
         data = item_cfg.get("data") or {"entity_id": members if len(members) > 1 else item_cfg.get("entity_id", "")}
+        if svc == "timer.start" and (self.last_states.get(item_cfg.get("entity_id")) or {}).get("state") == "active":
+            svc = "timer.pause"                  # minuteur en cours : le clic le met en pause, un autre le relance
         self.call_service(svc, data)
         return True
 
@@ -1239,25 +1462,89 @@ class App:
             at = b.get("attributes", {})
             name = at.get("friendly_name") or eid
             state = ("%s %s" % (STATE_TEXT.get(sb, sb), at.get("unit_of_measurement", ""))).strip()
-            text = (rule.get("message") or "").strip() or _("{name} : {state}")
+            default = _("{name} : {state}")
+            if eid.split(".", 1)[0] in ("event", "button", "input_button"):
+                default = "{name}"                # l'etat est une date : seul le nom a du sens (sonnette...)
+            text = (rule.get("message") or "").strip() or default
             try:
                 text = text.format(name=name, state=state, old=STATE_TEXT.get(sa, sa))
             except (KeyError, IndexError, ValueError):
                 pass
             self.notify("Home Assistant", text)
+            if rule.get("camera"):
+                self.show_camera_popup(rule["camera"], text)
+
+    def show_camera_popup(self, camera, text, force=False):
+        """Fenetre camera en bas a droite (sonnette...). Une seule a la fois : une nouvelle sonnerie la
+        remet a jour."""
+        if not force and (time.time() < self.notify_paused_until or in_quiet_hours(self.cfg)):
+            return
+        if self.ha is None:
+            return
+        pop = self.cam_popup
+        if pop is not None and pop.alive and pop.camera == camera:
+            pop.ring(text)
+            return
+        if pop is not None:
+            pop.close()
+        from doorbell_ui import CameraPopup
+        self.cam_popup = CameraPopup(self, camera, text)
 
     def item_at(self, x_root, y_root=None):
         for z in self.zones:
             if y_root is not None and not z.contains(x_root, y_root):
                 continue
             for it in z.items:
-                if it.contains_x(x_root):
+                if it.frame.winfo_ismapped() and it.contains_x(x_root):
                     return it
         return None
 
+    # ---------------- bouton « +N » : elements qui recouvriraient les boutons de Windows
+    def make_more(self, zone):
+        c = self.colors
+        fs = int(self.cfg.get("font_size", 9))
+        lb = tk.Label(zone.container, text="+0", bg=c["bg"], fg=c["dim"], cursor="hand2", padx=8,
+                      font=(self.cfg.get("font", "Segoe UI"), fs + 1, "bold"))
+        lb.bind("<Button-1>", lambda e, z=zone: self.overflow_menu(z, e.x_root, e.y_root))
+        lb.bind("<Button-3>", self.show_menu)
+        return lb
+
+    def more_at(self, x, y):
+        for z in self.zones:
+            m = z.more
+            if m is not None and z.overflow and m.winfo_ismapped() and z.contains(x, y):
+                mx = m.winfo_rootx()
+                if mx <= x < mx + m.winfo_width():
+                    return z
+        return None
+
+    def overflow_menu(self, zone, x, y):
+        """Menu des elements masques faute de place : action au clic, ou leur carte."""
+        self.tip.hide()
+        m = tk.Menu(self.root, tearoff=0)
+        m.add_command(label=_("Masqués pour ne pas recouvrir les icônes de Windows"), state="disabled")
+        cards = tk.Menu(m, tearoff=0)
+        for it in zone.overflow:
+            name = it.cfg.get("label") or it.entity_id
+            text = "%s : %s" % (name, it.value.cget("text"))
+            m.add_command(label=text[:60], command=lambda it=it: self.click_item(it.cfg) or self.open_card(it.cfg))
+            cards.add_command(label=name[:50], command=lambda it=it: self.open_card(it.cfg))
+        m.add_separator()
+        m.add_cascade(label=_("Ouvrir la carte"), menu=cards)
+        self.menu_open = True
+        try:
+            user32.SetForegroundWindow(zone.hwnd)
+            m.tk_popup(x, y)
+        finally:
+            self.menu_open = False
+            m.grab_release()
+
     def _hit_dispatch(self, e, method):
         it = self.item_at(e.x_root, e.y_root)
-        if it is not None:
+        z = self.more_at(e.x_root, e.y_root) if it is None else None
+        if z is not None and method == "on_press":
+            self.overflow_menu(z, e.x_root, e.y_root)
+        elif it is not None:
             getattr(it, method)(e)
         elif method == "on_press" and (not self.items or self.status.winfo_ismapped()):
             self.open_settings()
@@ -1296,7 +1583,8 @@ class App:
     def anchor_for(self, item=None):
         """(centre x, haut de la barre des taches, bords gauche et droit de l'ecran) pour placer une fenetre
         au-dessus d'un element (ou au milieu de l'ecran)."""
-        tb = self.taskbar()
+        zone = next((z for z in self.zones if item in z.items), None) if item is not None else None
+        tb = self.zone_taskbar(zone)
         if not tb:
             return None
         r = get_rect(tb)
@@ -1320,13 +1608,14 @@ class App:
             return m.left, m.top, m.right - m.left, m.bottom - m.top
         return 0, 0, self.root.winfo_screenwidth(), self.root.winfo_screenheight()
 
-    def open_card(self, item):
-        """Carte de controle d'un element de la barre, ou d'une config d'element (palette)."""
+    def open_card(self, item, near=None):
+        """Carte de controle d'un element de la barre, ou d'une config d'element (palette, panneau) ;
+        near : element de la barre au-dessus duquel l'ouvrir."""
         from card_ui import Card
         self.close_card()
         self.tip.hide()
         is_item = isinstance(item, Item)
-        a = self.anchor_for(item if is_item else None)
+        a = self.anchor_for(item if is_item else (near if near in self.items else None))
         if a is None:
             return
         cx, top, left, right = a
@@ -1517,6 +1806,8 @@ class App:
                         it.refresh_from(payload)
                     if self.card is not None:
                         self.card.refresh()
+                    if self.panel_win is not None:
+                        self.panel_win.schedule_refresh()
                     if self.widget_mgr is not None:
                         self.widget_mgr.redraw_all()
                     if was_offline:
@@ -1561,10 +1852,23 @@ class App:
                 self.load_areas()
             if self.visibility_sig(self.cfg) != self._vis_sig:
                 self.apply_config(self.cfg)
+            elif any(it.get("screen") for it in self.cfg.get("items", [])) \
+                    and tuple(sorted(self.screen_devices())) != getattr(self, "_screens_sig", ()):
+                self.apply_config(self.cfg)       # ecran branche ou debranche
         if self._theme_tick % 5 == 0 and system_light() != self.sys_light:
             self.apply_config(self.cfg)
             if self.card is not None:
                 self.close_card()
+        sec = int(time.time())
+        if sec != getattr(self, "_timer_sec", None):     # minuteurs Home Assistant : compte a rebours a la seconde
+            self._timer_sec = sec
+            for it in self.items:
+                if it.domain == "timer" and (self.last_states.get(it.entity_id) or {}).get("state") == "active":
+                    it.refresh_from(self.last_states)
+            if self.panel_win is not None and any(
+                    e.startswith("timer.") and s.get("state") == "active" for e, s in self.last_states.items()
+                    if e in {c.get("entity_id") for c in self.panel_items}):
+                self.panel_win.schedule_refresh()
         self.reposition()
         self.root.after(400, self.tick)
 
@@ -1593,6 +1897,17 @@ class App:
         """Barre des taches de l'ecran choisi dans les reglages (ecran principal par defaut)."""
         return screens.find_taskbar(self.cfg.get("monitor", ""))
 
+    def screen_devices(self):
+        """{ecran: barre des taches} des autres ecrans qui ont une barre (une barre par ecran)."""
+        main = self.taskbar()
+        try:
+            return {m["device"]: m["taskbar"] for m in screens.monitors() if m["taskbar"] and m["taskbar"] != main}
+        except Exception:
+            return {}
+
+    def zone_taskbar(self, zone):
+        return screens.find_taskbar(zone.screen) if zone is not None and zone.screen else self.taskbar()
+
     def reposition(self):
         tb = self.taskbar()
         if not tb:
@@ -1600,12 +1915,53 @@ class App:
         self.hidden = bool(self.cfg.get("hide_on_fullscreen", True)
                            and foreground_is_fullscreen(self.own_hwnds(), tb))
         r = get_rect(tb)
+        spans = self.tb_buttons.spans if (self.tb_buttons is not None and self.cfg.get("avoid_overlap", True)) \
+            else None
+        rects = {"": r}
         for z in self.zones:
+            if z.screen not in rects:             # barre des taches d'un autre ecran
+                t = screens.find_taskbar(z.screen)
+                rects[z.screen] = get_rect(t) if t and t != tb else None
+            zr = rects[z.screen]
+            if zr is None:
+                z.show(False)
+                continue
             z.show(z.wanted and not self.hidden)
+            if z.items:
+                from taskbar_uia import free_width
+                off = self.offset(z.side)
+                anchor = zr.left + off if z.side == "left" else zr.right - off
+                try:
+                    z.fit(free_width(spans if not z.screen else None, z.side, anchor))
+                except tk.TclError:
+                    pass
             if z.shown:
-                z.place(r, self.offset(z.side))
+                z.place(zr, self.offset(z.side))
+        self._debug_dump(r, spans)
         # La barre des taches repasse devant a chaque clic : on se remet au-dessus
         self.raise_now()
+
+    def _debug_dump(self, r, spans):
+        """Diagnostic : HATASKBAR_DEBUG=fichier -> etat des zones ecrit toutes les 2 s."""
+        path = os.environ.get("HATASKBAR_DEBUG")
+        if not path or time.time() - getattr(self, "_dbg_t", 0) < 2:
+            return
+        self._dbg_t = time.time()
+        try:
+            from taskbar_uia import free_width
+            lines = ["%s tb=%d..%d spans=%s" % (time.strftime("%H:%M:%S"), r.left, r.right, spans)]
+            for z in self.zones:
+                off = self.offset(z.side)
+                anchor = r.left + off if z.side == "left" else r.right - off
+                lines.append("  %s anchor=%d free=%s geom=%s req=%d items=%s overflow=%d slaves=%s" % (
+                    z.side, anchor, free_width(spans, z.side, anchor), z.geom, z.container.winfo_reqwidth(),
+                    [(type(i).__name__[0], i.frame.winfo_reqwidth(), i.frame.winfo_ismapped()) for i in z.items],
+                    len(z.overflow), [(w.winfo_class(), w.winfo_reqwidth()) for w in z.container.pack_slaves()]))
+            with open(path, "a", encoding="utf-8") as f:
+                f.write("\n".join(lines) + "\n")
+        except Exception as e:
+            with open(path, "a", encoding="utf-8") as f:
+                f.write("debug error %r\n" % e)
 
     # ---------------- menu clic droit
     def show_menu(self, e, item=None):
@@ -1621,6 +1977,7 @@ class App:
             m.add_command(label=_("Modifier cet élément…"), command=lambda: self.open_settings(select=i))
             m.add_command(label=_("Ouvrir la carte"), command=lambda: self.open_card(item))
             m.add_command(label=_("Masquer de la barre"), command=lambda: self.set_hidden(i, True))
+            m.add_command(label=_("Ranger dans le panneau"), command=lambda: self.set_zone(i, "panel"))
             st = self.last_states.get(item.entity_id) or {}
             if as_float(st.get("state")) is not None and self.widget_mgr is not None:
                 spark = tk.BooleanVar(m, bool(item.cfg.get("sparkline")))
@@ -1744,8 +2101,19 @@ def main():
         sys.exit(0)
     if not os.path.exists(CONFIG_PATH):
         save_config(DEFAULT_CONFIG)
-    App().root.mainloop()
+    app = App()
+    if os.environ.get("HATASKBAR_DEBUG"):      # diagnostic : erreurs internes ecrites dans le journal
+        import traceback
+
+        def report(*exc):
+            with open(os.environ["HATASKBAR_DEBUG"], "a", encoding="utf-8") as f:
+                f.write("ERREUR %s\n%s\n" % (time.strftime("%H:%M:%S"), "".join(traceback.format_exception(*exc))))
+        app.root.report_callback_exception = report
+    app.root.mainloop()
 
 
 if __name__ == "__main__":
+    # Un "import ha_taskbar" ailleurs doit reutiliser ce module, pas le recharger : un 2e chargement
+    # redefinirait les structures Win32 (MONITORINFO...) et casserait les appels deja configures.
+    sys.modules.setdefault("ha_taskbar", sys.modules[__name__])
     main()
