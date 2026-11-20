@@ -34,6 +34,10 @@ Un **programme d'installation** et une **version portable** (sans installation) 
 Version Windows. Sur Mac, ces nouveautés arrivent dans une prochaine version.
 
 **🏠 Le panneau** : un seul bouton sur la barre des tâches ouvre la liste de tes éléments, juste au-dessus, comme les Paramètres rapides de Windows 11.
+
+<p align="center">
+  <img src="docs/screenshots/panneau.png" width="620" alt="Le panneau, élargi sur deux colonnes : minuteur, lumières, enceinte avec sa pochette, volet, ventilateur, serrure">
+</p>
 - Les éléments sont **rangés par pièce**. Chaque ligne a une **recherche**, des **interrupteurs**, des **curseurs** (luminosité, volume, position d'un volet…), des boutons **+/−** pour un thermostat, et l'**image des caméras**.
 - **Taille réglable** : tire le bord haut, gauche ou droit. Quand le panneau est large, les pièces se répartissent sur **plusieurs colonnes**. Un double-clic sur un bord remet la taille d'origine.
 - **Ordre libre** : glisse un élément dans sa pièce, ou le titre d'une pièce pour la déplacer en entier.
@@ -44,11 +48,19 @@ Version Windows. Sur Mac, ces nouveautés arrivent dans une prochaine version.
 
 **🖼️ Photos et pochettes** : la photo d'une personne et la pochette du morceau en cours s'affichent dans la carte et dans le panneau.
 
+<p align="center">
+  <img src="docs/screenshots/carte-minuteur.png" width="300" alt="Carte d'un minuteur : compte à rebours, Pause, Annuler, Terminer, durées toutes prêtes">
+  &nbsp;
+  <img src="docs/screenshots/carte-media.png" width="300" alt="Carte d'une enceinte avec la pochette du morceau en cours">
+</p>
+
 **📷 Caméras**
 - **Caméra dans la carte** : **Réglages → Éléments → Plus d'options → Caméra dans la carte** affiche l'image en direct en haut de la carte d'un élément (la caméra de l'entrée sur le bouton du portail, par exemple).
 - **Fenêtre caméra quand on sonne** : une notification d'état peut ouvrir une petite fenêtre en bas à droite avec l'image en direct (**Réglages → Notifications → Afficher la caméra**). Elle ne prend pas le clavier, se ferme seule après une minute, et un clic sur l'image ouvre la carte de la caméra.
 
 **💬 Assist dans la palette** : tape une phrase (« allume le salon », « quelle heure est-il ») puis **Entrée** sur la ligne « Demander à Assist », ou **Ctrl+Entrée**. La réponse s'affiche sous la recherche.
+
+![Assist dans la palette de commandes](docs/screenshots/palette-assist.png)
 
 **🖥️ Plusieurs écrans** : chaque élément peut s'afficher sur la barre des tâches d'un autre écran (**Réglages → Éléments → Écran**, ou Ctrl + glisser l'élément jusqu'à l'autre barre). Si cet écran est débranché, l'élément revient sur la barre principale.
 

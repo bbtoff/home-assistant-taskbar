@@ -874,13 +874,13 @@ class SettingsWindow:
         items = self.cfg["items"]
         for zone, title in self.ZONES:
             idx = [i for i, it in enumerate(items) if item_zone(it) == zone]
-            self.tree.insert("", "end", iid="grp:" + zone, values=("%s  (%d)" % (title, len(idx)), "", ""),
+            self.tree.insert("", "end", iid="grp:" + zone, values=(title, _("%d élément(s)") % len(idx) if idx else "", ""),
                              tags=("group",))
             for i in idx:
                 self.tree.insert("", "end", iid=str(i), values=self.tree_values(items[i]))
             if not idx:
                 self.tree.insert("", "end", iid="empty:" + zone, tags=("hint",),
-                                 values=("    " + _("(vide — fais glisser un élément ici)"), "", ""))
+                                 values=("    " + _("(vide)"), _("fais glisser un élément ici"), ""))
         if self.cfg["items"]:
             self.empty_label.place_forget()
         else:

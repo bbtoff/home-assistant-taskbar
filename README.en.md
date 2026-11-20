@@ -35,6 +35,8 @@ An **installer** and a **portable version** (no installation) are provided: noth
 These features are in the Windows version. They will come to the Mac in a later version.
 
 - 🏠 **The panel**: a single taskbar button opens a list of your items above it, like Windows 11 Quick Settings.
+
+  <p align="center"><img src="docs/screenshots/en/panel.png" width="620" alt="The panel, widened to two columns"></p>
   - Items are grouped by room, with search, toggles, sliders (brightness, volume, cover position…), +/− buttons for thermostats, and live camera images.
   - **Resize it** by dragging its top, left or right edge. When it is wide, rooms spread over **several columns**.
   - **Reorder** by dragging an item within its room, or a room title to move the whole room.
@@ -46,6 +48,13 @@ These features are in the Windows version. They will come to the Mac in a later 
   - a live image at the top of an item's card (**Settings → Items → More options → Camera in the card**);
   - a small camera window when someone rings: a state notification can show the camera live (**Settings → Notifications → Show camera**).
 - 💬 **Assist in the command palette**: type a sentence, then press **Ctrl+Enter**. The answer appears under the search box.
+
+  <p align="center">
+    <img src="docs/screenshots/en/card-timer.png" width="300" alt="Timer card">
+    &nbsp;
+    <img src="docs/screenshots/en/card-media.png" width="300" alt="Speaker card with album art">
+  </p>
+  <p align="center"><img src="docs/screenshots/en/palette-assist.png" alt="Assist in the command palette"></p>
 - 🖥️ **Multiple screens**: each item can go on the taskbar of another screen (**Settings → Items → Screen**).
 - **Also new**:
   - a **"+N" button** for items that would cover Windows icons;
