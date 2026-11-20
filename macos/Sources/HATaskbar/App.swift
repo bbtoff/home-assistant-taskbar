@@ -67,6 +67,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         bar.refresh()
         model.start()
         widgets.sync()
+        // Minuteurs Home Assistant en cours : compte a rebours rafraichi chaque seconde
+        Task { @MainActor [weak self] in
+            while true {
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                guard let self = self else { return }
+                if self.model.states.values.contains(where: { $0.domain == "timer" && $0.state == "active" }) {
+                    self.bar?.refresh()
+                    self.model.objectWillChange.send()
+                }
+            }
+        }
         if model.needsSetup {
             showSettings(tab: .connection)
         }

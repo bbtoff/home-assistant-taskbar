@@ -54,13 +54,14 @@ enum Demo {
         ext.thresholds = "< 5 bleu ; > 25 orange ; > 30 rouge"
         let scene = ItemConfig(entityId: "scene.cinema", label: "Ciné")
         let clim = ItemConfig(entityId: "climate.clim_salon", label: "Clim", icon: "snow_anim")
-        c.items = [light, plug, heat, power, ext, scene, clim]
+        let cuisson = ItemConfig(entityId: "timer.cuisson", label: "Cuisson")
+        c.items = [light, plug, heat, power, ext, scene, clim, cuisson]
         // Elements du panneau (icone Maison)
         for (eid, label) in [("light.cuisine", "Cuisine"), ("switch.cafetiere", "Cafetière"), ("fan.plafond", "Ventilateur"),
                              ("cover.volet_salon", "Volet"), ("media_player.salon", "Enceinte"),
                              ("climate.clim_salon", "Clim"), ("lock.porte_entree", "Serrure"),
                              ("binary_sensor.porte_entree", "Porte d'entrée"), ("camera.entree", "Caméra entrée"),
-                             ("sensor.humidite_salle_de_bain", "Humidité")] {
+                             ("sensor.humidite_salle_de_bain", "Humidité"), ("timer.lessive", "Lessive")] {
             var it = ItemConfig(entityId: eid, label: label)
             it.zone = "panel"
             c.items.append(it)
@@ -91,6 +92,8 @@ enum Demo {
     }
 
     private static func ago(_ min: Double) -> Date { Date().addingTimeInterval(-min * 60) }
+    /// Lancement de l'application (les minuteurs de demonstration en dependent).
+    static let startDate = Date()
 
     static var states: [String: EntityState] {
         let list: [EntityState] = [
@@ -120,6 +123,13 @@ enum Demo {
             EntityState(entityId: "light.cuisine", state: "on", attributes: [
                 "friendly_name": "Lumière de la cuisine", "brightness": 102, "supported_color_modes": ["brightness"]],
                 lastChanged: ago(25)),
+            EntityState(entityId: "timer.cuisson", state: "active", attributes: [
+                "friendly_name": "Minuteur cuisson", "duration": "0:10:00",
+                "finishes_at": .string(ISO8601DateFormatter().string(from: startDate.addingTimeInterval(372)))],
+                lastChanged: ago(4)),
+            EntityState(entityId: "timer.lessive", state: "paused", attributes: [
+                "friendly_name": "Minuteur lessive", "duration": "1:30:00", "remaining": "0:23:15"],
+                lastChanged: ago(12)),
             EntityState(entityId: "switch.cafetiere", state: "off", attributes: [
                 "friendly_name": "Cafetière", "device_class": "outlet"], lastChanged: ago(180)),
             EntityState(entityId: "camera.entree", state: "idle", attributes: [
@@ -157,7 +167,7 @@ enum Demo {
         "switch.prise_bureau": "Bureau", "media_player.salon": "Salon", "binary_sensor.porte_entree": "Entrée",
         "lock.porte_entree": "Entrée", "sensor.humidite_salle_de_bain": "Salle de bain",
         "sensor.temperature_exterieure": "Jardin", "light.cuisine": "Cuisine", "switch.cafetiere": "Cuisine",
-        "camera.entree": "Entrée", "climate.clim_salon": "Salon", "sensor.capteur_porte_batterie": "Entrée",
+        "camera.entree": "Entrée", "climate.clim_salon": "Salon", "timer.lessive": "Buanderie", "sensor.capteur_porte_batterie": "Entrée",
     ]
 
     /// Historique fictif, regulier d'une execution a l'autre.

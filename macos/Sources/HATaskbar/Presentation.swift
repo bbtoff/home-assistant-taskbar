@@ -465,6 +465,7 @@ func isActive(_ st: EntityState) -> Bool {
         return activeStates.contains(st.state)
     case "sensor": return (Double(st.state) ?? 0) > 0
     case "media_player": return st.state == "playing"
+    case "timer": return st.state == "active"
     default: return activeStates.contains(st.state)
     }
 }
@@ -588,6 +589,11 @@ func displayFor(_ item: ItemConfig, states: [String: EntityState], offline: Bool
         text = translate(st.state, domain: st.domain)
     }
     let domain = st.domain
+    // Minuteur Home Assistant : compte a rebours (⏸ en pause)
+    if domain == "timer" && attr == nil && ["active", "paused", "idle"].contains(st.state),
+       let left = timerRemaining(st) {
+        text = fmtHMS(left) + (st.state == "paused" ? "  ⏸" : "")
+    }
     if attr == nil && st.state == "on" {
         if domain == "light", let b = st.num("brightness"), b > 0 { text = "\(Int((b * 100 / 255).rounded()))%" }
         if domain == "fan", let p = st.num("percentage"), p > 0 { text = "\(Int(p))%" }
@@ -611,7 +617,7 @@ func displayFor(_ item: ItemConfig, states: [String: EntityState], offline: Bool
     if !unit.isEmpty { text += " " + unit }
 
     var tone: Tone = .normal
-    let active = activeStates.contains(st.state) && domain != "sensor"
+    let active = (activeStates.contains(st.state) && domain != "sensor") || (domain == "timer" && st.state == "active")
     if st.isUnavailable || offline { tone = .dim } else if active { tone = .on }
     var color: String?
     if !st.isUnavailable && !offline {
@@ -625,7 +631,8 @@ func defaultService(_ entityId: String) -> String? {
     let actions = ["light": "toggle", "switch": "toggle", "input_boolean": "toggle", "fan": "toggle",
                    "cover": "toggle", "automation": "toggle", "media_player": "media_play_pause",
                    "script": "turn_on", "scene": "turn_on", "button": "press", "input_button": "press",
-                   "siren": "toggle", "humidifier": "toggle", "valve": "toggle"]
+                   "siren": "toggle", "humidifier": "toggle", "valve": "toggle",
+                   "timer": "start"]          // en cours : le clic le met en pause (AppModel.click)
     let d = entityId.domain
     if d == "lock" { return nil }       // un verrou ne s'ouvre pas d'un simple clic : carte
     return actions[d].map { "\(d).\($0)" }
@@ -740,4 +747,37 @@ func statePhrase(_ item: ItemConfig, states: [String: EntityState], batteryLow: 
 /// Minuscules sans accents (recherche « eclairage » = « Éclairage »).
 func fold(_ s: String) -> String {
     s.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "fr_FR")).lowercased()
+}
+
+// MARK: - Minuteurs Home Assistant (timer.*)
+
+/// « 0:04:12 » ou « 1 day, 0:04:12 » -> secondes.
+func hmsSeconds(_ text: String?) -> Double? {
+    guard var t = text?.trimmingCharacters(in: .whitespaces), !t.isEmpty else { return nil }
+    var days = 0.0
+    if t.contains("day"), let comma = t.firstIndex(of: ",") {
+        days = Double(t[..<comma].split(separator: " ").first ?? "0") ?? 0
+        t = String(t[t.index(after: comma)...]).trimmingCharacters(in: .whitespaces)
+    }
+    var parts = t.split(separator: ":").compactMap { Double($0) }
+    guard !parts.isEmpty else { return nil }
+    while parts.count < 3 { parts.insert(0, at: 0) }
+    return days * 86400 + parts[0] * 3600 + parts[1] * 60 + parts[2]
+}
+
+/// Secondes restantes : en cours d'apres finishes_at, en pause d'apres remaining, a l'arret sa duree.
+func timerRemaining(_ st: EntityState?, now: Date = Date()) -> Double? {
+    guard let st = st else { return nil }
+    if st.state == "active", let end = parseHADate(st.str("finishes_at")) {
+        return max(0, end.timeIntervalSince(now))
+    }
+    if st.state == "active" || st.state == "paused", let r = hmsSeconds(st.str("remaining")) { return r }
+    return hmsSeconds(st.str("duration"))
+}
+
+/// Compte a rebours : 4:05, 1:04:05.
+func fmtHMS(_ sec: Double) -> String {
+    let s = Int(sec.rounded())
+    let h = s / 3600, m = (s % 3600) / 60, r = s % 60
+    return h > 0 ? String(format: "%d:%02d:%02d", h, m, r) : String(format: "%d:%02d", m, r)
 }

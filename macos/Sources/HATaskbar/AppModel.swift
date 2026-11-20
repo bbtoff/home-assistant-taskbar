@@ -256,7 +256,9 @@ final class AppModel: ObservableObject {
             call("homeassistant.turn_\(on ? "off" : "on")", ["entity_id": .array(members.map { .string($0) })])
             return true
         }
-        guard let svc = resolveService(item) else { return false }
+        guard var svc = resolveService(item) else { return false }
+        // Minuteur en cours : le clic le met en pause, un autre le relance
+        if svc == "timer.start" && states[item.entityId]?.state == "active" { svc = "timer.pause" }
         let target: JSONValue = members.count > 1 ? .array(members.map { .string($0) }) : .string(item.entityId)
         call(svc, item.data ?? ["entity_id": target])
         return true

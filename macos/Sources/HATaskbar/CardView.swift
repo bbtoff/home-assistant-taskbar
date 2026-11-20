@@ -131,6 +131,7 @@ struct DomainControls: View {
         case "input_select", "select": SelectControls(model: model, st: st)
         case "vacuum": VacuumControls(model: model, st: st)
         case "weather": WeatherControls(model: model, st: st)
+        case "timer": TimerControls(model: model, st: st)
         case "sensor":
             if Double(st.state) != nil {
                 HistoryView(model: model, entityId: st.entityId, numeric: true,
@@ -821,6 +822,60 @@ struct HistoryView: View {
             failed = false
         } catch {
             failed = true
+        }
+    }
+}
+
+/// Minuteur Home Assistant : grand compte a rebours, barre de progression, commandes et durees rapides.
+struct TimerControls: View {
+    @ObservedObject var model: AppModel
+    let st: EntityState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            TimelineView(.periodic(from: .now, by: 0.5)) { ctx in
+                let left = timerRemaining(st, now: ctx.date)
+                let total = hmsSeconds(st.str("duration"))
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(left.map(fmtHMS) ?? "—")
+                        .font(.system(size: 40, weight: .light))
+                        .monospacedDigit()
+                        .foregroundStyle(st.state == "active" ? Color.accentColor : (st.state == "paused" ? Color.primary : Color.secondary))
+                    GeometryReader { g in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(Color.secondary.opacity(0.2))
+                            if ["active", "paused"].contains(st.state), let l = left, let t = total, t > 0 {
+                                Capsule().fill(Color.accentColor)
+                                    .frame(width: g.size.width * CGFloat(max(0, min(1, l / t))))
+                            }
+                        }
+                    }
+                    .frame(height: 6)
+                }
+            }
+            HStack {
+                if st.state == "active" {
+                    Button("Pause") { model.call("timer.pause", entity: st.entityId) }
+                } else {
+                    Button(st.state == "paused" ? "Reprendre" : "Démarrer") { model.call("timer.start", entity: st.entityId) }
+                        .keyboardShortcut(.defaultAction)
+                }
+                Button("Annuler") { model.call("timer.cancel", entity: st.entityId) }
+                Button("Terminer") { model.call("timer.finish", entity: st.entityId) }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Démarrer pour").font(.callout).foregroundStyle(.secondary)
+                HStack(spacing: 6) {
+                    ForEach([1, 5, 10, 15, 30, 60], id: \.self) { m in
+                        Button(m < 60 ? "\(m) min" : "1 h") {
+                            model.call("timer.start", entity: st.entityId,
+                                       ["duration": .string(String(format: "%02d:%02d:00", m / 60, m % 60))])
+                        }
+                    }
+                }
+                .controlSize(.small)
+            }
         }
     }
 }
