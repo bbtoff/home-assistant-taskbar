@@ -847,6 +847,9 @@ EN = {
     "Barre — zone gauche": "Bar — left zone",
     "Barre — zone droite": "Bar — right zone",
     "(vide — fais glisser un élément ici)": "(empty — drag an item here)",
+    "(vide)": "(empty)",
+    "fais glisser un élément ici": "drag an item here",
+    "%d élément(s)": "%d item(s)",
     "Ouvrir le panneau": "Open the panel",
     "Le panneau est vide : range d'abord un élément dans la partie « Panneau » de l'onglet Éléments.":
         "The panel is empty: first put an item in the “Panel” part of the Items tab.",
