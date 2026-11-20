@@ -301,7 +301,7 @@ struct ItemEditor: View {
         let st = model.states[item.entityId]
         Form {
             Section {
-                LabeledContent("Entité", value: item.entityId)
+                EntityField(model: model, title: "Entité", text: $item.entityId)
                 TextField("Libellé (pour la carte et l'infobulle)", text: optional($item.label),
                           prompt: Text(st?.name ?? ""))
                 IconPicker(title: "Icône", icon: $item.icon, animated: true)
@@ -506,7 +506,8 @@ struct NotificationsTab: View {
                 ForEach(model.config.notifications) { r in
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
-                            TextField("Entité", text: ruleBinding(r.id, \.entityId), prompt: Text("binary_sensor.porte"))
+                            EntityField(model: model, title: "Entité", text: ruleBinding(r.id, \.entityId),
+                                        prompt: "binary_sensor.porte")
                             TextField("Quand l'état devient", text: ruleBinding(r.id, \.to), prompt: Text("on (vide = tout)"))
                                 .frame(width: 150)
                             TextField("Message", text: ruleBinding(r.id, \.message), prompt: Text("{name} : {state}"))

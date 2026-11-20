@@ -65,6 +65,8 @@ jobs:
             shoot "carte-camera-$mode" --demo-items 0,3,8 --demo-no-widgets --demo-card 2
             shoot "sonnette-$mode" $BAR --demo-no-widgets --demo-doorbell
             shoot "reglages-notifications-$mode" --demo-no-widgets --demo-settings notifications
+            shoot "autocompletion-$mode" --demo-no-widgets --demo-autocomplete --demo-settings items
+            shoot "tu-voulais-dire-$mode" --demo-no-widgets --demo-autocomplete --demo-settings notifications
             shoot "panneau-large-$mode" $BAR --demo-no-widgets --demo-panel --demo-panel-wide
             shoot "reglages-widgets-$mode" --demo-settings widgets
           done

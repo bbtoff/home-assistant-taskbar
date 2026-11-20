@@ -86,6 +86,10 @@ enum Demo {
             w3.x = 360; w3.y = 525
             c.widgets = [w1, w2, w3]
         }
+        if CommandLine.arguments.contains("--demo-autocomplete") {   // saisie en cours, pour les captures
+            c.items[0].entityId = "salon lum"
+            c.notifications[1].entityId = "binary_sensor.sonete"
+        }
         if let keep = arg("--demo-items") {
             let idx = Set(keep.split(separator: ",").compactMap { Int($0) })
             for i in c.items.indices where !idx.contains(i) && !c.items[i].inPanel { c.items[i].hidden = true }
