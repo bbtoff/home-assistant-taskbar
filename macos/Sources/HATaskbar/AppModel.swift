@@ -14,6 +14,13 @@ final class AppModel: ObservableObject {
     @Published private(set) var timers: [String: Date] = [:]      // arret programme (entite -> heure)
     @Published var areas: [String: String] = [:]
     var assistConversation: String?          // conversation Assist en cours (panneau)
+    /// Entites exposees a Assist (nil = inconnu : liste illisible, compte non administrateur...)
+    @Published var assistExposure: [String: Bool]?
+    private var exposureLoadedAt: Date?
+    var exposureLoadedAtValue: Date? {
+        get { exposureLoadedAt }
+        set { exposureLoadedAt = newValue }
+    }
 
     /// Appele apres chaque changement d'etat ou de configuration (barre des menus).
     var onStatesChanged: (() -> Void)?

@@ -143,6 +143,50 @@ final class HAClient {
         return (speech, resp?["response_type"]?.string == "error", r["conversation_id"]?.string)
     }
 
+    /// Commande ponctuelle de l'API WebSocket (ex. « homeassistant/expose_entity/list ») : connexion,
+    /// authentification, une requete, son resultat. Erreur si Home Assistant la refuse.
+    func wsCommand(_ type: String, timeout: TimeInterval = 15) async throws -> JSONValue {
+        guard let url = webSocketURL else { throw HAError.badURL }
+        let ws = session.webSocketTask(with: url)
+        ws.maximumMessageSize = 32 * 1024 * 1024
+        ws.resume()
+        defer { ws.cancel(with: .goingAway, reason: nil) }
+        func receive() async throws -> JSONValue {
+            switch try await ws.receive() {
+            case .string(let s): return (try? JSONDecoder().decode(JSONValue.self, from: Data(s.utf8))) ?? .null
+            case .data(let d): return (try? JSONDecoder().decode(JSONValue.self, from: d)) ?? .null
+            @unknown default: return .null
+            }
+        }
+        func send(_ v: JSONValue) async throws {
+            let data = try JSONEncoder().encode(v)
+            try await ws.send(.string(String(decoding: data, as: UTF8.self)))
+        }
+        guard try await receive()["type"]?.string == "auth_required" else { throw HAError.invalid }
+        try await send(["type": "auth", "access_token": .string(token)])
+        guard try await receive()["type"]?.string == "auth_ok" else { throw HAError.auth }
+        try await send(["id": 1, "type": .string(type)])
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            let m = try await receive()
+            if m["id"]?.double == 1 && m["type"]?.string == "result" {
+                guard m["success"]?.bool == true else { throw HAError.invalid }
+                return m["result"] ?? .null
+            }
+        }
+        throw HAError.invalid
+    }
+
+    /// Entites exposees a Assist : {entity_id: exposee ?}. Demande un compte administrateur.
+    func assistExposure() async throws -> [String: Bool] {
+        let r = try await wsCommand("homeassistant/expose_entity/list")
+        var out: [String: Bool] = [:]
+        for (eid, v) in r["exposed_entities"]?.object ?? [:] {
+            if let b = v["conversation"]?.bool { out[eid] = b }
+        }
+        return out
+    }
+
     /// Image actuelle d'une camera (camera.*) ou d'une entite image.* (octets JPEG / PNG).
     func cameraImage(_ entityId: String) async throws -> Data {
         let kind = entityId.hasPrefix("image.") ? "image_proxy" : "camera_proxy"
