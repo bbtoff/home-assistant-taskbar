@@ -11,6 +11,39 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     var history: HistoryStore?
 
     private var appItem: NSStatusItem?
+    private var appMenu: NSMenu?
+    var onPanel: ((NSView) -> Void)?
+
+    /// Des elements sont ranges dans le panneau.
+    var hasPanel: Bool { model.config.items.contains { $0.inPanel && $0.hidden != true } }
+
+    @objc private func appItemClicked(_ sender: NSStatusBarButton) {
+        let ev = NSApp.currentEvent
+        let menuWanted = ev?.type == .rightMouseUp || ev?.modifierFlags.contains(.control) == true
+        if hasPanel && !menuWanted && !model.needsSetup {
+            onPanel?(sender)
+        } else {
+            showAppMenu()
+        }
+    }
+
+    private func showAppMenu() {
+        guard let a = appItem, let m = appMenu else { return }
+        a.menu = m
+        a.button?.performClick(nil)
+        a.menu = nil
+    }
+
+    /// Ouvre le panneau sous l'icone Maison (mode demonstration).
+    func openPanel() {
+        if let b = appItem?.button { onPanel?(b) }
+    }
+
+    /// Position de l'icone Maison (tests de l'interface).
+    var appItemScreenFrame: NSRect? {
+        guard let b = appItem?.button, let w = b.window else { return nil }
+        return w.convertToScreen(b.convert(b.bounds, to: nil))
+    }
     private var entries: [ItemView] = []
     private var signature = ""
     private var popover: NSPopover?
@@ -24,8 +57,8 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     private func currentSignature() -> String {
         let c = model.config
-        let ids = c.items.filter(itemVisible).map { $0.id.uuidString }.joined(separator: ",")
-        return "\(ids)|\(c.compact)|\(c.showAppIcon)|\(model.needsSetup)"
+        let ids = c.items.filter { itemVisible($0) && !$0.inPanel }.map { $0.id.uuidString }.joined(separator: ",")
+        return "\(ids)|\(c.compact)|\(c.showAppIcon)|\(model.needsSetup)|\(hasPanel)"
     }
 
     /// Recree les elements si la liste a change, puis met a jour les valeurs.
@@ -51,17 +84,21 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         if let a = appItem { bar.removeStatusItem(a) }
         appItem = nil
 
-        let visible = model.config.items.filter(itemVisible)
+        let visible = model.config.items.filter { itemVisible($0) && !$0.inPanel }
         // Un nouvel element se place a gauche des precedents : on cree d'abord l'icone de l'application
         // (la plus a droite), puis les elements du dernier au premier.
-        if model.config.showAppIcon || visible.isEmpty || model.needsSetup {
+        // L'icone Maison : clic = panneau (s'il contient des elements), clic droit ou ⌃-clic = menu.
+        if model.config.showAppIcon || visible.isEmpty || model.needsSetup || hasPanel {
             let a = bar.statusItem(withLength: NSStatusItem.squareLength)
             a.button?.image = Icons.image("house.fill", size: 14)
             a.button?.image?.isTemplate = true
-            a.button?.toolTip = "HA Taskbar"
+            a.button?.toolTip = hasPanel ? "HA Taskbar — clic : panneau · clic droit : menu" : "HA Taskbar"
             let m = NSMenu()
             m.delegate = self
-            a.menu = m
+            appMenu = m
+            a.button?.target = self
+            a.button?.action = #selector(appItemClicked(_:))
+            a.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
             appItem = a
         }
         for item in visible.reversed() {
@@ -97,6 +134,9 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     /// Position des elements (coordonnees d'ecran, origine en haut a gauche), pour les tests de l'interface.
     func logFrames() {
         guard let screenH = NSScreen.screens.first?.frame.height else { return }
+        if let f = appItemScreenFrame, f.midY > 1 {
+            Demo.log("frame @app \(Int(f.midX)) \(Int(screenH - f.midY))", key: "@app")
+        }
         for v in entries {
             if let f = v.statusItem.button?.window?.frame, f.midY > 1 {
                 Demo.log("frame \(v.item.entityId) \(Int(f.midX)) \(Int(screenH - f.midY))", key: v.item.entityId)
@@ -248,6 +288,25 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         }
     }
 
+    /// Carte d'un element quelconque (du panneau...), sous l'icone Maison (mode demonstration).
+    func openCard(entity: String) {
+        guard let b = appItem?.button else { return }
+        guard let item = model.config.items.first(where: { $0.entityId == entity }) else {
+            let base = model.config.haURL.trimmingCharacters(in: CharacterSet(charactersIn: "/ "))
+            if let u = URL(string: base + "/history?entity_id=" + entity) { NSWorkspace.shared.open(u) }
+            return
+        }
+        let host = NSHostingController(rootView: CardView(model: model, itemId: item.id, edit: {}))
+        host.sizingOptions = .preferredContentSize
+        let p = NSPopover()
+        p.behavior = .transient
+        p.contentViewController = host
+        NSApp.activate(ignoringOtherApps: true)
+        p.show(relativeTo: b.bounds, of: b, preferredEdge: .minY)
+        popover = p
+        Demo.log("card \(entity) shown=\(p.isShown)")
+    }
+
     /// Ouvre la carte du n-ieme element affiche (mode demonstration).
     func openCard(at index: Int) {
         guard entries.indices.contains(index) else { return }
@@ -281,6 +340,11 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         }
         m.addItem(.separator())
         m.addItem(menuItem("Modifier cet élément…") { [weak self] in self?.openSettings(item.id) })
+        m.addItem(menuItem("Mettre dans le panneau") { [weak self] in
+            self?.model.update { c in
+                if let i = c.items.firstIndex(where: { $0.id == item.id }) { c.items[i].zone = "panel" }
+            }
+        })
         m.addItem(menuItem("Masquer") { [weak self] in
             self?.model.update { c in
                 if let i = c.items.firstIndex(where: { $0.id == item.id }) { c.items[i].hidden = true }
@@ -316,6 +380,9 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             menu.addItem(menuItem("Réafficher les éléments masqués (\(hidden.count))") { [weak self] in
                 self?.model.update { c in for i in c.items.indices { c.items[i].hidden = nil } }
             })
+        }
+        if hasPanel {
+            menu.addItem(menuItem("Ouvrir le panneau") { [weak self] in self?.openPanel() })
         }
         menu.addItem(menuItem("Ajouter des entités…") { [weak self] in self?.openPicker() })
         let pause = NSMenu()

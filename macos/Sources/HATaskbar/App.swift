@@ -33,6 +33,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     lazy var updater = Updater(model: model)
     lazy var history = HistoryStore(model: model)
     lazy var widgets = WidgetController(model: model, history: history)
+    lazy var panel = PanelController(model: model)
+    lazy var doorbell = DoorbellController(model: model)
     private var bar: StatusBarController?
     private var settingsWindow: NSWindow?
     private let notificationDelegate = NotificationDelegate()
@@ -48,6 +50,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         bar.history = history
         history.onChange = { [weak self] in self?.bar?.refresh() }
         widgets.openSettings = { [weak self] id in self?.showSettings(widget: id) }
+        panel.openSettings = { [weak self] id in
+            self?.panel.close()
+            if let id = id { self?.showSettings(item: id) } else { self?.showSettings() }
+        }
+        bar.onPanel = { [weak self] anchor in self?.panel.toggle(anchor: anchor) }
+        model.onCamera = { [weak self] cam, text, force in self?.doorbell.show(camera: cam, text: text, force: force) }
+        doorbell.openCard = { [weak self] cam in self?.bar?.openCard(entity: cam) }
         updater.onAvailable = { [weak self] r in self?.updater.ask(r) }
         bar.openSettings = { [weak self] id in self?.showSettings(item: id) }
         bar.openPicker = { [weak self] in self?.showSettings(picker: true) }
@@ -56,10 +65,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         model.onConfigChanged = { [weak self] in
             self?.bar?.refresh()
             self?.widgets.sync()
+            self?.panel.sync()
         }
         bar.refresh()
         model.start()
         widgets.sync()
+        // Minuteurs Home Assistant en cours : compte a rebours rafraichi chaque seconde
+        Task { @MainActor [weak self] in
+            while true {
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                guard let self = self else { return }
+                if self.model.states.values.contains(where: { $0.domain == "timer" && $0.state == "active" }) {
+                    self.bar?.refresh()
+                    self.model.objectWillChange.send()
+                }
+            }
+        }
         if model.needsSetup {
             showSettings(tab: .connection)
         }
@@ -95,6 +116,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 } else {
                     showSettings(item: tab == .items ? model.config.items.first?.id : nil, tab: tab)
                 }
+            }
+            if let e = Demo.arg("--demo-card-entity"), !e.isEmpty {
+                bar?.openCard(entity: e)
+            }
+            if Demo.arg("--demo-doorbell") != nil {
+                model.testRule(NotifyRule(entityId: "binary_sensor.sonnette", to: "on", message: "On sonne à la porte",
+                                          camera: "camera.entree"))
+            }
+            if Demo.arg("--demo-panel") != nil {
+                bar?.openPanel()
             }
             if Demo.arg("--demo-picker") != nil {
                 showSettings(picker: true)

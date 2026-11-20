@@ -26,6 +26,14 @@ struct CardView: View {
         let st = model.states[item.entityId]
         VStack(alignment: .leading, spacing: 14) {
             CardHeader(model: model, item: item, st: st)
+            // Apercu camera : la camera de l'element (camera.* / image.*), sinon sa cle « camera »
+            if let cam = cardCamera(item) {
+                CameraImageView(model: model, entityId: cam, interval: 1)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 168)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .onAppear { Demo.log("camera \(cam) dans la carte") }
+            }
             if item.entityId == batteriesId {
                 BatteryList(model: model)
             } else if let st = st {
@@ -53,6 +61,12 @@ struct CardView: View {
     }
 }
 
+/// Camera montree dans la carte d'un element.
+func cardCamera(_ item: ItemConfig) -> String? {
+    if item.domain == "camera" || item.domain == "image" { return item.entityId }
+    return item.camera.nonEmpty
+}
+
 let timerDomains: Set<String> = ["light", "switch", "fan", "media_player", "climate", "input_boolean", "humidifier"]
 
 // MARK: - En-tete
@@ -66,13 +80,18 @@ struct CardHeader: View {
         let d = displayFor(item, states: model.states, offline: model.offline, batteryLow: model.config.batteryLow,
                            timerLeft: nil)
         HStack(alignment: .center, spacing: 12) {
-            ZStack {
-                Circle().fill(d.tone == .on ? Color(nsColor: .haOn).opacity(0.18) : Color.secondary.opacity(0.12))
-                Image(systemName: d.symbol ?? "circle")
-                    .font(.system(size: 18))
-                    .foregroundStyle(d.tone == .on ? Color(nsColor: .haOn) : Color.primary)
+            if let url = pictureURL(st), st?.domain != "media_player" {
+                let round = ["person", "device_tracker"].contains(st?.domain ?? "")
+                EntityPicture(model: model, url: url, size: 44, round: round)
+            } else {
+                ZStack {
+                    Circle().fill(d.tone == .on ? Color(nsColor: .haOn).opacity(0.18) : Color.secondary.opacity(0.12))
+                    Image(systemName: d.symbol ?? "circle")
+                        .font(.system(size: 18))
+                        .foregroundStyle(d.tone == .on ? Color(nsColor: .haOn) : Color.primary)
+                }
+                .frame(width: 38, height: 38)
             }
-            .frame(width: 38, height: 38)
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.cardTitle.nonEmpty ?? itemName(item, st))
                     .font(.headline)
@@ -131,6 +150,7 @@ struct DomainControls: View {
         case "input_select", "select": SelectControls(model: model, st: st)
         case "vacuum": VacuumControls(model: model, st: st)
         case "weather": WeatherControls(model: model, st: st)
+        case "timer": TimerControls(model: model, st: st)
         case "sensor":
             if Double(st.state) != nil {
                 HistoryView(model: model, entityId: st.entityId, numeric: true,
@@ -436,6 +456,10 @@ struct MediaControls: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            if let url = pictureURL(st) {
+                EntityPicture(model: model, url: url, size: 298, round: false, height: 168)
+                    .frame(maxWidth: .infinity)
+            }
             if let title = st.str("media_title") {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title).font(.body.weight(.medium)).lineLimit(2)
@@ -822,5 +846,122 @@ struct HistoryView: View {
         } catch {
             failed = true
         }
+    }
+}
+
+/// Minuteur Home Assistant : grand compte a rebours, barre de progression, commandes et durees rapides.
+struct TimerControls: View {
+    @ObservedObject var model: AppModel
+    let st: EntityState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            TimelineView(.periodic(from: .now, by: 0.5)) { ctx in
+                let left = timerRemaining(st, now: ctx.date)
+                let total = hmsSeconds(st.str("duration"))
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(left.map(fmtHMS) ?? "—")
+                        .font(.system(size: 40, weight: .light))
+                        .monospacedDigit()
+                        .foregroundStyle(st.state == "active" ? Color.accentColor : (st.state == "paused" ? Color.primary : Color.secondary))
+                    GeometryReader { g in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(Color.secondary.opacity(0.2))
+                            if ["active", "paused"].contains(st.state), let l = left, let t = total, t > 0 {
+                                Capsule().fill(Color.accentColor)
+                                    .frame(width: g.size.width * CGFloat(max(0, min(1, l / t))))
+                            }
+                        }
+                    }
+                    .frame(height: 6)
+                }
+            }
+            HStack {
+                if st.state == "active" {
+                    Button("Pause") { model.call("timer.pause", entity: st.entityId) }
+                } else {
+                    Button(st.state == "paused" ? "Reprendre" : "Démarrer") { model.call("timer.start", entity: st.entityId) }
+                        .keyboardShortcut(.defaultAction)
+                }
+                Button("Annuler") { model.call("timer.cancel", entity: st.entityId) }
+                Button("Terminer") { model.call("timer.finish", entity: st.entityId) }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Démarrer pour").font(.callout).foregroundStyle(.secondary)
+                HStack(spacing: 6) {
+                    ForEach([1, 5, 10, 15, 30, 60], id: \.self) { m in
+                        Button(m < 60 ? "\(m) min" : "1 h") {
+                            model.call("timer.start", entity: st.entityId,
+                                       ["duration": .string(String(format: "%02d:%02d:00", m / 60, m % 60))])
+                        }
+                    }
+                }
+                .controlSize(.small)
+            }
+        }
+    }
+}
+
+// MARK: - Photos et pochettes
+
+/// Adresse de l'image d'une entite (photo d'une personne, pochette du titre en cours...), ou nil.
+/// Rien pour une camera ou une image (deja montrees en grand), une entite indisponible ou un lecteur a l'arret.
+func pictureURL(_ st: EntityState?) -> String? {
+    guard let st = st, !st.isUnavailable, !["camera", "image"].contains(st.domain) else { return nil }
+    if st.domain == "media_player" && ["off", "idle", "standby"].contains(st.state) { return nil }
+    return st.str("entity_picture_local").nonEmpty ?? st.str("entity_picture").nonEmpty
+}
+
+/// Images deja lues (80 au plus), partagees par la carte, le panneau et la barre.
+@MainActor
+enum PictureCache {
+    private static var cache: [String: NSImage] = [:]
+    private static var order: [String] = []
+    private static var failed: Set<String> = []
+
+    static func cached(_ url: String) -> NSImage? { cache[url] }
+
+    static func load(_ url: String, model: AppModel) async -> NSImage? {
+        if let i = cache[url] { return i }
+        if failed.contains(url) { return nil }
+        var img: NSImage?
+        if Demo.enabled {
+            img = Demo.picture(url)
+        } else if let c = model.client, let data = try? await c.picture(url) {
+            img = NSImage(data: data)
+        }
+        guard let i = img else { failed.insert(url); return nil }
+        cache[url] = i
+        order.append(url)
+        if order.count > 80 { cache.removeValue(forKey: order.removeFirst()) }
+        return i
+    }
+}
+
+/// Photo ronde (personne) ou aux coins arrondis ; l'icone reste en place tant qu'elle n'est pas lue.
+struct EntityPicture: View {
+    @ObservedObject var model: AppModel
+    let url: String
+    let size: CGFloat
+    let round: Bool
+    var height: CGFloat? = nil
+    @State private var image: NSImage?
+
+    var body: some View {
+        let h = height ?? size
+        Group {
+            if let img = image ?? PictureCache.cached(url) {
+                Image(nsImage: img)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } else {
+                Rectangle().fill(Color.secondary.opacity(0.15))
+            }
+        }
+        .frame(width: height == nil ? size : nil, height: h)
+        .frame(maxWidth: height == nil ? size : .infinity)
+        .clipShape(RoundedRectangle(cornerRadius: round ? h / 2 : max(6, min(size, h) / 8)))
+        .task(id: url) { image = await PictureCache.load(url, model: model) }
     }
 }

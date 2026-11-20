@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 
 /// Mode demonstration (`--demo`) : donnees fictives, rien n'est enregistre ni envoye.
 /// Sert aux captures d'ecran du README.
@@ -54,7 +54,26 @@ enum Demo {
         ext.thresholds = "< 5 bleu ; > 25 orange ; > 30 rouge"
         let scene = ItemConfig(entityId: "scene.cinema", label: "Ciné")
         let clim = ItemConfig(entityId: "climate.clim_salon", label: "Clim", icon: "snow_anim")
-        c.items = [light, plug, heat, power, ext, scene, clim]
+        let cuisson = ItemConfig(entityId: "timer.cuisson", label: "Cuisson")
+        var sonnette = ItemConfig(entityId: "binary_sensor.sonnette", label: "Sonnette", icon: "bell")
+        sonnette.camera = "camera.entree"
+        c.items = [light, plug, heat, power, ext, scene, clim, cuisson, sonnette]
+        // Elements du panneau (icone Maison)
+        for (eid, label) in [("light.cuisine", "Cuisine"), ("switch.cafetiere", "Cafetière"), ("fan.plafond", "Ventilateur"),
+                             ("cover.volet_salon", "Volet"), ("media_player.salon", "Enceinte"),
+                             ("climate.clim_salon", "Clim"), ("lock.porte_entree", "Serrure"),
+                             ("binary_sensor.porte_entree", "Porte d'entrée"), ("camera.entree", "Caméra entrée"),
+                             ("sensor.humidite_salle_de_bain", "Humidité"), ("timer.lessive", "Lessive"),
+                             ("person.alex", "Alex")] {
+            var it = ItemConfig(entityId: eid, label: label)
+            it.zone = "panel"
+            c.items.append(it)
+        }
+        c.panelTitle = "Maison"
+        if CommandLine.arguments.contains("--demo-panel-wide") {     // panneau elargi : plusieurs colonnes
+            c.panelWidth = 720
+            c.panelHeight = 600
+        }
         // Widgets de bureau (positions pour un ecran de 1024 x 768, comme sur les Mac de GitHub)
         if !CommandLine.arguments.contains("--demo-no-widgets") {
             var w1 = WidgetConfig(entities: ["sensor.consommation"])
@@ -69,9 +88,15 @@ enum Demo {
         }
         if let keep = arg("--demo-items") {
             let idx = Set(keep.split(separator: ",").compactMap { Int($0) })
-            for i in c.items.indices where !idx.contains(i) { c.items[i].hidden = true }
+            for i in c.items.indices where !idx.contains(i) && !c.items[i].inPanel { c.items[i].hidden = true }
         }
-        c.notifications = [NotifyRule(entityId: "binary_sensor.porte_entree", to: "on", message: "La porte d'entrée est ouverte")]
+        c.notifications = [NotifyRule(entityId: "binary_sensor.porte_entree", to: "on", message: "La porte d'entrée est ouverte"),
+                           NotifyRule(entityId: "binary_sensor.sonnette", to: "on", message: "On sonne à la porte",
+                                      camera: "camera.entree")]
+        if CommandLine.arguments.contains("--demo-autocomplete") {   // saisie en cours, pour les captures
+            c.items[0].entityId = "salon lum"
+            c.notifications[c.notifications.count - 1].entityId = "binary_sensor.sonete"
+        }
         c.quietFrom = "22:00"
         c.quietTo = "07:00"
         if CommandLine.arguments.contains("--demo-click-card") { c.clickOpensCard = true }
@@ -80,6 +105,8 @@ enum Demo {
     }
 
     private static func ago(_ min: Double) -> Date { Date().addingTimeInterval(-min * 60) }
+    /// Lancement de l'application (les minuteurs de demonstration en dependent).
+    static let startDate = Date()
 
     static var states: [String: EntityState] {
         let list: [EntityState] = [
@@ -106,6 +133,20 @@ enum Demo {
                 "friendly_name": "Clim Salon", "current_temperature": 24.5, "temperature": 22,
                 "hvac_action": "cooling", "hvac_modes": ["auto", "cool", "dry", "fan_only", "heat", "off"],
                 "min_temp": 16, "max_temp": 30, "target_temp_step": 1], lastChanged: ago(1080)),
+            EntityState(entityId: "light.cuisine", state: "on", attributes: [
+                "friendly_name": "Lumière de la cuisine", "brightness": 102, "supported_color_modes": ["brightness"]],
+                lastChanged: ago(25)),
+            EntityState(entityId: "timer.cuisson", state: "active", attributes: [
+                "friendly_name": "Minuteur cuisson", "duration": "0:10:00",
+                "finishes_at": .string(ISO8601DateFormatter().string(from: startDate.addingTimeInterval(372)))],
+                lastChanged: ago(4)),
+            EntityState(entityId: "timer.lessive", state: "paused", attributes: [
+                "friendly_name": "Minuteur lessive", "duration": "1:30:00", "remaining": "0:23:15"],
+                lastChanged: ago(12)),
+            EntityState(entityId: "switch.cafetiere", state: "off", attributes: [
+                "friendly_name": "Cafetière", "device_class": "outlet"], lastChanged: ago(180)),
+            EntityState(entityId: "camera.entree", state: "idle", attributes: [
+                "friendly_name": "Caméra de l'entrée"], lastChanged: ago(2)),
             EntityState(entityId: "fan.plafond", state: "on", attributes: [
                 "friendly_name": "Ventilateur de plafond", "percentage": 66, "percentage_step": 33.333333,
                 "direction": "forward", "oscillating": false], lastChanged: ago(30)),
@@ -113,7 +154,12 @@ enum Demo {
                 "friendly_name": "Volet du salon", "current_position": 75, "device_class": "shutter"], lastChanged: ago(300)),
             EntityState(entityId: "binary_sensor.porte_entree", state: "off", attributes: [
                 "friendly_name": "Porte d'entrée", "device_class": "door"], lastChanged: ago(45)),
+            EntityState(entityId: "binary_sensor.sonnette", state: "off", attributes: [
+                "friendly_name": "Sonnette", "device_class": "sound"], lastChanged: ago(30)),
+            EntityState(entityId: "person.alex", state: "home", attributes: [
+                "friendly_name": "Alex", "entity_picture": "/demo/alex.png"], lastChanged: ago(95)),
             EntityState(entityId: "media_player.salon", state: "playing", attributes: [
+                "entity_picture": "/demo/pochette.png",
                 "friendly_name": "Enceinte du salon", "volume_level": 0.35, "media_title": "Clair de lune",
                 "media_artist": "Claude Debussy", "is_volume_muted": false], lastChanged: ago(8)),
             EntityState(entityId: "sensor.temperature_chambre", state: "19.2", attributes: [
@@ -138,7 +184,8 @@ enum Demo {
         "light.salon": "Salon", "climate.thermostat": "Salon", "fan.plafond": "Chambre", "cover.volet_salon": "Salon",
         "switch.prise_bureau": "Bureau", "media_player.salon": "Salon", "binary_sensor.porte_entree": "Entrée",
         "lock.porte_entree": "Entrée", "sensor.humidite_salle_de_bain": "Salle de bain",
-        "sensor.temperature_exterieure": "Jardin", "sensor.capteur_porte_batterie": "Entrée",
+        "sensor.temperature_exterieure": "Jardin", "light.cuisine": "Cuisine", "switch.cafetiere": "Cuisine",
+        "camera.entree": "Entrée", "climate.clim_salon": "Salon", "timer.lessive": "Buanderie", "sensor.capteur_porte_batterie": "Entrée",
     ]
 
     /// Historique fictif, regulier d'une execution a l'autre.
@@ -189,6 +236,46 @@ enum Demo {
         return days.enumerated().map { i, d in
             ["datetime": .string(f.string(from: Date().addingTimeInterval(Double(i + 1) * 86400))),
              "condition": .string(d.0), "temperature": .number(d.1), "templow": .number(d.2)]
+        }
+    }
+
+    /// Image de demonstration d'une camera : un degrade, le nom et l'heure (change a chaque image).
+    static func cameraImage(_ entityId: String) -> NSImage {
+        let size = NSSize(width: 640, height: 360)
+        return NSImage(size: size, flipped: false) { rect in
+            NSGradient(colors: [NSColor(srgbRed: 0.18, green: 0.26, blue: 0.33, alpha: 1),
+                                NSColor(srgbRed: 0.45, green: 0.52, blue: 0.44, alpha: 1)])?.draw(in: rect, angle: -70)
+            NSColor(white: 1, alpha: 0.12).setFill()
+            NSBezierPath(rect: NSRect(x: 230, y: 40, width: 180, height: 230)).fill()     // porte
+            let f = DateFormatter()
+            f.dateFormat = "HH:mm:ss"
+            let text = "\(entityId)   \(f.string(from: Date()))" as NSString
+            text.draw(at: NSPoint(x: 18, y: 18), withAttributes: [.font: NSFont.monospacedSystemFont(ofSize: 22, weight: .medium),
+                                                                   .foregroundColor: NSColor.white])
+            return true
+        }
+    }
+
+    /// Photo ou pochette de demonstration (entity_picture « /demo/... »).
+    static func picture(_ url: String) -> NSImage {
+        let size = NSSize(width: 300, height: 300)
+        let person = url.contains("alex")
+        return NSImage(size: size, flipped: false) { rect in
+            if person {
+                NSColor(srgbRed: 0.36, green: 0.55, blue: 0.85, alpha: 1).setFill()
+                rect.fill()
+                NSColor(white: 1, alpha: 0.9).setFill()
+                NSBezierPath(ovalIn: NSRect(x: 105, y: 150, width: 90, height: 90)).fill()     // tete
+                NSBezierPath(ovalIn: NSRect(x: 60, y: -40, width: 180, height: 170)).fill()    // epaules
+            } else {
+                NSGradient(colors: [NSColor(srgbRed: 0.10, green: 0.12, blue: 0.30, alpha: 1),
+                                    NSColor(srgbRed: 0.55, green: 0.35, blue: 0.75, alpha: 1)])?.draw(in: rect, angle: 60)
+                NSColor(white: 1, alpha: 0.85).setFill()
+                NSBezierPath(ovalIn: NSRect(x: 170, y: 170, width: 70, height: 70)).fill()     // lune
+                ("Clair de lune" as NSString).draw(at: NSPoint(x: 24, y: 30), withAttributes: [
+                    .font: NSFont.systemFont(ofSize: 30, weight: .semibold), .foregroundColor: NSColor.white])
+            }
+            return true
         }
     }
 }

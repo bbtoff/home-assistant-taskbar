@@ -465,6 +465,7 @@ func isActive(_ st: EntityState) -> Bool {
         return activeStates.contains(st.state)
     case "sensor": return (Double(st.state) ?? 0) > 0
     case "media_player": return st.state == "playing"
+    case "timer": return st.state == "active"
     default: return activeStates.contains(st.state)
     }
 }
@@ -588,6 +589,11 @@ func displayFor(_ item: ItemConfig, states: [String: EntityState], offline: Bool
         text = translate(st.state, domain: st.domain)
     }
     let domain = st.domain
+    // Minuteur Home Assistant : compte a rebours (⏸ en pause)
+    if domain == "timer" && attr == nil && ["active", "paused", "idle"].contains(st.state),
+       let left = timerRemaining(st) {
+        text = fmtHMS(left) + (st.state == "paused" ? "  ⏸" : "")
+    }
     if attr == nil && st.state == "on" {
         if domain == "light", let b = st.num("brightness"), b > 0 { text = "\(Int((b * 100 / 255).rounded()))%" }
         if domain == "fan", let p = st.num("percentage"), p > 0 { text = "\(Int(p))%" }
@@ -611,7 +617,7 @@ func displayFor(_ item: ItemConfig, states: [String: EntityState], offline: Bool
     if !unit.isEmpty { text += " " + unit }
 
     var tone: Tone = .normal
-    let active = activeStates.contains(st.state) && domain != "sensor"
+    let active = (activeStates.contains(st.state) && domain != "sensor") || (domain == "timer" && st.state == "active")
     if st.isUnavailable || offline { tone = .dim } else if active { tone = .on }
     var color: String?
     if !st.isUnavailable && !offline {
@@ -625,7 +631,8 @@ func defaultService(_ entityId: String) -> String? {
     let actions = ["light": "toggle", "switch": "toggle", "input_boolean": "toggle", "fan": "toggle",
                    "cover": "toggle", "automation": "toggle", "media_player": "media_play_pause",
                    "script": "turn_on", "scene": "turn_on", "button": "press", "input_button": "press",
-                   "siren": "toggle", "humidifier": "toggle", "valve": "toggle"]
+                   "siren": "toggle", "humidifier": "toggle", "valve": "toggle",
+                   "timer": "start"]          // en cours : le clic le met en pause (AppModel.click)
     let d = entityId.domain
     if d == "lock" { return nil }       // un verrou ne s'ouvre pas d'un simple clic : carte
     return actions[d].map { "\(d).\($0)" }
@@ -638,4 +645,139 @@ func resolveService(_ item: ItemConfig) -> String? {
 
 func itemName(_ item: ItemConfig, _ st: EntityState?) -> String {
     item.label.nonEmpty ?? st?.name ?? item.entityId
+}
+
+// MARK: - Phrase d'etat (sous le titre de la carte et dans le panneau), comme sous Windows
+
+let hvacActionText = ["heating": "Chauffe", "cooling": "Refroidit", "idle": "Au repos", "off": "Arrêt",
+                      "drying": "Déshumidifie", "fan": "Ventile", "preheating": "Préchauffe", "defrosting": "Dégivre"]
+let hvacModeText = ["off": "Arrêt", "heat": "Chauffage", "cool": "Clim", "heat_cool": "Auto", "auto": "Auto",
+                    "dry": "Déshum.", "fan_only": "Ventilation"]
+let coverText = ["open": "Ouvert", "closed": "Fermé", "opening": "Ouverture…", "closing": "Fermeture…"]
+let mediaText = ["playing": "Lecture", "paused": "Pause", "idle": "Inactif", "off": "Éteint", "on": "Allumé",
+                 "standby": "Veille", "buffering": "Chargement…"]
+let lockText = ["locked": "Verrouillé", "unlocked": "Déverrouillé", "locking": "Verrouillage…",
+                "unlocking": "Déverrouillage…", "jammed": "Bloqué", "open": "Ouvert"]
+let vacuumText = ["cleaning": "Nettoie", "docked": "Sur sa base", "returning": "Retour à la base", "idle": "Inactif",
+                  "paused": "En pause", "error": "Erreur"]
+
+/// « il y a 12 minutes »
+func agoText(_ d: Date?) -> String {
+    guard let d = d else { return "" }
+    let f = RelativeDateTimeFormatter()
+    f.locale = Locale(identifier: "fr_FR")
+    return f.localizedString(for: d, relativeTo: Date())
+}
+
+/// Nombre a la francaise : 21,4 / 1250
+func frNumber(_ v: Double, _ decimals: Int = 1) -> String {
+    let f = NumberFormatter()
+    f.locale = Locale(identifier: "fr_FR")
+    f.minimumFractionDigits = 0
+    f.maximumFractionDigits = decimals
+    return f.string(from: NSNumber(value: v)) ?? JSONValue.format(v)
+}
+
+/// Meme phrase que sous le titre de la carte (« Allumée · 70 % », « Chauffe · 19,5 °C actuellement »...).
+func statePhrase(_ item: ItemConfig, states: [String: EntityState], batteryLow: Double) -> String {
+    if item.isGroup {
+        let on = item.members.filter { activeStates.contains(states[$0]?.state ?? "") }.count
+        return "Groupe · \(on) allumé\(on > 1 ? "s" : "") sur \(item.members.count)"
+    }
+    if item.entityId == batteriesId {
+        let n = lowBatteries(states, threshold: batteryLow).count
+        return n > 0 ? "\(n) pile\(n > 1 ? "s" : "") faible\(n > 1 ? "s" : "")" : "Piles chargées"
+    }
+    guard let st = states[item.entityId] else { return "" }
+    let s = st.state
+    if s == "unavailable" { return "Indisponible" }
+    if s == "unknown" { return "État inconnu" }
+    switch st.domain {
+    case "light":
+        guard s == "on" else { return "Éteinte" }
+        if let b = st.num("brightness") { return "Allumée · \(Int((b * 100 / 255).rounded())) %" }
+        return "Allumée"
+    case "switch", "input_boolean", "automation", "siren", "humidifier":
+        return s == "on" ? "Allumé" : "Éteint"
+    case "fan":
+        guard s == "on" else { return "Éteint" }
+        var t = st.num("percentage").map { "Allumé · \(Int($0)) %" } ?? "Allumé"
+        if let d = st.str("direction") { t += " · " + (d == "reverse" ? "hiver" : "été") }
+        return t
+    case "vacuum":
+        var t = vacuumText[s] ?? translate(s, domain: "vacuum")
+        if let b = st.num("battery_level") { t += " · batterie \(Int(b)) %" }
+        return t
+    case "climate", "water_heater":
+        var parts = [hvacActionText[st.str("hvac_action") ?? ""] ?? hvacModeText[s] ?? s]
+        if let c = st.num("current_temperature") { parts.append("\(frNumber(c)) °C actuellement") }
+        return parts.joined(separator: " · ")
+    case "cover":
+        let t = coverText[s] ?? s
+        return st.num("current_position").map { "\(t) · \(Int($0)) %" } ?? t
+    case "media_player":
+        if s == "playing" || s == "paused", let title = st.str("media_title") {
+            return [title, st.str("media_artist")].compactMap { $0 }.joined(separator: " · ")
+        }
+        return mediaText[s] ?? s
+    case "lock":
+        return lockText[s] ?? s
+    case "scene":
+        if let d = parseHADate(s) { return "Scène · activée " + agoText(d) }
+        return "Scène"
+    case "script":
+        return s == "on" ? "En cours" : "Script"
+    case "button", "input_button":
+        if let d = parseHADate(s) { return "Dernier appui " + agoText(d) }
+        return "Bouton"
+    case "timer":
+        return ["active": "Minuteur en cours", "paused": "Minuteur en pause"][s] ?? "Minuteur arrêté"
+    case "weather":
+        return weatherText[s] ?? "Météo"
+    case "sensor", "binary_sensor", "sun", "person", "device_tracker":
+        // Dans le panneau : « Modifié il y a … » (plus utile que « Capteur »)
+        if let d = st.lastChanged { return "Modifié " + agoText(d) }
+        return ["binary_sensor": "Détecteur", "sun": "Soleil", "person": "Personne",
+                "device_tracker": "Localisation"][st.domain] ?? "Capteur"
+    default:
+        return translate(s, domain: st.domain)
+    }
+}
+
+/// Minuscules sans accents (recherche « eclairage » = « Éclairage »).
+func fold(_ s: String) -> String {
+    s.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "fr_FR")).lowercased()
+}
+
+// MARK: - Minuteurs Home Assistant (timer.*)
+
+/// « 0:04:12 » ou « 1 day, 0:04:12 » -> secondes.
+func hmsSeconds(_ text: String?) -> Double? {
+    guard var t = text?.trimmingCharacters(in: .whitespaces), !t.isEmpty else { return nil }
+    var days = 0.0
+    if t.contains("day"), let comma = t.firstIndex(of: ",") {
+        days = Double(t[..<comma].split(separator: " ").first ?? "0") ?? 0
+        t = String(t[t.index(after: comma)...]).trimmingCharacters(in: .whitespaces)
+    }
+    var parts = t.split(separator: ":").compactMap { Double($0) }
+    guard !parts.isEmpty else { return nil }
+    while parts.count < 3 { parts.insert(0, at: 0) }
+    return days * 86400 + parts[0] * 3600 + parts[1] * 60 + parts[2]
+}
+
+/// Secondes restantes : en cours d'apres finishes_at, en pause d'apres remaining, a l'arret sa duree.
+func timerRemaining(_ st: EntityState?, now: Date = Date()) -> Double? {
+    guard let st = st else { return nil }
+    if st.state == "active", let end = parseHADate(st.str("finishes_at")) {
+        return max(0, end.timeIntervalSince(now))
+    }
+    if st.state == "active" || st.state == "paused", let r = hmsSeconds(st.str("remaining")) { return r }
+    return hmsSeconds(st.str("duration"))
+}
+
+/// Compte a rebours : 4:05, 1:04:05.
+func fmtHMS(_ sec: Double) -> String {
+    let s = Int(sec.rounded())
+    let h = s / 3600, m = (s % 3600) / 60, r = s % 60
+    return h > 0 ? String(format: "%d:%02d:%02d", h, m, r) : String(format: "%d:%02d", m, r)
 }

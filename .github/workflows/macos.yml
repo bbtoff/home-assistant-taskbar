@@ -76,38 +76,39 @@ jobs:
           ls -l dist
       - name: Ajout des fichiers a la release
         run: gh release upload "$TAG" dist/HATaskbar-macOS-*.dmg dist/HATaskbar-macOS-*.zip --clobber
-      - name: Notes de la release
+      - name: Empreintes (SHA256SUMS.txt) et notes de la release
         run: |
           gh release view "$TAG" --json body --jq .body > body.md
           DMG_SHA=$(sha256sum "dist/HATaskbar-macOS-$VERSION.dmg" | cut -d' ' -f1)
           ZIP_SHA=$(sha256sum "dist/HATaskbar-macOS-$VERSION.zip" | cut -d' ' -f1)
-          python3 - "$VERSION" "$DMG_SHA" "$ZIP_SHA" <<'PY'
-          import re, sys
-          version, dmg, zip_ = sys.argv[1:4]
+          # SHA256SUMS.txt : les lignes des fichiers Mac sont remplacees, celles de Windows gardees
+          gh release download "$TAG" -p SHA256SUMS.txt -D sums 2>/dev/null || true
+          touch sums/SHA256SUMS.txt
+          grep -v "HATaskbar-macOS-" sums/SHA256SUMS.txt > SHA256SUMS.txt || true
+          echo "$DMG_SHA  HATaskbar-macOS-$VERSION.dmg" >> SHA256SUMS.txt
+          echo "$ZIP_SHA  HATaskbar-macOS-$VERSION.zip" >> SHA256SUMS.txt
+          sort -k2 SHA256SUMS.txt -o SHA256SUMS.txt
+          cat SHA256SUMS.txt
+          gh release upload "$TAG" SHA256SUMS.txt --clobber
+          NOTES="macos/notes/$TAG.md"
+          python3 - "$VERSION" "$DMG_SHA" "$ZIP_SHA" "$NOTES" <<'PY'
+          import os, re, sys
+          version, dmg, zip_, notes = sys.argv[1:5]
           body = open("body.md", encoding="utf-8").read()
-          start, end = "<!-- macos -->", "<!-- /macos -->"
-          section = f"""{start}
-          ## 🍎 Nouveau : HA Taskbar pour macOS (aperçu)
-
-          Tes capteurs et boutons Home Assistant dans la **barre des menus** du Mac (macOS 13 ou plus, Apple Silicon et Intel).
-
-          - Valeurs en temps réel, clic pour allumer / éteindre, molette pour régler
-          - Appui long ou ⌥-clic : carte de contrôle (lumière, thermostat, volet, média, météo, historique…)
-          - Notifications macOS, jeton rangé dans le trousseau
-          - Import du `config.json` de la version Windows
-
-          **Installation** : télécharge `HATaskbar-macOS-{version}.dmg`, ouvre-le et glisse HA Taskbar dans Applications. L'app n'est pas signée par Apple : au premier lancement, clic droit → **Ouvrir** (sur macOS 15 et plus : Réglages Système → Confidentialité et sécurité → Ouvrir quand même).
-
-          Pas encore sur Mac : palette de commandes, raccourcis clavier globaux, favoris de lumière. Détails : [macos/README.md](https://github.com/bbtoff/home-assistant-taskbar/blob/main/macos/README.md).
-
-          - SHA-256 de `HATaskbar-macOS-{version}.dmg` : `{dmg}`
-          - SHA-256 de `HATaskbar-macOS-{version}.zip` : `{zip_}`
-          - Pour comparer, dans le Terminal : `shasum -a 256 HATaskbar-macOS-{version}.dmg`
-          {end}"""
-          if start in body:
-              body = re.sub(re.escape(start) + ".*?" + re.escape(end), lambda m: section, body, flags=re.S)
-          else:
-              body = section + "\n\n---\n\n" + body
+          # 1. empreintes des fichiers Mac, ou qu'elles soient dans les notes
+          for name, h in ((f"HATaskbar-macOS-{version}.dmg", dmg), (f"HATaskbar-macOS-{version}.zip", zip_)):
+              body = re.sub(r"(`" + re.escape(name) + r"`[^`\n]*`)[0-9a-f]{64}(`)", lambda m: m.group(1) + h + m.group(2), body)
+          # 2. paragraphes macOS : macos/notes/<tag>.md contient le francais, puis une ligne « ---en--- », puis l'anglais
+          if os.path.exists(notes):
+              fr, _, en = open(notes, encoding="utf-8").read().partition("---en---")
+              fr, en = fr.strip(), en.strip()
+              # francais : de « **🍎 macOS** » jusqu'a la ligne vide suivante
+              body, n = re.subn(r"\*\*🍎 macOS\*\*.*?(?=\n\n)", lambda m: fr, body, count=1, flags=re.S)
+              if not n:
+                  body = fr + "\n\n" + body
+              # anglais : la ligne « - Mac: ... »
+              if en:
+                  body, n = re.subn(r"^- Mac:.*$", lambda m: en, body, count=1, flags=re.M)
           open("body.md", "w", encoding="utf-8").write(body)
           PY
           gh release edit "$TAG" --notes-file body.md
