@@ -57,6 +57,8 @@ jobs:
             shoot "reglages-$mode" --demo-settings items
             shoot "ajout-$mode" --demo-picker
             shoot "widgets-$mode" $BAR
+            shoot "panneau-$mode" $BAR --demo-no-widgets --demo-panel
+            shoot "panneau-assist-$mode" $BAR --demo-no-widgets --demo-panel --demo-search "allume_la_lumiere_du_salon"
             shoot "reglages-widgets-$mode" --demo-settings widgets
           done
           ls -l shots
