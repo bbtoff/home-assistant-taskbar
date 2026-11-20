@@ -9,6 +9,10 @@ on:
         description: "Envoyer les captures brutes sur la branche (docs/screenshots/macos-brut)"
         type: boolean
         default: false
+      gifs:
+        description: "Seulement les series d'images pour les GIF (animations)"
+        type: boolean
+        default: false
 
 jobs:
   screenshots:
@@ -47,6 +51,31 @@ jobs:
             fi
           done
           BAR="--demo-items 0,2,3,4"
+          # Series d'images pour les GIF : frames <nom> <nombre> <zone x,y,l,h> <arguments de demo...>
+          frames() {
+            name=$1; n=$2; region=$3; shift 3
+            mkdir -p "shots/gif-$name"
+            "$APP" --demo "$@" &
+            pid=$!
+            sleep 7
+            for i in $(seq -w 1 $n); do
+              screencapture -x -R "$region" "shots/gif-$name/$i.png" || true
+              sleep 0.12
+            done
+            kill $pid || true
+            sleep 2
+          }
+          if [ "${{ inputs.gifs }}" = "true" ]; then
+            appearance true
+            frames barre 40 "400,0,624,30" --demo-items 0,2,3,4,6,7 --demo-no-widgets
+            frames minuteur 30 "560,30,340,300" --demo-items 0,3,7 --demo-no-widgets --demo-card 2
+            frames sonnette 30 "600,30,424,350" $BAR --demo-no-widgets --demo-doorbell
+            frames panneau 24 "420,30,390,660" $BAR --demo-no-widgets --demo-panel
+            appearance false
+            frames barre-clair 40 "400,0,624,30" --demo-items 0,2,3,4,6,7 --demo-no-widgets
+            ls -R shots | head -50
+            exit 0
+          fi
           for mode in clair sombre; do
             if [ $mode = clair ]; then appearance false; else appearance true; fi
             shoot "barre-$mode" $BAR
@@ -79,7 +108,7 @@ jobs:
         if: inputs.commit && github.ref_name != 'main'
         run: |
           mkdir -p docs/screenshots/macos-brut
-          cp shots/*.png docs/screenshots/macos-brut/
+          cp -R shots/* docs/screenshots/macos-brut/
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add docs/screenshots/macos-brut
