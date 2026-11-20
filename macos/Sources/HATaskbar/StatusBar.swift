@@ -288,6 +288,21 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         }
     }
 
+    /// Carte d'un element quelconque (du panneau...), sous l'icone Maison (mode demonstration).
+    func openCard(entity: String) {
+        guard let b = appItem?.button,
+              let item = model.config.items.first(where: { $0.entityId == entity }) else { return }
+        let host = NSHostingController(rootView: CardView(model: model, itemId: item.id, edit: {}))
+        host.sizingOptions = .preferredContentSize
+        let p = NSPopover()
+        p.behavior = .transient
+        p.contentViewController = host
+        NSApp.activate(ignoringOtherApps: true)
+        p.show(relativeTo: b.bounds, of: b, preferredEdge: .minY)
+        popover = p
+        Demo.log("card \(entity) shown=\(p.isShown)")
+    }
+
     /// Ouvre la carte du n-ieme element affiche (mode demonstration).
     func openCard(at index: Int) {
         guard entries.indices.contains(index) else { return }

@@ -114,6 +114,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     showSettings(item: tab == .items ? model.config.items.first?.id : nil, tab: tab)
                 }
             }
+            if let e = Demo.arg("--demo-card-entity"), !e.isEmpty {
+                bar?.openCard(entity: e)
+            }
             if Demo.arg("--demo-panel") != nil {
                 bar?.openPanel()
             }

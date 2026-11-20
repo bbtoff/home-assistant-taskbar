@@ -61,7 +61,8 @@ enum Demo {
                              ("cover.volet_salon", "Volet"), ("media_player.salon", "Enceinte"),
                              ("climate.clim_salon", "Clim"), ("lock.porte_entree", "Serrure"),
                              ("binary_sensor.porte_entree", "Porte d'entrée"), ("camera.entree", "Caméra entrée"),
-                             ("sensor.humidite_salle_de_bain", "Humidité"), ("timer.lessive", "Lessive")] {
+                             ("sensor.humidite_salle_de_bain", "Humidité"), ("timer.lessive", "Lessive"),
+                             ("person.alex", "Alex")] {
             var it = ItemConfig(entityId: eid, label: label)
             it.zone = "panel"
             c.items.append(it)
@@ -145,7 +146,10 @@ enum Demo {
                 "friendly_name": "Volet du salon", "current_position": 75, "device_class": "shutter"], lastChanged: ago(300)),
             EntityState(entityId: "binary_sensor.porte_entree", state: "off", attributes: [
                 "friendly_name": "Porte d'entrée", "device_class": "door"], lastChanged: ago(45)),
+            EntityState(entityId: "person.alex", state: "home", attributes: [
+                "friendly_name": "Alex", "entity_picture": "/demo/alex.png"], lastChanged: ago(95)),
             EntityState(entityId: "media_player.salon", state: "playing", attributes: [
+                "entity_picture": "/demo/pochette.png",
                 "friendly_name": "Enceinte du salon", "volume_level": 0.35, "media_title": "Clair de lune",
                 "media_artist": "Claude Debussy", "is_volume_muted": false], lastChanged: ago(8)),
             EntityState(entityId: "sensor.temperature_chambre", state: "19.2", attributes: [
@@ -238,6 +242,29 @@ enum Demo {
             let text = "\(entityId)   \(f.string(from: Date()))" as NSString
             text.draw(at: NSPoint(x: 18, y: 18), withAttributes: [.font: NSFont.monospacedSystemFont(ofSize: 22, weight: .medium),
                                                                    .foregroundColor: NSColor.white])
+            return true
+        }
+    }
+
+    /// Photo ou pochette de demonstration (entity_picture « /demo/... »).
+    static func picture(_ url: String) -> NSImage {
+        let size = NSSize(width: 300, height: 300)
+        let person = url.contains("alex")
+        return NSImage(size: size, flipped: false) { rect in
+            if person {
+                NSColor(srgbRed: 0.36, green: 0.55, blue: 0.85, alpha: 1).setFill()
+                rect.fill()
+                NSColor(white: 1, alpha: 0.9).setFill()
+                NSBezierPath(ovalIn: NSRect(x: 105, y: 150, width: 90, height: 90)).fill()     // tete
+                NSBezierPath(ovalIn: NSRect(x: 60, y: -40, width: 180, height: 170)).fill()    // epaules
+            } else {
+                NSGradient(colors: [NSColor(srgbRed: 0.10, green: 0.12, blue: 0.30, alpha: 1),
+                                    NSColor(srgbRed: 0.55, green: 0.35, blue: 0.75, alpha: 1)])?.draw(in: rect, angle: 60)
+                NSColor(white: 1, alpha: 0.85).setFill()
+                NSBezierPath(ovalIn: NSRect(x: 170, y: 170, width: 70, height: 70)).fill()     // lune
+                ("Clair de lune" as NSString).draw(at: NSPoint(x: 24, y: 30), withAttributes: [
+                    .font: NSFont.systemFont(ofSize: 30, weight: .semibold), .foregroundColor: NSColor.white])
+            }
             return true
         }
     }

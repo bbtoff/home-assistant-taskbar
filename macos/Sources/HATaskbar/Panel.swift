@@ -668,6 +668,15 @@ struct PanelBadge: View {
     let display: ItemDisplay
 
     var body: some View {
+        if let url = pictureURL(model.states[item.entityId]) {
+            let round = ["person", "device_tracker"].contains(item.domain)
+            EntityPicture(model: model, url: url, size: 30, round: round)
+        } else {
+            icon
+        }
+    }
+
+    private var icon: some View {
         ZStack {
             Circle().fill(display.tone == .on ? Color(nsColor: .haOn).opacity(0.22) : Color.primary.opacity(0.08))
             Image(systemName: display.symbol ?? "circle")
