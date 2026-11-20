@@ -86,10 +86,6 @@ enum Demo {
             w3.x = 360; w3.y = 525
             c.widgets = [w1, w2, w3]
         }
-        if CommandLine.arguments.contains("--demo-autocomplete") {   // saisie en cours, pour les captures
-            c.items[0].entityId = "salon lum"
-            c.notifications[1].entityId = "binary_sensor.sonete"
-        }
         if let keep = arg("--demo-items") {
             let idx = Set(keep.split(separator: ",").compactMap { Int($0) })
             for i in c.items.indices where !idx.contains(i) && !c.items[i].inPanel { c.items[i].hidden = true }
@@ -97,6 +93,10 @@ enum Demo {
         c.notifications = [NotifyRule(entityId: "binary_sensor.porte_entree", to: "on", message: "La porte d'entrée est ouverte"),
                            NotifyRule(entityId: "binary_sensor.sonnette", to: "on", message: "On sonne à la porte",
                                       camera: "camera.entree")]
+        if CommandLine.arguments.contains("--demo-autocomplete") {   // saisie en cours, pour les captures
+            c.items[0].entityId = "salon lum"
+            c.notifications[c.notifications.count - 1].entityId = "binary_sensor.sonete"
+        }
         c.quietFrom = "22:00"
         c.quietTo = "07:00"
         if CommandLine.arguments.contains("--demo-click-card") { c.clickOpensCard = true }
