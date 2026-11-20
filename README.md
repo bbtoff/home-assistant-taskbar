@@ -40,6 +40,12 @@ Tes **capteurs** et tes **boutons Home Assistant**, toujours sous les yeux : sur
   <img src="docs/screenshots/icones-animees-2.gif" alt="Flocon, soleil, Wi-Fi, cloche, lave-linge, éclair et batterie animés">
 </p>
 
+Sur Mac aussi : la flamme du chauffage pulse, le flocon de la clim tourne, et le minuteur défile à la seconde.
+
+<p align="center">
+  <img src="docs/screenshots/mac-barre-animee.gif" width="370" alt="Barre des menus du Mac : flamme animée, flocon, compte à rebours d'un minuteur">
+</p>
+
 ### Une carte de contrôle pour chaque appareil
 
 Un **appui long** (ou le survol sur Mac) ouvre la carte, comme dans Home Assistant : luminosité, couleur et ambiances d'une lumière, consigne et modes d'un thermostat, vitesse et sens d'un ventilateur, position d'un volet, lecteur avec sa **pochette**, **image en direct d'une caméra**, météo sur 5 jours, historique sur 24 h, 7 jours ou 30 jours…
