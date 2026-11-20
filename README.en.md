@@ -30,6 +30,28 @@ An **installer** and a **portable version** (no installation) are provided: noth
 
 ---
 
+## ✨ What's new in 1.11
+
+These features are in the Windows version. They will come to the Mac in a later version.
+
+- 🏠 **The panel**: a single taskbar button opens a list of your items above it, like Windows 11 Quick Settings.
+  - Items are grouped by room, with search, toggles, sliders (brightness, volume, cover position…), +/− buttons for thermostats, and live camera images.
+  - **Resize it** by dragging its top, left or right edge. When it is wide, rooms spread over **several columns**.
+  - **Reorder** by dragging an item within its room, or a room title to move the whole room.
+  - Adjustable opacity.
+  - To put an item in the panel: **Settings → Items → Zone → Panel**, or right-click the item → **Move to the panel**.
+- ⏱️ **Timers** (`timer.*`): a live countdown on the bar and in the panel. Click to pause or resume. The card has a progress bar, Pause, Cancel and Finish buttons, and quick durations from 1 to 60 minutes.
+- 🖼️ **Pictures and album art**: a person's photo and the cover of the track that is playing appear in the card and in the panel.
+- 📷 **Cameras**:
+  - a live image at the top of an item's card (**Settings → Items → More options → Camera in the card**);
+  - a small camera window when someone rings: a state notification can show the camera live (**Settings → Notifications → Show camera**).
+- 💬 **Assist in the command palette**: type a sentence, then press **Ctrl+Enter**. The answer appears under the search box.
+- 🖥️ **Multiple screens**: each item can go on the taskbar of another screen (**Settings → Items → Screen**).
+- **Also new**:
+  - a **"+N" button** for items that would cover Windows icons;
+  - the tray icon stays visible next to the clock;
+  - **entity suggestions** as you type in the settings, including the closest match for an entity that was renamed in Home Assistant.
+
 ## ✨ What's new in 1.10
 
 - 🖼️ **Icon or logo in widgets**: the sensor's icon, an icon of your choice, or your own image (right-click a widget → **Icon** / **Choose a logo…**).

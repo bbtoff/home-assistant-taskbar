@@ -29,6 +29,35 @@ Un **programme d'installation** et une **version portable** (sans installation) 
 
 ---
 
+## ✨ Nouveautés de la version 1.11
+
+Version Windows. Sur Mac, ces nouveautés arrivent dans une prochaine version.
+
+**🏠 Le panneau** : un seul bouton sur la barre des tâches ouvre la liste de tes éléments, juste au-dessus, comme les Paramètres rapides de Windows 11.
+- Les éléments sont **rangés par pièce**. Chaque ligne a une **recherche**, des **interrupteurs**, des **curseurs** (luminosité, volume, position d'un volet…), des boutons **+/−** pour un thermostat, et l'**image des caméras**.
+- **Taille réglable** : tire le bord haut, gauche ou droit. Quand le panneau est large, les pièces se répartissent sur **plusieurs colonnes**. Un double-clic sur un bord remet la taille d'origine.
+- **Ordre libre** : glisse un élément dans sa pièce, ou le titre d'une pièce pour la déplacer en entier.
+- **Opacité** réglable depuis le panneau (bouton ☀ en haut) ou dans **Réglages → Confort → Panneau**.
+- Pour y ranger un élément : **Réglages → Éléments → Zone → Panneau**, ou clic droit sur l'élément → **Ranger dans le panneau**. Dans les réglages, la liste des éléments est maintenant séparée en 3 parties (zone gauche, zone droite, panneau), et on glisse un élément de l'une à l'autre.
+
+**⏱️ Minuteurs** (`timer.*`) : le compte à rebours défile sur la barre et dans le panneau. Un clic le met en pause ou le relance. La carte ajoute une barre de progression, les boutons Pause, Annuler et Terminer, et des durées toutes prêtes (1 à 60 min).
+
+**🖼️ Photos et pochettes** : la photo d'une personne et la pochette du morceau en cours s'affichent dans la carte et dans le panneau.
+
+**📷 Caméras**
+- **Caméra dans la carte** : **Réglages → Éléments → Plus d'options → Caméra dans la carte** affiche l'image en direct en haut de la carte d'un élément (la caméra de l'entrée sur le bouton du portail, par exemple).
+- **Fenêtre caméra quand on sonne** : une notification d'état peut ouvrir une petite fenêtre en bas à droite avec l'image en direct (**Réglages → Notifications → Afficher la caméra**). Elle ne prend pas le clavier, se ferme seule après une minute, et un clic sur l'image ouvre la carte de la caméra.
+
+**💬 Assist dans la palette** : tape une phrase (« allume le salon », « quelle heure est-il ») puis **Entrée** sur la ligne « Demander à Assist », ou **Ctrl+Entrée**. La réponse s'affiche sous la recherche.
+
+**🖥️ Plusieurs écrans** : chaque élément peut s'afficher sur la barre des tâches d'un autre écran (**Réglages → Éléments → Écran**, ou Ctrl + glisser l'élément jusqu'à l'autre barre). Si cet écran est débranché, l'élément revient sur la barre principale.
+
+**Et aussi**
+- **Bouton « +N »** : quand la barre manque de place, les éléments qui recouvriraient les icônes de Windows passent dans un menu, au lieu de passer par-dessus (**Réglages → Apparence**).
+- **Icône toujours visible** près de l'horloge, au lieu d'être rangée dans « ^ » (**Réglages → Confort**).
+- **Saisie d'une entité plus facile** : dans les réglages, une liste de suggestions s'ouvre dès qu'on tape une partie du nom, de la pièce ou de l'identifiant. Si une entité a été renommée dans Home Assistant, HA Taskbar propose la plus proche.
+- **Correctif** : dans la liste des éléments des réglages, un clic sur une ligne affiche bien son détail.
+
 ## ✨ Nouveautés de la version 1.10
 
 - 🇬🇧 **HA Taskbar parle anglais** (version Windows) : toute l'interface (barre, cartes, palette, réglages, widgets, notifications) est traduite (la version Mac reste en français pour l'instant). La langue suit celle de Windows : français si Windows est en français, anglais sinon. On peut la forcer dans **Réglages → Connexion → Langue**.
@@ -397,6 +426,7 @@ La barre se masque automatiquement quand une application passe en plein écran (
 | **Tab** | Ouvre la carte de l'entité |
 | **↑ ↓** | Change de ligne |
 | **Échap** | Ferme (un 2e appui sur le raccourci aussi) |
+| **Ctrl+Entrée** | Envoie la phrase tapée à **Assist**, l'assistant de Home Assistant. La réponse s'affiche sous la recherche, et la conversation continue tant que la palette reste ouverte. |
 
 ![Palette de commandes](docs/screenshots/palette.png)
 
@@ -515,8 +545,10 @@ Une clé absente reprend la valeur du thème par défaut. Après avoir enregistr
 ![Onglet Éléments](docs/screenshots/reglages-elements.png)
 
 - **Ajouter des entités…** : parcourt toutes les entités, avec une recherche multi-mots et un filtre par type. Les entités déjà présentes sont grisées (✔).
-- **▲ ▼** pour l'ordre, **Dupliquer**, **Supprimer**
+- **▲ ▼** pour l'ordre, **Dupliquer**, **Supprimer**. La liste a 3 parties (**zone gauche**, **zone droite**, **panneau**) : glisse un élément pour le changer de place ou de partie.
 - Pour chaque élément :
+  - **Entité** : une liste de suggestions s'ouvre dès qu'on tape une partie du nom, de la pièce ou de l'identifiant (↑ ↓ puis Entrée)
+  - **Zone** : gauche, droite ou **panneau**, et **Écran** si tu en as plusieurs
   - **Libellé** et **Icône** : automatique selon le type, au choix parmi plus de 100 (dont 18 animées), ou aucune
   - **Valeur affichée** : l'état de l'entité ou un de ses attributs (ex. `current_temperature` d'un thermostat)
   - **Unité** et **Décimales**
@@ -579,7 +611,7 @@ Pour les scènes, boutons et scripts, la barre affiche « Activer », « Appuyer
   ```
   Il faut la connexion temps réel (onglet Confort). Recevoir ces événements demande un jeton créé avec un compte **administrateur**.
 - **Pas de notification de … à …** : plage horaire silencieuse, qui peut passer minuit. Le clic droit sur la barre permet aussi de **suspendre** les notifications (1 h, 3 h, jusqu'à demain 8 h), et le mode **Ne pas déranger** de Windows s'applique.
-- **Notifications d'état** : choisis une entité, éventuellement l'état qui déclenche (`on`, `open`, `off`…), et un message. Dans le message, `{name}` est le nom de l'entité, `{state}` son nouvel état et `{old}` l'état d'avant. **Tester** affiche la notification tout de suite.
+- **Notifications d'état** : choisis une entité, éventuellement l'état qui déclenche (`on`, `open`, `off`…), et un message. Dans le message, `{name}` est le nom de l'entité, `{state}` son nouvel état et `{old}` l'état d'avant. **Afficher la caméra** ouvre en plus une fenêtre avec l'image en direct, par exemple quand on sonne. **Tester** affiche la notification tout de suite.
 
 Les notifications apparaissent comme celles des autres applications, et dans le centre de notifications de Windows.
 
@@ -589,6 +621,7 @@ Les notifications apparaissent comme celles des autres applications, et dans le 
 
 - **Mises à jour instantanées** : connexion permanente à Home Assistant. L'état de la connexion s'affiche dessous. Décoché, HA Taskbar interroge Home Assistant à l'intervalle de l'onglet Connexion.
 - **Palette de commandes** : son raccourci (vide = seulement depuis le menu du clic droit), et un bouton pour l'essayer.
+- **Panneau** : titre, valeur affichée sur le bouton, zone du bouton, regroupement par pièce et opacité.
 - **Sur la barre** : barre compacte (icônes seules), infobulle au survol, valeur qui brille quand elle change.
 - **Piles faibles** : le seuil (20 % par défaut), et un bouton qui ajoute le résumé des piles à la barre.
 - **Sauvegarde** : **Exporter…** écrit un fichier avec tous tes réglages, sans le jeton d'accès. **Importer…** les remplace, en gardant ton jeton.
