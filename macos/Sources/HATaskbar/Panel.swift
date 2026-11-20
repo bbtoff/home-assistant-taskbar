@@ -344,7 +344,10 @@ struct PanelView: View {
         }
         .onAppear {
             searchFocused = true
-            if let s = Demo.arg("--demo-search"), !s.isEmpty { search = s.replacingOccurrences(of: "_", with: " ") }
+            if let s = Demo.arg("--demo-search"), !s.isEmpty {
+                search = s.replacingOccurrences(of: "_", with: " ")
+                if Demo.arg("--demo-ask") != nil, let q = assistQuestion { ask(q) }
+            }
         }
     }
 

@@ -67,6 +67,10 @@ enum Demo {
             c.items.append(it)
         }
         c.panelTitle = "Maison"
+        if CommandLine.arguments.contains("--demo-panel-wide") {     // panneau elargi : plusieurs colonnes
+            c.panelWidth = 720
+            c.panelHeight = 600
+        }
         // Widgets de bureau (positions pour un ecran de 1024 x 768, comme sur les Mac de GitHub)
         if !CommandLine.arguments.contains("--demo-no-widgets") {
             var w1 = WidgetConfig(entities: ["sensor.consommation"])
