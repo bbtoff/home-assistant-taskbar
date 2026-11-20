@@ -2,244 +2,113 @@
 
 **Français** · [English](README.en.md)
 
-Affiche des **capteurs** et des **boutons Home Assistant** directement sur la **barre des tâches de Windows 11**, dans les zones libres : une **zone à gauche** et une **zone à droite** des icônes, utilisables ensemble.
+Tes **capteurs** et tes **boutons Home Assistant**, toujours sous les yeux : sur la **barre des tâches de Windows 11** et dans la **barre des menus du Mac**. Un clic pour allumer, un coup d'œil pour la température, une carte de contrôle complète quand il le faut.
 
-![HA Taskbar sur la barre des tâches](docs/screenshots/barre.png)
+![HA Taskbar sur la barre des tâches de Windows](docs/screenshots/barre.png)
 
-*À gauche : lumière allumée à 70 % (en jaune), prise éteinte et thermostat, à côté du widget météo de Windows. À droite, juste avant les icônes de notification : consommation, température extérieure et scène. Le milieu de la barre des tâches a été retiré de l'image. Les captures utilisent des données de démonstration. D'autres exemples : [Exemples de configuration](#-exemples-de-configuration).*
+![HA Taskbar dans la barre des menus du Mac, en clair et en sombre](docs/screenshots/mac-barre.png)
 
-- 📊 **Valeurs en temps réel** : température, consommation, état d'une lumière…
-- 💡 **Boutons cliquables** : allumer/éteindre une lumière ou une prise, lancer une scène ou un script…
-- 🧩 **Appui long** sur un élément : une carte de contrôle s'ouvre, comme dans Home Assistant (luminosité, couleur, consigne de chauffage, volume, historique 24 h…)
-- ↔️ **Deux zones** : une à gauche et une à droite de la barre des tâches, chaque élément choisit la sienne
-- 🎨 Près de 90 icônes Windows 11 qui changent de couleur selon l'état (jaune = allumé), et thème **clair / sombre** qui suit Windows
-- 🔥 **18 icônes animées** : flamme qui brûle quand le chauffage chauffe, ventilateur qui tourne, cloche qui sonne, lave-linge, pluie… Lentes et discrètes
-- 📊 **Widgets de bureau** : graphiques de tes capteurs (24 h, 7 jours, 30 jours) posés sur le bureau, et mini-courbes dans la barre
-- 🔧 Fenêtre de réglages graphique avec aperçu en direct : rien à éditer à la main
+*En haut, Windows : lumière allumée à 70 % (en jaune), prise, thermostat, consommation, température extérieure et scène. En bas, le Mac, en clair et en sombre. Toutes les captures utilisent des données de démonstration.*
+
+<p align="center">
+  <a href="https://github.com/bbtoff/home-assistant-taskbar/releases/latest"><b>⬇️ Télécharger la dernière version</b></a>
+  &nbsp;·&nbsp; <a href="#-installation">Installation</a>
+  &nbsp;·&nbsp; <a href="#-ha-taskbar-sur-mac">Sur Mac</a>
+  &nbsp;·&nbsp; <a href="#-sécurité-et-confidentialité">Sécurité</a>
+</p>
+
+---
+
+## 👀 En un coup d'œil
+
+### Sur la barre, en temps réel
+
+- 📊 **Valeurs en direct** (moins d'une seconde) : température, consommation, état d'une lumière, compte à rebours d'un minuteur…
+- 💡 **Un clic** allume ou éteint, lance une scène ou un script ; la **molette** règle la luminosité, le volume, la consigne…
+- 🎨 Plus de 90 icônes (près de 200 sur Mac) qui changent de **couleur selon l'état ou la valeur** (`> 25 orange ; > 30 rouge`), thème **clair / sombre** automatique.
+- 〰️ **Mini-courbe** des 6 dernières heures à côté d'une valeur, **infobulle** avec l'historique au survol.
 
 <p align="center">
   <img src="docs/screenshots/clic.gif" alt="Clic pour allumer, molette pour la luminosité, clic pour éteindre">
 </p>
 
-Un **programme d'installation** et une **version portable** (sans installation) sont fournis : rien d'autre à installer, pas même Python. Depuis les sources, il suffit de Python et de sa bibliothèque standard (tkinter, ctypes, urllib). Le thème des fenêtres est inclus dans le dépôt.
-
-> 🍎 **Nouveau : une version macOS** (aperçu), dans la **barre des menus** du Mac. Installation en une commande dans le Terminal : `curl -fsSL https://raw.githubusercontent.com/bbtoff/home-assistant-taskbar/main/macos/install.sh | bash`. Voir [HA Taskbar sur Mac](#-ha-taskbar-sur-mac).
->
-> ![HA Taskbar dans la barre des menus du Mac, en clair et en sombre](docs/screenshots/mac-barre.png)
-
----
-
-## ✨ Nouveautés de la version 1.11
-
-Version Windows. Sur Mac, ces nouveautés arrivent dans une prochaine version.
-
-**🏠 Le panneau** : un seul bouton sur la barre des tâches ouvre la liste de tes éléments, juste au-dessus, comme les Paramètres rapides de Windows 11.
+**Icônes animées** : la flamme brûle quand le chauffage chauffe, le ventilateur tourne, la cloche sonne, le lave-linge tourne… Lentes et discrètes, immobiles quand l'appareil est éteint.
 
 <p align="center">
-  <img src="docs/screenshots/panneau.png" width="620" alt="Le panneau, élargi sur deux colonnes : minuteur, lumières, enceinte avec sa pochette, volet, ventilateur, serrure">
+  <img src="docs/screenshots/icones-animees.gif" alt="Icônes animées : flamme, ventilateur, ampoule, égaliseur, goutte">
+  <br>
+  <img src="docs/screenshots/icones-animees-2.gif" alt="Flocon, soleil, Wi-Fi, cloche, lave-linge, éclair et batterie animés">
 </p>
-- Les éléments sont **rangés par pièce**. Chaque ligne a une **recherche**, des **interrupteurs**, des **curseurs** (luminosité, volume, position d'un volet…), des boutons **+/−** pour un thermostat, et l'**image des caméras**.
-- **Taille réglable** : tire le bord haut, gauche ou droit. Quand le panneau est large, les pièces se répartissent sur **plusieurs colonnes**. Un double-clic sur un bord remet la taille d'origine.
-- **Ordre libre** : glisse un élément dans sa pièce, ou le titre d'une pièce pour la déplacer en entier.
-- **Opacité** réglable depuis le panneau (bouton ☀ en haut) ou dans **Réglages → Confort → Panneau**.
-- Pour y ranger un élément : **Réglages → Éléments → Zone → Panneau**, ou clic droit sur l'élément → **Ranger dans le panneau**. Dans les réglages, la liste des éléments est maintenant séparée en 3 parties (zone gauche, zone droite, panneau), et on glisse un élément de l'une à l'autre.
 
-**⏱️ Minuteurs** (`timer.*`) : le compte à rebours défile sur la barre et dans le panneau. Un clic le met en pause ou le relance. La carte ajoute une barre de progression, les boutons Pause, Annuler et Terminer, et des durées toutes prêtes (1 à 60 min).
-
-**🖼️ Photos et pochettes** : la photo d'une personne et la pochette du morceau en cours s'affichent dans la carte et dans le panneau.
+Sur Mac aussi : la flamme du chauffage pulse, le flocon de la clim tourne, et le minuteur défile à la seconde.
 
 <p align="center">
-  <img src="docs/screenshots/carte-minuteur.png" width="300" alt="Carte d'un minuteur : compte à rebours, Pause, Annuler, Terminer, durées toutes prêtes">
+  <img src="docs/screenshots/mac-barre-animee.gif" width="370" alt="Barre des menus du Mac : flamme animée, flocon, compte à rebours d'un minuteur">
+</p>
+
+### Une carte de contrôle pour chaque appareil
+
+Un **appui long** (ou le survol sur Mac) ouvre la carte, comme dans Home Assistant : luminosité, couleur et ambiances d'une lumière, consigne et modes d'un thermostat, vitesse et sens d'un ventilateur, position d'un volet, lecteur avec sa **pochette**, **image en direct d'une caméra**, météo sur 5 jours, historique sur 24 h, 7 jours ou 30 jours…
+
+<p align="center">
+  <img src="docs/screenshots/carte.gif" alt="Cartes de contrôle sous Windows : lumière, thermostat, capteur">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/mac-cartes.png" alt="Cartes de contrôle sur Mac : lumière, thermostat, consommation avec son historique">
+</p>
+
+### 🏠 Le panneau : toute la maison en un clic
+
+Un seul bouton ouvre la liste de tes éléments, **rangés par pièce**, comme les Paramètres rapides de Windows 11 ou le Centre de contrôle du Mac : recherche, interrupteurs, curseurs, boutons +/− pour un thermostat, photos, **image des caméras**. Il s'agrandit en tirant ses bords et passe sur **plusieurs colonnes**. Idéal quand la barre manque de place (et avec l'encoche des MacBook).
+
+<p align="center">
+  <img src="docs/screenshots/panneau.png" width="49%" alt="Le panneau sous Windows">
+  <img src="docs/screenshots/mac-panneau.png" width="49%" alt="Le panneau sur Mac, élargi sur deux colonnes">
+</p>
+
+### ⏱️ Minuteurs et 📷 caméras
+
+Le **compte à rebours** d'un minuteur défile sur la barre ; un clic le met en pause. Quand on **sonne**, une petite fenêtre s'ouvre avec l'**image en direct** de la caméra, sans prendre le clavier, et se ferme seule après une minute.
+
+<p align="center">
+  <img src="docs/screenshots/mac-minuteur.gif" width="300" alt="Carte d'un minuteur : le compte à rebours défile">
   &nbsp;
-  <img src="docs/screenshots/carte-media.png" width="300" alt="Carte d'une enceinte avec la pochette du morceau en cours">
+  <img src="docs/screenshots/mac-sonnette.gif" width="380" alt="Fenêtre caméra quand on sonne, image rafraîchie chaque seconde">
 </p>
 
-**📷 Caméras**
-- **Caméra dans la carte** : **Réglages → Éléments → Plus d'options → Caméra dans la carte** affiche l'image en direct en haut de la carte d'un élément (la caméra de l'entrée sur le bouton du portail, par exemple).
-- **Fenêtre caméra quand on sonne** : une notification d'état peut ouvrir une petite fenêtre en bas à droite avec l'image en direct (**Réglages → Notifications → Afficher la caméra**). Elle ne prend pas le clavier, se ferme seule après une minute, et un clic sur l'image ouvre la carte de la caméra.
+### 💬 Assist : parle à ta maison
 
-**💬 Assist dans la palette** : tape une phrase (« allume le salon », « quelle heure est-il ») puis **Entrée** sur la ligne « Demander à Assist », ou **Ctrl+Entrée**. La réponse s'affiche sous la recherche.
-
-![Assist dans la palette de commandes](docs/screenshots/palette-assist.png)
-
-**🖥️ Plusieurs écrans** : chaque élément peut s'afficher sur la barre des tâches d'un autre écran (**Réglages → Éléments → Écran**, ou Ctrl + glisser l'élément jusqu'à l'autre barre). Si cet écran est débranché, l'élément revient sur la barre principale.
-
-**Et aussi**
-- **Bouton « +N »** : quand la barre manque de place, les éléments qui recouvriraient les icônes de Windows passent dans un menu, au lieu de passer par-dessus (**Réglages → Apparence**).
-- **Icône toujours visible** près de l'horloge, au lieu d'être rangée dans « ^ » (**Réglages → Confort**).
-- **Saisie d'une entité plus facile** : dans les réglages, une liste de suggestions s'ouvre dès qu'on tape une partie du nom, de la pièce ou de l'identifiant. Si une entité a été renommée dans Home Assistant, HA Taskbar propose la plus proche.
-- **Correctif** : dans la liste des éléments des réglages, un clic sur une ligne affiche bien son détail.
-
-## ✨ Nouveautés de la version 1.10
-
-- 🇬🇧 **HA Taskbar parle anglais** (version Windows) : toute l'interface (barre, cartes, palette, réglages, widgets, notifications) est traduite (la version Mac reste en français pour l'instant). La langue suit celle de Windows : français si Windows est en français, anglais sinon. On peut la forcer dans **Réglages → Connexion → Langue**.
-- 📖 **README en anglais** : [README.en.md](README.en.md), avec ses propres captures.
-- 🧪 Nouvelle section **[Exemples de configuration](#-exemples-de-configuration)** : couleurs selon la valeur prêtes à copier (température, CO₂, consommation, prix de l'électricité…) et recettes pour les options des éléments.
-- Le programme d'installation et la version portable sont aussi en anglais sur un Windows anglais.
-- 🖼️ **Icône ou logo dans les widgets** : l'icône du capteur, une icône au choix, ou ta propre image (clic droit sur le widget → **Icône** / **Choisir un logo…** ; sur Mac aussi dans **Réglages → Widgets**).
-- 🍎 **80 icônes de plus sur Mac** (luminaires, électroménager, énergie, jardin, animaux…) et mini-graphique qui suit la couleur de la barre des menus.
-
-## ✨ Nouveautés de la version 1.9
-
-**📊 Widgets de bureau** (Windows et Mac) : des graphiques de tes capteurs, posés sur le bureau.
+Tape une phrase (« allume le salon », « quelle heure est-il ») : Home Assistant répond directement. Sous Windows dans la **palette de commandes** (`Ctrl+Alt+Espace`, depuis n'importe quelle application), sur Mac dans la recherche du **panneau**.
 
 <p align="center">
-  <img src="docs/screenshots/win-widgets-sombre.png" width="49%" alt="Widgets de bureau sous Windows : consommation sur 24 h, humidité en grand, deux températures comparées">
-  <img src="docs/screenshots/mac-widgets.png" width="49%" alt="Les mêmes widgets sur Mac">
+  <img src="docs/screenshots/palette-assist.png" width="49%" alt="Assist dans la palette de commandes de Windows">
+  <img src="docs/screenshots/mac-assist.png" width="45%" alt="Assist dans le panneau du Mac">
 </p>
 
-- 📈 **Graphique sur 24 h, 7 jours ou 30 jours**, avec minimum, moyenne et maximum, ou **valeur en grand** avec sa tendance.
-- 🔀 **Plusieurs capteurs sur un même graphique**, chacun avec sa couleur : idéal pour comparer les températures des pièces ou des consommations.
-- 🖥️ Ils restent **sur le bureau, sous tes fenêtres** (ou toujours au premier plan), se déplacent à la souris, gardent leur place et se mettent à jour **en temps réel**. Ils suivent le thème clair ou sombre.
-- 🖱️ **Clic droit sur un widget** : période, taille (petit, moyen, grand), affichage, ajouter ou retirer un capteur, premier plan, masquer, supprimer.
-- ➕ Pour en créer un : **clic droit sur un capteur de la barre → Créer un widget de bureau** (Windows), ou **Réglages → Widgets → +** (Mac). Pour en ajouter un autre au même graphique : clic droit sur un capteur → **Ajouter à un widget**.
+### 📊 Widgets de bureau
 
-**〰️ Mini-graphique dans la barre** : une petite courbe des **6 dernières heures** à côté de la valeur d'un capteur. Clic droit sur l'élément → **Mini-graphique des 6 dernières heures**, ou **Éléments → Plus d'options** (Windows) / **Éléments → Valeur affichée** (Mac).
+Des **graphiques de tes capteurs** posés sur le bureau, sous tes fenêtres : 24 h, 7 jours ou 30 jours, plusieurs capteurs sur le même graphique, ou une valeur en grand. Mis à jour en temps réel, avec une icône ou ton propre logo.
 
-![Mini-graphique à côté de la consommation, dans la barre des menus du Mac](docs/screenshots/mac-barre-mini-graphique.png)
-
-## ✨ Nouveautés de la version 1.8.2
-
-- 🍎 **macOS** : la carte d'une climatisation à plus de 4 modes ne déborde plus (le choix du mode passe dans un menu). Rien ne change sous Windows.
-
-## ✨ Nouveautés de la version 1.8.1
-
-- 🔒 **Jeton d'accès chiffré** : il n'est plus écrit en clair dans `config.json`, mais chiffré avec la protection des données de Windows (DPAPI). Seul ton compte Windows, sur ce PC, peut le relire. Ta configuration actuelle est chiffrée automatiquement au premier lancement. Voir [Le jeton d'accès](#le-jeton-daccès).
-- 🍎 **Version macOS** : **installation en une commande** et **mises à jour automatiques**, sans blocage de Gatekeeper ; la carte s'ouvre **au survol** (0,8 s, réglable), appui long plus fiable, nouveau réglage « le clic ouvre la carte » (Réglages → Général), corrections de la carte (curseurs, dates de l'historique).
-
-## ✨ Nouveautés de la version 1.8
-
-**Plus réactif**
-- ⚡ **Temps réel** : HA Taskbar reste connecté à Home Assistant (WebSocket). La barre, la carte et les notifications réagissent en **moins d'une seconde**, et un changement bref ne passe plus inaperçu. En cas de coupure, il revient tout seul à l'interrogation régulière.
-- ⌨️ **Palette de commandes** (`Ctrl+Alt+Espace`) : une barre de recherche au milieu de l'écran, depuis n'importe quelle application. Tape « salon », **Entrée** pour allumer ou éteindre, **← →** ou la molette pour régler, **Tab** pour la carte. **Toutes** les entités de Home Assistant y sont, même celles qui ne sont pas sur la barre.
-- ✋ **Modifier depuis la barre** : clic droit sur un élément → **Modifier cet élément…** ou **Masquer**. **Ctrl + glisser** un élément pour le déplacer ou le changer de zone.
-
-**Plus lisible**
-- 💬 **Infobulle au survol** : nom, valeur, « modifié il y a 12 min » et une **mini-courbe des 6 dernières heures** (ou une frise allumé / éteint).
-- 🎨 **Couleur selon la valeur** : par exemple `> 25 orange ; > 30 rouge ; < 15 bleu` pour une température, ou un CO₂ en rouge au-dessus de 1000 ppm.
-- 🔋 **Icônes qui suivent la valeur** : pile qui se vide, barres du Wi-Fi ou du signal, volume d'un haut-parleur, météo du moment.
-- ✨ Une valeur qui change **brille un instant**.
-- 🤏 **Barre compacte** : seulement les icônes, la valeur dans l'infobulle.
-- 🌦️ **Carte météo** : conditions actuelles et **prévisions sur 5 jours**.
-
-**Plus pratique**
-- 🏠 **Choix des entités par pièce** dans « Ajouter des entités… », avec une colonne Pièce.
-- 🔔 **Notifications de Home Assistant dans Windows** : les notifications persistantes, et celles envoyées par tes automatisations avec l'événement `ha_taskbar_notify`.
-- 🪫 **Résumé des piles faibles** : un seul élément affiche « 3 » piles sous 20 % (ou « OK ») ; sa carte en donne la liste.
-- 🔕 **Plage sans notification** (par exemple de 22:00 à 07:00) et **pause** depuis le clic droit (1 h, 3 h, jusqu'à demain 8 h).
-- 💾 **Export / import** de tous les réglages, **sans le jeton** : pour sauvegarder, changer de PC ou partager.
-- 🔎 **Recherche dans les réglages**, en haut à gauche de la fenêtre.
-
-Les nouvelles options sont dans **Réglages → Confort**, **Réglages → Notifications** et **Éléments → Plus d'options**.
-
-<p>
-  <img src="docs/screenshots/palette.png" alt="Palette de commandes" width="49%">
-  <img src="docs/screenshots/reglages-confort.png" alt="Réglages, page Confort" width="49%">
+<p align="center">
+  <img src="docs/screenshots/win-widgets-sombre.png" width="49%" alt="Widgets de bureau sous Windows">
+  <img src="docs/screenshots/mac-widgets.png" width="49%" alt="Widgets de bureau sur Mac">
 </p>
 
-## ✨ Nouveautés de la version 1.7.1
+### 🔔 Et aussi
 
-- 📦 **Version portable** : un simple `.zip` à décompresser, sans installation. Les réglages restent dans son dossier, rien n'est écrit ailleurs sur le PC : le supprimer suffit à tout effacer. Idéal pour essayer HA Taskbar sans rien installer. Voir [Version portable](#version-portable-sans-installation).
-- 🔒 **Section [Sécurité et confidentialité](#-sécurité-et-confidentialité)** : ce que fait exactement le programme (connexions, fichiers, jeton), et comment vérifier un téléchargement (empreinte SHA-256, analyse VirusTotal).
-- 🪪 **Informations d'identité** dans le programme et l'installateur (éditeur, description, version, dans **Propriétés → Détails**). Elles aident les antivirus à ne pas le prendre pour un programme suspect.
+- **Notifications** quand une porte s'ouvre, qu'une machine a fini, que Home Assistant ne répond plus… et celles de tes automatisations.
+- **Arrêt programmé** (15 min à 2 h), **groupes** (« toutes les lumières »), **plages horaires** d'affichage, **résumé des piles faibles**.
+- **Raccourcis clavier** globaux (Windows), **plusieurs écrans** (Windows).
+- **Réglages graphiques** avec aperçu en direct, **suggestions** dès qu'on tape le nom d'une entité, **import / export** de la configuration (sans le jeton).
+- **Mises à jour automatiques** vérifiées (empreinte SHA-256), **jeton chiffré** (Windows) ou rangé dans le **trousseau** (Mac).
 
-Rien ne change dans l'utilisation : si tu as déjà la 1.7.0 installée, cette mise à jour est facultative.
+<p align="center">
+  <img src="docs/screenshots/reglages-elements.png" width="49%" alt="Réglages des éléments sous Windows">
+  <img src="docs/screenshots/mac-autocompletion.png" width="49%" alt="Réglages sur Mac : suggestions en tapant le nom d'une entité">
+</p>
 
-## ✨ Nouveautés de la version 1.7
-
-**Carte de contrôle (appui long)**
-- 🌀 **Ventilateur** : choix du **sens de rotation** (été / hiver), oscillation si l'appareil la gère, modes traduits (Naturel, Nuit, Frais, Auto…). Quand le ventilateur n'a que quelques vitesses (3 à 10), elles s'affichent en boutons **1, 2, 3…** au lieu d'un curseur.
-- 🔌 **Sur le même appareil** : la carte montre les autres entités de l'appareil, par exemple la **lumière** d'un ventilateur de plafond, son **minuteur** ou son capteur de température.
-- ⏲️ **Arrêt programmé** : 15 min, 30 min, 1 h ou 2 h, pour les lumières, prises, ventilateurs, lecteurs et thermostats. Le temps restant s'affiche sur la carte et en badge sur la barre. Il s'annule depuis la carte ou le menu du clic droit.
-- 💡 **Lumières** : ambiances toutes prêtes (Lecture, Détente, Veilleuse) et **favoris** : « + Mémoriser » enregistre la luminosité et la couleur actuelles. Clic droit sur un ★ pour le supprimer.
-- 🪟 **Volets** : positions rapides 25 / 50 / 75 %.
-- 🌡️ **Thermostat** : humidité et température extérieure (prise dans l'entité météo).
-- 🤖 **Aspirateur** : batterie, puissance d'aspiration, bouton « Localiser ».
-- 🎵 **Média** : barre de progression du morceau et bouton couper le son.
-- 📈 **Historique** sur **24 h, 7 jours ou 30 jours**, avec la moyenne en plus du minimum et du maximum.
-
-**Barre**
-- 🖱️ **Molette** sur tous les types : vitesse d'un ventilateur, volume d'un lecteur, position d'un volet, consigne d'un thermostat, valeur d'un nombre, en plus de la luminosité. La valeur s'affiche tout de suite et la commande part à la fin du geste.
-- 🖲️ **Clic du milieu** au choix : ouvrir la carte (par défaut), inverser le sens de rotation, mode suivant, arrêt programmé, couper le son, ou n'importe quel service.
-- 🏷️ **Badge** sur l'icône : sens de rotation ↻ ↺, pourcentage, batterie ou un attribut.
-- 👥 **Groupes** : un élément peut commander plusieurs entités (« tous les ventilateurs »). Le clic allume tout, ou éteint tout si l'une d'elles est allumée, et la barre affiche « 2/3 ».
-- ⌨️ **Raccourcis clavier globaux** (ex. Ctrl+Alt+1) : ils font la même chose qu'un clic, depuis n'importe quelle application.
-- 🕘 **Plages horaires** : un élément peut n'apparaître que de 22:00 à 07:00, par exemple.
-- 🔔 **Notifications Windows** quand une entité change d'état (porte ouverte, machine terminée…), dans la nouvelle page **Réglages → Notifications**. Les entités n'ont pas besoin d'être sur la barre.
-- 📡 **Hors ligne** : si Home Assistant ne répond plus, les valeurs passent en gris, « ● HA hors ligne » s'affiche et une notification prévient, puis une autre au retour. Le clic droit indique l'heure de la dernière réponse et propose « Réessayer maintenant ».
-
-## ✨ Nouveautés de la version 1.6
-
-- 🔔 **Icône dans la zone de notification**, à côté de l'horloge : clic gauche pour ouvrir les réglages, clic droit pour le menu. Elle reste accessible même quand aucun élément n'est affiché.
-- 🖥️ **Multi-écran** : choisis l'écran qui affiche les boutons dans **Réglages → Apparence → Écran**. Si cet écran est débranché, la barre revient sur l'écran principal. Une application en plein écran sur un autre écran ne masque plus la barre.
-- 🐞 **Correction** : HA Taskbar n'a plus de bouton dans la barre des tâches. Il apparaissait avec le fond transparent.
-
-> Windows 11 range parfois les nouvelles icônes dans la flèche **^**. Pour l'avoir toujours visible : glisse-la à côté de l'horloge, ou **Paramètres → Personnalisation → Barre des tâches → Autres icônes de la barre d'état système → HA Taskbar**.
-
-## ✨ Nouveautés de la version 1.5
-
-- 🔥 **13 nouvelles icônes animées**, soit 18 au total. Comme les premières, elles sont immobiles quand l'élément est éteint et bougent lentement quand il est actif :
-
-  <p align="center">
-    <img src="docs/screenshots/icones-animees-2.gif" alt="Flocon, soleil, Wi-Fi, cloche, lave-linge, éclair et batterie animés"><br>
-    <img src="docs/screenshots/icones-animees-3.gif" alt="Détection, radiateur, haut-parleur, minuteur, pluie et engrenage animés">
-  </p>
-
-  | Icône | Quand elle est active |
-  |---|---|
-  | ❄️ Flocon | Climatisation, froid : il tourne très lentement |
-  | ☀️ Soleil | Les rayons tournent et respirent |
-  | 📶 Wi-Fi | Les ondes s'allument l'une après l'autre |
-  | 🔔 Cloche | Elle se balance puis fait une pause (sonnette, sirène) |
-  | 🧺 Lave-linge | Le linge tourne dans le tambour |
-  | ⚡ Éclair | L'énergie monte dans l'éclair (consommation au-dessus de 0) |
-  | 🔋 Batterie | En charge : les barres se remplissent |
-  | 📡 Détection | Des ondes s'élargissent (mouvement, présence) |
-  | ♨️ Radiateur | Des vagues de chaleur montent |
-  | 🔊 Haut-parleur | Les ondes sonores battent |
-  | ⏲️ Minuteur | L'aiguille tourne (un tour en 6 secondes) |
-  | 🌧️ Pluie | Des gouttes tombent du nuage |
-  | ⚙️ Engrenage | Il tourne lentement (automatisme, programme en cours) |
-
-  Dans le choix d'icônes, les animations se chargent l'une après l'autre : la fenêtre s'ouvre tout de suite.
-
-## ✨ Nouveautés de la version 1.4
-
-- 🎨 **Réglages redessinés dans le style de Windows 11** : menu à gauche avec icônes, comme les Paramètres de Windows, champs et boutons arrondis, interrupteurs et curseurs modernes.
-- 🌗 **Clair ou sombre comme Windows**, barre de titre comprise. Le choix d'icônes, l'ajout d'entités et la fenêtre de mise à jour suivent aussi.
-
-![Réglages en mode sombre](docs/screenshots/reglages-apparence.png)
-
-## ✨ Nouveautés de la version 1.3
-
-- ⬆️ **Mises à jour automatiques depuis GitHub** : HA Taskbar vérifie s'il existe une nouvelle version (une minute après le lancement, puis une fois par jour) et propose de l'installer en un clic. Voir [Mises à jour](#-mises-à-jour).
-
-> À partir de la 1.3, plus besoin de télécharger les nouvelles versions à la main. Il faut juste installer cette version-ci une fois.
-
-## ✨ Nouveautés de la version 1.2
-
-- 🔥 **Icônes animées** : immobiles quand l'élément est éteint, elles bougent doucement quand il est allumé. Le rythme est volontairement lent pour ne pas attirer l'œil pendant qu'on travaille.
-
-  <p align="center"><img src="docs/screenshots/icones-animees.gif" alt="Flamme qui brûle puis s'éteint quand le chauffage s'arrête, ventilateur, ampoule, égaliseur et goutte animés"></p>
-
-  | Icône | Quand elle bouge |
-  |---|---|
-  | 🔥 Flamme | Thermostat **en train de chauffer** (pas seulement en mode chauffage). Éteinte, elle n'est plus qu'un contour. |
-  | 🌀 Ventilateur | Ventilateur allumé : les pales tournent lentement |
-  | 💡 Ampoule | Lumière allumée : le halo et les rayons « respirent » |
-  | 🎵 Égaliseur | Lecteur multimédia en lecture |
-  | 💧 Goutte | Arrosage ou vanne ouverts, ou capteur au-dessus de 0 (débit…) |
-
-  Elles se choisissent comme les autres icônes (**Réglages → Éléments → Changer…**), et l'option **Animer les icônes animées** de l'onglet Apparence les fige si tu préfères.
-- 🎨 **Deux fois plus d'icônes** : près de 90, avec console, ordinateur, téléphone, casque, courrier, calendrier, lever et coucher du soleil, flocon, avion, bus, train, empreinte, clé, outils…
-
-## ✨ Nouveautés de la version 1.1
-
-- ↔️ **Deux zones sur la barre** : une à gauche et une à droite (juste avant les icônes de notification). Chaque élément choisit sa zone dans **Réglages → Éléments → Zone**, et chaque zone a son propre décalage dans **Réglages → Apparence**. Une zone sans élément n'apparaît pas.
-- 🔄 **Mise à jour automatique de la configuration** : une barre réglée « côté droit » en 1.0 passe toute seule dans la zone droite, avec le même décalage.
-- 🐞 **Correction** : le menu du clic droit s'affiche maintenant devant les capteurs.
-
-Le programme d'installation remplace l'ancienne version et garde tes réglages. Toutes les versions sont sur la page [**Releases**](https://github.com/bbtoff/home-assistant-taskbar/releases).
+Un **programme d'installation** et une **version portable** sont fournis pour Windows, et une **commande d'installation** pour le Mac : rien d'autre à installer, pas même Python. Les nouveautés de chaque version sont décrites dans les [**Releases**](https://github.com/bbtoff/home-assistant-taskbar/releases).
 
 ---
 
@@ -258,12 +127,13 @@ Le programme d'installation remplace l'ancienne version et garde tes réglages. 
 11. [Limites connues](#-limites-connues)
 12. [Dépannage](#-dépannage)
 13. [HA Taskbar sur Mac](#-ha-taskbar-sur-mac)
+14. [À propos de ce projet](#-à-propos-de-ce-projet)
 
 ---
 
 ## 📋 Prérequis
 
-- **Windows 11** (fonctionne aussi sous Windows 10, avec les icônes Segoe MDL2)
+- **Windows 11** (fonctionne aussi sous Windows 10, avec les icônes Segoe MDL2), ou **macOS 13** et plus récent (voir [HA Taskbar sur Mac](#-ha-taskbar-sur-mac))
 - Uniquement pour lancer depuis les sources : **Python 3.8 ou plus récent** (testé avec 3.10), avec tkinter. C'est le cas par défaut avec l'installeur de python.org.
 - Un **Home Assistant** joignable depuis le PC, et un **jeton d'accès longue durée**
 
@@ -277,6 +147,8 @@ Le programme d'installation remplace l'ancienne version et garde tes réglages. 
 ---
 
 ## 📦 Installation
+
+Cette partie concerne Windows. Sur Mac, c'est une seule commande : voir [HA Taskbar sur Mac](#-ha-taskbar-sur-mac).
 
 ### Avec le programme d'installation (recommandé)
 
@@ -853,45 +725,41 @@ Windows 11 ne permet plus d'ajouter des « deskbands » (barres d'outils) à la 
 
 ---
 
-## 💬 À propos de ce projet
+## 🍎 HA Taskbar sur Mac
 
-Je ne suis pas développeur 😄 J'ai apporté les idées, les tests et les retours au fil de l'eau. Toute la partie technique (code, programme d'installation, documentation et captures) a été réalisée par **Claude**, l'assistant IA d'Anthropic, à partir de mes demandes.
+HA Taskbar existe aussi pour **macOS 13 ou plus récent** (Apple Silicon et Intel). C'est une application native : les éléments s'affichent dans la **barre des menus**, en haut à droite de l'écran, et le **panneau** s'ouvre sous l'icône Maison. Les fonctions sont les mêmes que sous Windows (panneau, Assist, minuteurs, caméras, widgets, notifications), sauf la palette de commandes, les raccourcis clavier globaux et les favoris de lumière.
+
+### Installation
+
+Colle cette commande dans le **Terminal** (Applications → Utilitaires) :
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/bbtoff/home-assistant-taskbar/main/macos/install.sh | bash
+```
+
+Elle télécharge la dernière version depuis les Releases, vérifie son empreinte SHA-256, l'installe dans **Applications** et la lance, sans le message « Apple n'a pas pu confirmer… » (macOS ne bloque que les fichiers téléchargés par un navigateur). Le script est lisible ici : [`macos/install.sh`](macos/install.sh).
+
+- **Mises à jour** : automatiques. HA Taskbar vérifie GitHub au démarrage puis une fois par jour, propose la nouvelle version, vérifie son empreinte et redémarre (menu 🏠 → **Mettre à jour**, ou **Réglages → Général → Mises à jour**).
+- **Avec le `.dmg`** des [Releases](https://github.com/bbtoff/home-assistant-taskbar/releases) : l'application n'est pas signée par Apple, donc macOS la bloque au premier lancement. Ouvre **Réglages Système → Confidentialité et sécurité**, puis **Ouvrir quand même** (une seule fois).
+- **Depuis Windows** : **Réglages → Général → Importer…** reprend ton `config.json` (éléments, icônes, seuils, notifications, widgets).
+
+### Utilisation
+
+- **Élément de la barre** : clic pour l'action, survol (0,8 s), appui long ou ⌥-clic pour la carte, molette pour régler, clic droit pour le menu. Si tu préfères que le clic ouvre la carte : **Réglages → Général → Clic sur un élément**.
+- **Panneau** : clic sur l'icône Maison (clic droit : le menu). Pour y ranger un élément : **Réglages → Éléments → Emplacement → Panneau**, ou clic droit sur l'élément → **Mettre dans le panneau**. Tire ses bords gauche, droit ou bas pour l'agrandir ; double-clic sur un bord pour revenir à la taille par défaut.
+- **Assist** : dans la recherche du panneau, une phrase de 2 mots ou plus, puis **Entrée** (ou ⌘↩).
+- **Fenêtre caméra** : **Réglages → Notifications → Afficher la caméra** sur une règle (sonnette…), bouton **Tester** pour l'essayer.
+- **Widgets** : **Réglages → Widgets → +**, puis clic droit sur un widget pour sa période, sa taille, son icône ou son logo.
+
+<p align="center">
+  <img src="docs/screenshots/mac-carte-lecteur.png" width="32%" alt="Carte d'une enceinte avec sa pochette">
+  <img src="docs/screenshots/mac-carte-camera.png" width="36%" alt="Carte de la sonnette avec l'image de la caméra">
+</p>
+
+Tout le détail, et comment construire l'application soi-même avec Xcode : [macos/README.md](macos/README.md).
 
 ---
 
-## 🍎 HA Taskbar sur Mac
+## 💬 À propos de ce projet
 
-Depuis la 1.8, HA Taskbar existe aussi pour **macOS 13 ou plus récent** (Apple Silicon et Intel). C'est une application native : les éléments s'affichent dans la **barre des menus**, en haut à droite de l'écran.
-
-![La barre des menus en mode clair et en mode sombre](docs/screenshots/mac-barre.png)
-
-*Lumière allumée à 70 % (en jaune), chauffage en marche (la flamme s'anime), consommation et température extérieure. Données de démonstration.*
-
-Un **appui long** (ou ⌥-clic, ou le survol) ouvre la carte de contrôle, comme sur Windows : lumière, thermostat, historique d'un capteur…
-
-![Cartes de contrôle : lumière, thermostat (mode sombre) et consommation avec son historique](docs/screenshots/mac-cartes.png)
-
-Les **widgets de bureau** se créent et se règlent dans l'onglet **Widgets** :
-
-![Réglages des widgets sur Mac](docs/screenshots/mac-reglages-widgets.png)
-
-Les réglages et le choix des entités, avec la pièce de chacune :
-
-<p align="center">
-  <img src="docs/screenshots/mac-reglages-sombre.png" width="49%" alt="Réglages : liste des éléments et options de l'élément choisi">
-  <img src="docs/screenshots/mac-ajout-clair.png" width="49%" alt="Ajouter des entités : recherche par nom, pièce ou type">
-</p>
-
-- **Installation (recommandée)** : colle cette commande dans le **Terminal** (Applications → Utilitaires) :
-
-  ```bash
-  curl -fsSL https://raw.githubusercontent.com/bbtoff/home-assistant-taskbar/main/macos/install.sh | bash
-  ```
-
-  Elle télécharge la dernière version depuis les Releases, vérifie son empreinte SHA-256, l'installe dans **Applications** et la lance. Aucun message « Apple n'a pas pu confirmer… » : macOS ne bloque que les fichiers téléchargés par un navigateur. Le script est lisible ici : [`macos/install.sh`](macos/install.sh).
-- **Mises à jour** : automatiques. HA Taskbar vérifie GitHub au démarrage puis une fois par jour, propose la nouvelle version, la télécharge, vérifie son empreinte et redémarre (menu 🏠 → **Mettre à jour**, ou **Réglages → Général → Mises à jour**).
-- **Avec le `.dmg`** (téléchargé depuis les [**Releases**](https://github.com/bbtoff/home-assistant-taskbar/releases)) : l'application n'est pas signée par Apple, donc macOS la bloque au premier lancement. Ouvre **Réglages Système → Confidentialité et sécurité**, puis **Ouvrir quand même** (une seule fois : les mises à jour suivantes se font depuis l'application).
-- **Utilisation** : clic pour l'action, survol (0,8 s), appui long ou ⌥-clic pour la carte, molette pour régler, clic droit pour le menu. Si tu préfères que le clic ouvre la carte : **Réglages → Général → Clic sur un élément**.
-- **Depuis Windows** : **Réglages → Général → Importer…** reprend ton `config.json` (éléments, icônes, seuils, notifications).
-
-La palette de commandes, les raccourcis clavier globaux et les favoris de lumière ne sont pas encore disponibles sur Mac. Tout le détail, et comment la construire soi-même avec Xcode : [macos/README.md](macos/README.md).
+Je ne suis pas développeur 😄 J'ai apporté les idées, les tests et les retours au fil de l'eau. Toute la partie technique (code, programme d'installation, documentation et captures) a été réalisée par **Claude**, l'assistant IA d'Anthropic, à partir de mes demandes.

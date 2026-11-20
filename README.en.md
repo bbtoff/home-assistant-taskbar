@@ -2,136 +2,116 @@
 
 [Français](README.md) · **English**
 
-Shows **Home Assistant sensors** and **buttons** right on the **Windows 11 taskbar**, in its free space: a **left zone** and a **right zone** next to the icons, usable together.
+Your Home Assistant **sensors** and **buttons**, always in sight: on the **Windows 11 taskbar** and in the **Mac menu bar**. One click to turn a light on, a glance for the temperature, a full control card when you need it.
 
-![HA Taskbar on the taskbar](docs/screenshots/en/bar.png)
+![HA Taskbar on the Windows taskbar](docs/screenshots/en/bar.png)
 
-*Demo data. Each item shows a different feature: a group of lights with a brightness badge, colors by value (temperature, CO₂, power), a heating flame that moves while heating, the low battery summary and the weather. See [Configuration examples](#-configuration-examples).*
+![HA Taskbar in the Mac menu bar, light and dark](docs/screenshots/mac-barre.png)
 
-- 📊 **Live values**: temperature, power use, state of a light…
-- 💡 **Clickable buttons**: turn a light or plug on/off, run a scene or a script…
-- 🧩 **Long press** on an item: a control card opens, like in Home Assistant (brightness, color, heating target, volume, history…)
-- ⚡ **Real time**: changes show up in under a second
-- ⌨️ **Command palette** (`Ctrl+Alt+Space`): search and control any entity from any app
-- ↔️ **Two zones**: one on the left and one on the right of the taskbar, each item picks its own
-- 🎨 About 90 Windows 11 icons that change color with the state, **colors by value**, and a **light / dark** theme that follows Windows
-- 🔥 **18 animated icons**: a flame burning while the heating heats, a spinning fan, a ringing bell, a washing machine, rain… Slow and subtle
-- 📊 **Desktop widgets**: charts of your sensors (24 h, 7 days, 30 days) on the desktop, and mini charts in the bar
-- 🔧 A settings window with live preview: nothing to edit by hand
-- 🇬🇧 🇫🇷 **English and French**: the language follows Windows
+*Top, Windows: a group of lights with a brightness badge, colors by value (temperature, CO₂, power), a heating flame that moves while heating, the low battery summary and the weather. Bottom, the Mac, light and dark (its interface is in French for now). All screenshots use demo data.*
+
+<p align="center">
+  <a href="https://github.com/bbtoff/home-assistant-taskbar/releases/latest"><b>⬇️ Download the latest version</b></a>
+  &nbsp;·&nbsp; <a href="#-installation">Installation</a>
+  &nbsp;·&nbsp; <a href="#-ha-taskbar-on-mac">On Mac</a>
+  &nbsp;·&nbsp; <a href="#-security-and-privacy">Security</a>
+</p>
+
+---
+
+## 👀 At a glance
+
+### On the bar, in real time
+
+- 📊 **Live values** (under a second): temperature, power use, state of a light, a timer's countdown…
+- 💡 **One click** turns things on or off, runs a scene or a script; the **mouse wheel** sets brightness, volume, target temperature…
+- 🎨 About 90 icons (almost 200 on Mac) that change **color with the state or the value** (`> 25 orange ; > 30 red`), with an automatic **light / dark** theme.
+- 〰️ A **mini chart** of the last 6 hours next to a value, and a **tooltip** with the history on hover.
+- 🇬🇧 🇫🇷 **English and French** on Windows: the language follows Windows.
 
 <p align="center">
   <img src="docs/screenshots/clic.gif" alt="Click to turn on, wheel for brightness, click to turn off">
 </p>
 
-An **installer** and a **portable version** (no installation) are provided: nothing else to install, not even Python. From source, you only need Python and its standard library (tkinter, ctypes, urllib). The window theme is included in the repository.
-
-> 🍎 **There is also a macOS version** (preview), in the Mac **menu bar** — its interface is in French for now. One-command install in Terminal: `curl -fsSL https://raw.githubusercontent.com/bbtoff/home-assistant-taskbar/main/macos/install.sh | bash`. See [HA Taskbar on Mac](#-ha-taskbar-on-mac).
-
----
-
-## ✨ What's new in 1.11
-
-These features are in the Windows version. They will come to the Mac in a later version.
-
-- 🏠 **The panel**: a single taskbar button opens a list of your items above it, like Windows 11 Quick Settings.
-
-  <p align="center"><img src="docs/screenshots/en/panel.png" width="620" alt="The panel, widened to two columns"></p>
-  - Items are grouped by room, with search, toggles, sliders (brightness, volume, cover position…), +/− buttons for thermostats, and live camera images.
-  - **Resize it** by dragging its top, left or right edge. When it is wide, rooms spread over **several columns**.
-  - **Reorder** by dragging an item within its room, or a room title to move the whole room.
-  - Adjustable opacity.
-  - To put an item in the panel: **Settings → Items → Zone → Panel**, or right-click the item → **Move to the panel**.
-- ⏱️ **Timers** (`timer.*`): a live countdown on the bar and in the panel. Click to pause or resume. The card has a progress bar, Pause, Cancel and Finish buttons, and quick durations from 1 to 60 minutes.
-- 🖼️ **Pictures and album art**: a person's photo and the cover of the track that is playing appear in the card and in the panel.
-- 📷 **Cameras**:
-  - a live image at the top of an item's card (**Settings → Items → More options → Camera in the card**);
-  - a small camera window when someone rings: a state notification can show the camera live (**Settings → Notifications → Show camera**).
-- 💬 **Assist in the command palette**: type a sentence, then press **Ctrl+Enter**. The answer appears under the search box.
-
-  <p align="center">
-    <img src="docs/screenshots/en/card-timer.png" width="300" alt="Timer card">
-    &nbsp;
-    <img src="docs/screenshots/en/card-media.png" width="300" alt="Speaker card with album art">
-  </p>
-  <p align="center"><img src="docs/screenshots/en/palette-assist.png" alt="Assist in the command palette"></p>
-- 🖥️ **Multiple screens**: each item can go on the taskbar of another screen (**Settings → Items → Screen**).
-- **Also new**:
-  - a **"+N" button** for items that would cover Windows icons;
-  - the tray icon stays visible next to the clock;
-  - **entity suggestions** as you type in the settings, including the closest match for an entity that was renamed in Home Assistant.
-
-## ✨ What's new in 1.10
-
-- 🖼️ **Icon or logo in widgets**: the sensor's icon, an icon of your choice, or your own image (right-click a widget → **Icon** / **Choose a logo…**).
-- 🇬🇧 **HA Taskbar speaks English** (Windows version): the whole interface (bar, cards, palette, settings, widgets, notifications) is translated. The language follows Windows: French if Windows is in French, English otherwise. You can force it in **Settings → Connection → Language**.
-- 📖 **This README in English**, with its own screenshots.
-- 🧪 New **[Configuration examples](#-configuration-examples)** section: ready-to-copy color rules (temperature, CO₂, power, electricity price…) and recipes for item options.
-- The installer and the portable version are in English on an English Windows.
-
-## ✨ What's new in 1.9
-
-**📊 Desktop widgets** (Windows and Mac): charts of your sensors, right on the desktop.
+**Animated icons**: a flame burns while the heating heats, a fan spins, a bell rings, a washing machine turns… Slow and subtle, still when the device is off.
 
 <p align="center">
-  <img src="docs/screenshots/win-widgets-sombre.png" width="49%" alt="Desktop widgets on Windows: power over 24 h, large humidity value, two temperatures compared">
-  <img src="docs/screenshots/mac-widgets.png" width="49%" alt="The same widgets on Mac">
+  <img src="docs/screenshots/icones-animees.gif" alt="Animated icons: flame, fan, light bulb, equalizer, drop">
+  <br>
+  <img src="docs/screenshots/icones-animees-2.gif" alt="Animated snowflake, sun, Wi-Fi, bell, washing machine, bolt and battery">
 </p>
 
-- 📈 **Chart over 24 h, 7 days or 30 days**, with minimum, average and maximum, or a **large value** with its trend.
-- 🔀 **Several sensors on one chart**, each with its own color: great for comparing room temperatures or power use.
-- 🖥️ They stay **on the desktop, below your windows** (or always on top), move with the mouse, keep their place and update **in real time**. They follow the light or dark theme.
-- 🖱️ **Right-click a widget**: period, size (small, medium, large), display, add or remove a sensor, icon or your own **logo**, always on top, hide, delete.
-- ➕ To create one: **right-click a sensor on the bar → Create a desktop widget**. To add another sensor to the same chart: right-click a sensor → **Add to a widget**.
+On Mac too: the heating flame pulses, the air conditioner's snowflake spins, and the timer counts down every second.
 
-**〰️ Mini chart in the bar**: a small curve of the **last 6 hours** next to a sensor's value. Right-click the item → **Mini chart of the last 6 hours**, or **Items → More options**.
-
-## ✨ What's new in 1.8.1 and 1.8.2
-
-- 🔒 **Encrypted access token**: it's no longer written in plain text in `config.json`, but encrypted with Windows data protection (DPAPI). Only your Windows account, on this PC, can read it. Existing configurations are encrypted automatically on first start. See [The access token](#the-access-token).
-- 🍎 **macOS version**: one-command install and automatic updates, card on hover, fixes.
-
-## ✨ What's new in 1.8
-
-**More responsive**
-- ⚡ **Real time**: HA Taskbar stays connected to Home Assistant (WebSocket). The bar, the card and notifications react in **under a second**, and a brief change no longer goes unnoticed. If the connection drops, it falls back to regular polling on its own.
-- ⌨️ **Command palette** (`Ctrl+Alt+Space`): a search box in the middle of the screen, from any app. Type “living”, **Enter** to turn on or off, **← →** or the wheel to adjust, **Tab** for the card. **Every** Home Assistant entity is there, even those not on the bar.
-- ✋ **Edit from the bar**: right-click an item → **Edit this item…** or **Hide**. **Ctrl + drag** an item to move it or change its zone.
-
-**Easier to read**
-- 💬 **Tooltip on hover**: name, value, “changed 12 min ago” and a **chart of the last 6 hours** (or an on / off timeline).
-- 🎨 **Color by value**: e.g. `> 25 orange ; > 30 red ; < 15 blue` for a temperature, or CO₂ in red above 1000 ppm.
-- 🔋 **Icons that follow the value**: a draining battery, Wi-Fi or signal bars, speaker volume, current weather.
-- ✨ A value that changes **briefly lights up**.
-- 🤏 **Compact bar**: icons only, the value is in the tooltip.
-- 🌦️ **Weather card**: current conditions and a **5-day forecast**.
-
-**More practical**
-- 🏠 **Pick entities by area** in “Add entities…”, with an Area column.
-- 🔔 **Home Assistant notifications in Windows**: persistent notifications, and those sent by your automations with the `ha_taskbar_notify` event.
-- 🪫 **Low battery summary**: a single item shows “3” batteries below 20 % (or “OK”); its card gives the list.
-- 🔕 **Quiet hours** (e.g. from 22:00 to 07:00) and a **pause** from the right-click menu (1 h, 3 h, until 8 am tomorrow).
-- 💾 **Export / import** all settings, **without the token**: to back up, move to another PC or share.
-- 🔎 **Search in the settings**, at the top left of the window.
-
-<p>
-  <img src="docs/screenshots/en/palette.png" alt="Command palette" width="49%">
-  <img src="docs/screenshots/en/settings-comfort.png" alt="Settings, Comfort page" width="49%">
+<p align="center">
+  <img src="docs/screenshots/mac-barre-animee.gif" width="370" alt="Mac menu bar: animated flame, snowflake, timer countdown">
 </p>
 
-## ✨ Earlier versions
+### A control card for every device
 
-- **1.8**: first macOS version (menu bar), plus everything above for Windows.
-- **1.7.1**: portable version (zip), security and privacy section, identity information in the program.
-- **1.7**: fan direction and oscillation, other entities of the same device in the card, sleep timer, light presets and favorites, cover shortcuts, thermostat humidity and outdoor temperature, vacuum battery, media progress, 24 h / 7 days / 30 days history; on the bar: mouse wheel on every type, configurable middle click, icon badge, groups, global keyboard shortcuts, time ranges, Windows notifications on state changes, visible offline mode.
-- **1.6**: icon in the notification area, multi-monitor.
-- **1.5**: 13 new animated icons (18 in total).
-- **1.4**: Windows 11 style settings, light or dark like Windows.
-- **1.3**: automatic updates from GitHub.
-- **1.2**: animated icons, twice as many icons.
-- **1.1**: two zones on the bar (left and right).
+A **long press** (or hovering, on Mac) opens the card, like in Home Assistant: brightness, color and scenes of a light, target and modes of a thermostat, speed and direction of a fan, position of a cover, a media player with its **album art**, a **live camera image**, a 5-day weather forecast, history over 24 h, 7 days or 30 days…
 
-All releases are on the [**Releases**](https://github.com/bbtoff/home-assistant-taskbar/releases) page. The detailed history is in the [French README](README.md).
+<p align="center">
+  <img src="docs/screenshots/en/card-light.png" width="32%" alt="Light card on Windows">
+  <img src="docs/screenshots/en/card-thermostat.png" width="32%" alt="Thermostat card on Windows">
+  <img src="docs/screenshots/en/card-sensor.png" width="32%" alt="Sensor card with its history on Windows">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/mac-cartes.png" alt="Control cards on Mac: light, thermostat, power use with its history">
+</p>
+
+### 🏠 The panel: the whole house in one click
+
+One button opens all your items, **grouped by room**, like Windows 11 Quick Settings or the Mac Control Center: search, toggles, sliders, +/− buttons for a thermostat, pictures, **camera images**. Drag its edges to make it bigger: it spreads over **several columns**. Great when the bar runs out of room (and with the MacBook notch).
+
+<p align="center">
+  <img src="docs/screenshots/en/panel.png" width="49%" alt="The panel on Windows">
+  <img src="docs/screenshots/mac-panneau.png" width="49%" alt="The panel on Mac, widened to two columns">
+</p>
+
+### ⏱️ Timers and 📷 cameras
+
+A timer's **countdown** runs on the bar; a click pauses it. When someone **rings**, a small window opens with the **live camera image**, without taking the keyboard, and closes by itself after a minute.
+
+<p align="center">
+  <img src="docs/screenshots/mac-minuteur.gif" width="300" alt="Timer card: the countdown runs">
+  &nbsp;
+  <img src="docs/screenshots/mac-sonnette.gif" width="380" alt="Camera window when someone rings, image refreshed every second">
+</p>
+
+### 💬 Assist: talk to your home
+
+Type a sentence ("turn on the living room", "what time is it"): Home Assistant answers right away. On Windows in the **command palette** (`Ctrl+Alt+Space`, from any app), on Mac in the **panel**'s search field.
+
+<p align="center">
+  <img src="docs/screenshots/en/palette-assist.png" width="49%" alt="Assist in the Windows command palette">
+  <img src="docs/screenshots/mac-assist.png" width="45%" alt="Assist in the Mac panel">
+</p>
+
+### 📊 Desktop widgets
+
+**Charts of your sensors** on the desktop, under your windows: 24 h, 7 days or 30 days, several sensors on the same chart, or a big value. Updated in real time, with an icon or your own logo.
+
+<p align="center">
+  <img src="docs/screenshots/win-widgets-sombre.png" width="49%" alt="Desktop widgets on Windows">
+  <img src="docs/screenshots/mac-widgets.png" width="49%" alt="Desktop widgets on Mac">
+</p>
+
+### 🔔 And also
+
+- **Notifications** when a door opens, a machine is done, Home Assistant stops answering… and from your automations.
+- **Sleep timer** (15 min to 2 h), **groups** ("all lights"), **time ranges** for showing an item, **low battery summary**.
+- Global **keyboard shortcuts** and **multiple screens** (Windows).
+- A **settings window** with live preview, **suggestions** as soon as you type an entity name, **import / export** of the configuration (without the token).
+- Checked **automatic updates** (SHA-256 hash), an **encrypted token** (Windows) or stored in the **Keychain** (Mac).
+
+<p align="center">
+  <img src="docs/screenshots/en/settings-items.png" width="49%" alt="Item settings on Windows">
+  <img src="docs/screenshots/mac-autocompletion.png" width="49%" alt="Settings on Mac: suggestions while typing an entity name">
+</p>
+
+An **installer** and a **portable version** are provided for Windows, and a **one-command install** for the Mac: nothing else to install, not even Python. What's new in each version is described in the [**Releases**](https://github.com/bbtoff/home-assistant-taskbar/releases).
 
 ---
 
@@ -150,12 +130,13 @@ All releases are on the [**Releases**](https://github.com/bbtoff/home-assistant-
 11. [Known limitations](#-known-limitations)
 12. [Troubleshooting](#-troubleshooting)
 13. [HA Taskbar on Mac](#-ha-taskbar-on-mac)
+14. [About this project](#-about-this-project)
 
 ---
 
 ## 📋 Requirements
 
-- **Windows 11** (also works on Windows 10, with the Segoe MDL2 icons)
+- **Windows 11** (also works on Windows 10, with the Segoe MDL2 icons), or **macOS 13** and later (see [HA Taskbar on Mac](#-ha-taskbar-on-mac))
 - Only to run from source: **Python 3.8 or later** (tested with 3.10), with tkinter. That's the default with the python.org installer.
 - A **Home Assistant** reachable from the PC, and a **long-lived access token**
 
@@ -169,6 +150,8 @@ All releases are on the [**Releases**](https://github.com/bbtoff/home-assistant-
 ---
 
 ## 📦 Installation
+
+This part is about Windows. On Mac, it's a single command: see [HA Taskbar on Mac](#-ha-taskbar-on-mac).
 
 ### With the installer (recommended)
 
@@ -734,23 +717,36 @@ Windows 11 no longer allows adding “deskbands” (toolbars) to the taskbar. HA
 
 ## 🍎 HA Taskbar on Mac
 
-Since 1.8, HA Taskbar also exists for **macOS 13 or later** (Apple Silicon and Intel). It's a native app: items show in the **menu bar**, at the top right of the screen. Its interface is in French for now.
+HA Taskbar also exists for **macOS 13 or later** (Apple Silicon and Intel). It's a native app: items show in the **menu bar**, at the top right of the screen, and the **panel** opens under the Home icon. Features are the same as on Windows (panel, Assist, timers, cameras, widgets, notifications), except the command palette, global keyboard shortcuts and light favorites. Its interface is in French for now.
 
-![The menu bar in light and dark mode](docs/screenshots/mac-barre.png)
+### Installation
 
-- **Install (recommended)**: paste this command in **Terminal** (Applications → Utilities):
+Paste this command in **Terminal** (Applications → Utilities):
 
-  ```bash
-  curl -fsSL https://raw.githubusercontent.com/bbtoff/home-assistant-taskbar/main/macos/install.sh | bash
-  ```
+```bash
+curl -fsSL https://raw.githubusercontent.com/bbtoff/home-assistant-taskbar/main/macos/install.sh | bash
+```
 
-  It downloads the latest version from the Releases, checks its SHA-256 hash, installs it in **Applications** and starts it. The script can be read here: [`macos/install.sh`](macos/install.sh).
-- **Updates**: automatic, from GitHub.
-- **With the `.dmg`** (from the [**Releases**](https://github.com/bbtoff/home-assistant-taskbar/releases)): the app isn't signed by Apple, so macOS blocks it on first launch. Open **System Settings → Privacy & Security**, then **Open Anyway** (once).
-- **Use**: click for the action, hover (0.8 s), long press or ⌥-click for the card, wheel to adjust, right-click for the menu. Desktop widgets are set up in **Settings → Widgets**.
-- **From Windows**: **Settings → General → Import…** takes your `config.json` (items, icons, thresholds, notifications).
+It downloads the latest version from the Releases, checks its SHA-256 hash, installs it in **Applications** and starts it, without the "Apple could not verify…" message (macOS only blocks files downloaded by a browser). The script can be read here: [`macos/install.sh`](macos/install.sh).
 
-The command palette, global keyboard shortcuts and light favorites aren't available on Mac yet. Details, and how to build it yourself with Xcode: [macos/README.md](macos/README.md) (in French).
+- **Updates**: automatic. HA Taskbar checks GitHub at startup and once a day, offers the new version, checks its hash and restarts (🏠 menu → **Mettre à jour**, or **Réglages → Général → Mises à jour**).
+- **With the `.dmg`** from the [Releases](https://github.com/bbtoff/home-assistant-taskbar/releases): the app isn't signed by Apple, so macOS blocks it on first launch. Open **System Settings → Privacy & Security**, then **Open Anyway** (once).
+- **From Windows**: **Réglages → Général → Importer…** takes your `config.json` (items, icons, thresholds, notifications, widgets).
+
+### Use
+
+- **Menu bar item**: click for the action, hover (0.8 s), long press or ⌥-click for the card, wheel to adjust, right-click for the menu.
+- **Panel**: click the Home icon (right-click: the menu). To put an item in it: **Réglages → Éléments → Emplacement → Panneau**, or right-click the item → **Mettre dans le panneau**. Drag its left, right or bottom edge to make it bigger; double-click an edge for the default size.
+- **Assist**: in the panel's search field, a sentence of 2 words or more, then **Return** (or ⌘↩).
+- **Camera window**: **Réglages → Notifications → Afficher la caméra** on a rule (doorbell…), and **Tester** to try it.
+- **Widgets**: **Réglages → Widgets → +**, then right-click a widget for its period, size, icon or logo.
+
+<p align="center">
+  <img src="docs/screenshots/mac-carte-lecteur.png" width="32%" alt="Speaker card with its album art">
+  <img src="docs/screenshots/mac-carte-camera.png" width="36%" alt="Doorbell card with the camera image">
+</p>
+
+Details, and how to build the app yourself with Xcode: [macos/README.md](macos/README.md) (in French).
 
 ---
 
