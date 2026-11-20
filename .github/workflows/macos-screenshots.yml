@@ -67,12 +67,12 @@ jobs:
           }
           if [ "${{ inputs.gifs }}" = "true" ]; then
             appearance true
-            frames barre 50 "250,0,774,30" --demo-items 0,2,3,4,6,7 --demo-no-widgets
+            frames barre 50 "400,0,624,30" --demo-items 0,2,6,7 --demo-no-widgets
             [ -n "${ONLY_BAR:-}" ] || frames minuteur 30 "560,30,340,300" --demo-items 0,3,7 --demo-no-widgets --demo-card 2
             [ -n "${ONLY_BAR:-}" ] || frames sonnette 30 "600,30,424,350" $BAR --demo-no-widgets --demo-doorbell
             [ -n "${ONLY_BAR:-}" ] || frames panneau 24 "420,30,390,660" $BAR --demo-no-widgets --demo-panel
             appearance false
-            frames barre-clair 50 "250,0,774,30" --demo-items 0,2,3,4,6,7 --demo-no-widgets
+            frames barre-clair 50 "400,0,624,30" --demo-items 0,2,6,7 --demo-no-widgets
             ls -R shots | head -50
             exit 0
           fi
