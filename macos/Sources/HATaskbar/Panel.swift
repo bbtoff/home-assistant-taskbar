@@ -454,19 +454,25 @@ struct PanelView: View {
 
     /// Entites qui correspondent a la fin de la phrase (3, 2 puis 1 derniers mots), et le nombre de mots
     /// qu'une suggestion remplace.
-    private var entitySuggestions: (words: Int, ids: [String])? {
+    /// Entites qui correspondent a la fin de la phrase : d'abord celles qui collent aux 3 derniers mots,
+    /// puis aux 2, puis au dernier (6 au plus) ; chacune retient combien de mots elle remplace.
+    private var entitySuggestions: (words: [String: Int], ids: [String])? {
         let words = search.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
-        guard !words.isEmpty, !search.hasSuffix(" ") || words.count == 1 else { return nil }
+        guard !words.isEmpty, !search.hasSuffix(" ") else { return nil }
+        var ids: [String] = []
+        var used: [String: Int] = [:]
         for n in stride(from: min(3, words.count), through: 1, by: -1) {
             let frag = words.suffix(n).joined(separator: " ")
             guard frag.count >= 2 else { continue }
-            var ids = EntitySearch.search(frag, states: model.states, areas: model.areas, limit: 6)
+            let found = EntitySearch.search(frag, states: model.states, areas: model.areas, limit: 6)
             // deja complete avec le nom exact : plus de suggestion
-            if ids.contains(where: { fold(model.states[$0]?.name ?? "") == fold(frag) }) { return nil }
-            ids = ids.filter { $0 != batteriesId }
-            if !ids.isEmpty { return (n, ids) }
+            if found.contains(where: { fold(model.states[$0]?.name ?? "") == fold(frag) }) { return nil }
+            for e in found where e != batteriesId && used[e] == nil && ids.count < 6 {
+                ids.append(e)
+                used[e] = n
+            }
         }
-        return nil
+        return ids.isEmpty ? nil : (used, ids)
     }
 
     /// Remplace les derniers mots par le nom de l'entite (celui qu'Assist reconnait).
@@ -481,11 +487,11 @@ struct PanelView: View {
 
     private func acceptFirstSuggestion() -> Bool {
         guard assistAnswer == nil, let s = entitySuggestions, let first = s.ids.first else { return false }
-        accept(first, words: s.words)
+        accept(first, words: s.words[first] ?? 1)
         return true
     }
 
-    private func suggestionList(_ sug: (words: Int, ids: [String])) -> some View {
+    private func suggestionList(_ sug: (words: [String: Int], ids: [String])) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Text("Entités de Home Assistant").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
@@ -496,7 +502,7 @@ struct PanelView: View {
             .padding(.bottom, 2)
             ForEach(sug.ids, id: \.self) { eid in
                 let st = model.states[eid]
-                Button { accept(eid, words: sug.words) } label: {
+                Button { accept(eid, words: sug.words[eid] ?? 1) } label: {
                     HStack(spacing: 8) {
                         Image(systemName: Icons.symbol(autoIcon(eid, st))).frame(width: 16).foregroundStyle(.secondary)
                         VStack(alignment: .leading, spacing: 0) {
