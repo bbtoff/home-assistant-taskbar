@@ -344,6 +344,7 @@ struct PanelView: View {
         }
         .onAppear {
             searchFocused = true
+            model.loadAssistExposure()
             if let s = Demo.arg("--demo-search"), !s.isEmpty {
                 search = s.replacingOccurrences(of: "_", with: " ")
                 if Demo.arg("--demo-ask") != nil, let q = assistQuestion { ask(q) }
@@ -398,6 +399,8 @@ struct PanelView: View {
                     .textFieldStyle(.plain)
                     .focused($searchFocused)
                     .onSubmit { if let q = assistQuestion { ask(q) } }
+                    .modifier(TabKey { acceptFirstSuggestion() })
+                    .onChange(of: search) { _ in model.loadAssistExposure() }
                 if !search.isEmpty {
                     Button { search = ""; assistAnswer = nil } label: { Image(systemName: "xmark.circle.fill") }
                         .buttonStyle(.borderless)
@@ -412,6 +415,9 @@ struct PanelView: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 7)
             .background(RoundedRectangle(cornerRadius: 9).fill(Color.primary.opacity(0.06)))
+            if assistAnswer == nil, let sug = entitySuggestions, !sug.ids.isEmpty {
+                suggestionList(sug)
+            }
             if let q = assistQuestion, assistAnswer == nil {
                 Button { ask(q) } label: {
                     HStack {
@@ -442,6 +448,89 @@ struct PanelView: View {
         }
         .padding(.horizontal, 12)
         .padding(.top, 10)
+    }
+
+    // MARK: suggestions d'entites (ce qu'Assist peut connaitre)
+
+    /// Entites qui correspondent a la fin de la phrase (3, 2 puis 1 derniers mots), et le nombre de mots
+    /// qu'une suggestion remplace.
+    private var entitySuggestions: (words: Int, ids: [String])? {
+        let words = search.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
+        guard !words.isEmpty, !search.hasSuffix(" ") || words.count == 1 else { return nil }
+        for n in stride(from: min(3, words.count), through: 1, by: -1) {
+            let frag = words.suffix(n).joined(separator: " ")
+            guard frag.count >= 2 else { continue }
+            var ids = EntitySearch.search(frag, states: model.states, areas: model.areas, limit: 6)
+            // deja complete avec le nom exact : plus de suggestion
+            if ids.contains(where: { fold(model.states[$0]?.name ?? "") == fold(frag) }) { return nil }
+            ids = ids.filter { $0 != batteriesId }
+            if !ids.isEmpty { return (n, ids) }
+        }
+        return nil
+    }
+
+    /// Remplace les derniers mots par le nom de l'entite (celui qu'Assist reconnait).
+    private func accept(_ eid: String, words n: Int) {
+        var words = search.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
+        words.removeLast(min(n, words.count))
+        words.append(model.states[eid]?.name ?? eid)
+        search = words.joined(separator: " ") + " "
+        searchFocused = true
+        Demo.log("suggestion \(eid)")
+    }
+
+    private func acceptFirstSuggestion() -> Bool {
+        guard assistAnswer == nil, let s = entitySuggestions, let first = s.ids.first else { return false }
+        accept(first, words: s.words)
+        return true
+    }
+
+    private func suggestionList(_ sug: (words: Int, ids: [String])) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text("Entités de Home Assistant").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                Spacer()
+                Text("Tab : compléter").font(.caption2).foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 6)
+            .padding(.bottom, 2)
+            ForEach(sug.ids, id: \.self) { eid in
+                let st = model.states[eid]
+                Button { accept(eid, words: sug.words) } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: Icons.symbol(autoIcon(eid, st))).frame(width: 16).foregroundStyle(.secondary)
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(st?.name ?? eid).lineLimit(1)
+                            Text([model.areas[eid], eid].compactMap { $0 }.joined(separator: " · "))
+                                .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                        }
+                        Spacer(minLength: 4)
+                        if let exposed = model.assistExposure?[eid] {
+                            Label(exposed ? "Assist" : "non exposée",
+                                  systemImage: exposed ? "checkmark.bubble" : "exclamationmark.bubble")
+                                .font(.caption2)
+                                .foregroundStyle(exposed ? Color.green : Color.secondary)
+                                .help(exposed ? "Assist peut commander cette entité"
+                                              : "Assist ne la connaît pas : Home Assistant → Paramètres → Assistants vocaux → Exposer")
+                        }
+                        if let st = st {
+                            Text(translate(st.state, domain: st.domain)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                        }
+                    }
+                    .padding(.vertical, 3)
+                    .padding(.horizontal, 6)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+            if model.assistExposure == nil {
+                Text("Assist ne connaît que les entités exposées (Home Assistant → Paramètres → Assistants vocaux → Exposer).")
+                    .font(.caption2).foregroundStyle(.secondary)
+                    .padding(.horizontal, 6).padding(.top, 2)
+            }
+        }
+        .padding(6)
+        .background(RoundedRectangle(cornerRadius: 9).fill(Color.primary.opacity(0.04)))
     }
 
     private var emptyState: some View {
@@ -783,10 +872,39 @@ extension AppModel {
         }
     }
 
+    /// Charge la liste des entites exposees a Assist (au plus toutes les 10 minutes).
+    func loadAssistExposure() {
+        if let t = exposureLoadedAtValue, Date().timeIntervalSince(t) < 600 { return }
+        exposureLoadedAtValue = Date()
+        if Demo.enabled {
+            assistExposure = Dictionary(uniqueKeysWithValues: Demo.states.keys.map {
+                ($0, !$0.hasPrefix("sensor.capteur") && !$0.hasPrefix("binary_sensor.sonnette"))
+            })
+            return
+        }
+        guard let c = client else { return }
+        Task { @MainActor in
+            if let e = try? await c.assistExposure() { self.assistExposure = e }
+        }
+    }
+
     /// Image actuelle d'une camera (ou image de demonstration).
     func cameraImage(_ entityId: String) async -> NSImage? {
         if Demo.enabled { return Demo.cameraImage(entityId) }
         guard let c = client, let data = try? await c.cameraImage(entityId) else { return nil }
         return NSImage(data: data)
+    }
+}
+
+/// Touche Tab dans un champ (macOS 14 et plus) : `action` renvoie true si elle a servi.
+struct TabKey: ViewModifier {
+    let action: () -> Bool
+
+    func body(content: Content) -> some View {
+        if #available(macOS 14.0, *) {
+            content.onKeyPress(.tab) { action() ? .handled : .ignored }
+        } else {
+            content
+        }
     }
 }
