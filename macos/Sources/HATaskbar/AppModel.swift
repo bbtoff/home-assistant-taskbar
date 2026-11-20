@@ -13,6 +13,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var lastOK: Date?
     @Published private(set) var timers: [String: Date] = [:]      // arret programme (entite -> heure)
     @Published var areas: [String: String] = [:]
+    var assistConversation: String?          // conversation Assist en cours (panneau)
 
     /// Appele apres chaque changement d'etat ou de configuration (barre des menus).
     var onStatesChanged: (() -> Void)?

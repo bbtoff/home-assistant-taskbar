@@ -31,6 +31,42 @@ extension AppModel {
     }
 }
 
+extension AppModel {
+    /// Change l'emplacement d'un element (barre des menus ou panneau).
+    func setZone(_ id: UUID, panel: Bool) {
+        update { c in
+            if let i = c.items.firstIndex(where: { $0.id == id }) { c.items[i].zone = panel ? "panel" : nil }
+        }
+    }
+
+    /// Reordonne les elements d'une partie sans toucher a l'autre.
+    func moveInZone(panel: Bool, from: IndexSet, to: Int) {
+        update { c in
+            var sub = c.items.filter { $0.inPanel == panel }
+            sub.move(fromOffsets: from, toOffset: to)
+            var it = sub.makeIterator()
+            c.items = c.items.map { $0.inPanel == panel ? (it.next() ?? $0) : $0 }
+        }
+    }
+
+    /// Element glisse d'une partie dans l'autre, a la position `index` de cette partie.
+    func insertInZone(_ id: UUID, panel: Bool, at index: Int) {
+        update { c in
+            guard let i = c.items.firstIndex(where: { $0.id == id }) else { return }
+            var item = c.items.remove(at: i)
+            item.zone = panel ? "panel" : nil
+            let sub = c.items.filter { $0.inPanel == panel }
+            if index < sub.count, let j = c.items.firstIndex(where: { $0.id == sub[index].id }) {
+                c.items.insert(item, at: j)
+            } else if let last = sub.last, let j = c.items.firstIndex(where: { $0.id == last.id }) {
+                c.items.insert(item, at: j + 1)
+            } else {
+                c.items.append(item)
+            }
+        }
+    }
+}
+
 /// Champ texte pour une valeur facultative ("" = absente).
 func optional(_ b: Binding<String?>) -> Binding<String> {
     Binding(get: { b.wrappedValue ?? "" }, set: { b.wrappedValue = $0.isEmpty ? nil : $0 })
@@ -143,11 +179,32 @@ struct ItemsTab: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 6) {
+                // Deux parties : la barre des menus et le panneau (icone Maison). Glisser une ligne d'une
+                // partie a l'autre change son emplacement.
                 List(selection: $nav.selected) {
-                    ForEach(model.config.items) { it in
-                        ItemRow(model: model, item: it).tag(it.id)
+                    ForEach([false, true], id: \.self) { panel in
+                        Section(panel ? "Panneau (icône Maison)" : "Barre des menus") {
+                            ForEach(model.config.items.filter { $0.inPanel == panel }) { it in
+                                ItemRow(model: model, item: it)
+                                    .tag(it.id)
+                                    .itemProvider { NSItemProvider(object: it.id.uuidString as NSString) }
+                                    .contextMenu {
+                                        Button(panel ? "Mettre dans la barre des menus" : "Mettre dans le panneau") {
+                                            model.setZone(it.id, panel: !panel)
+                                        }
+                                    }
+                            }
+                            .onMove { from, to in model.moveInZone(panel: panel, from: from, to: to) }
+                            .onInsert(of: [UTType.text]) { index, providers in
+                                for p in providers {
+                                    _ = p.loadObject(ofClass: NSString.self) { obj, _ in
+                                        guard let s = obj as? String, let id = UUID(uuidString: s) else { return }
+                                        Task { @MainActor in model.insertInZone(id, panel: panel, at: index) }
+                                    }
+                                }
+                            }
+                        }
                     }
-                    .onMove { from, to in model.update { $0.items.move(fromOffsets: from, toOffset: to) } }
                 }
                 .frame(minWidth: 250)
                 HStack(spacing: 4) {
@@ -162,7 +219,7 @@ struct ItemsTab: View {
                         .disabled(nav.selected == nil)
                     Spacer()
                 }
-                Text("Ordre : de gauche à droite dans la barre des menus. Glisse une ligne pour la déplacer.")
+                Text("Barre des menus : de gauche à droite. Panneau : par pièce, dans cet ordre. Glisse une ligne pour la déplacer, ou d'une partie à l'autre (aussi : clic droit).")
                     .font(.caption).foregroundStyle(.secondary)
             }
             .frame(width: 270)
@@ -248,6 +305,10 @@ struct ItemEditor: View {
                 TextField("Libellé (pour la carte et l'infobulle)", text: optional($item.label),
                           prompt: Text(st?.name ?? ""))
                 IconPicker(title: "Icône", icon: $item.icon, animated: true)
+                Picker("Emplacement", selection: Binding(get: { item.inPanel }, set: { item.zone = $0 ? "panel" : nil })) {
+                    Text("Barre des menus").tag(false)
+                    Text("Panneau (icône Maison)").tag(true)
+                }
                 Toggle("Masqué", isOn: Binding(get: { item.hidden == true }, set: { item.hidden = $0 ? true : nil }))
             } header: {
                 Text(itemName(item, st))
@@ -502,6 +563,26 @@ struct GeneralTab: View {
                 Toggle("Une valeur qui change clignote un instant", isOn: model.bind(\.flashChanges))
                 Toggle("Afficher l'icône HA Taskbar (menu et réglages)", isOn: model.bind(\.showAppIcon))
                 Stepper("Piles faibles : sous \(Int(model.config.batteryLow)) %", value: model.bind(\.batteryLow), in: 5...90, step: 5)
+            }
+            Section("Panneau (icône Maison)") {
+                TextField("Titre", text: model.bind(\.panelTitle), prompt: Text("Maison"))
+                Toggle("Regrouper les éléments par pièce", isOn: model.bind(\.panelByArea))
+                HStack {
+                    Text("Opacité")
+                    Slider(value: model.bind(\.panelOpacity), in: 0.5...1)
+                    Text("\(Int((model.config.panelOpacity * 100).rounded())) %").monospacedDigit().frame(width: 44)
+                }
+                HStack {
+                    Text(model.config.panelWidth == nil ? "Taille par défaut"
+                         : "Taille : \(Int(model.config.panelWidth ?? 0)) × \(Int(model.config.panelHeight ?? 0)) pt")
+                    Spacer()
+                    Button("Taille par défaut") {
+                        model.update { c in c.panelWidth = nil; c.panelHeight = nil }
+                    }
+                    .disabled(model.config.panelWidth == nil)
+                }
+                Text("Clic sur l'icône Maison : le panneau. Clic droit : le menu. Tire les bords du panneau pour l'agrandir ; plusieurs colonnes quand il est assez large.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
             Section("Démarrage") {
                 Toggle("Ouvrir HA Taskbar à l'ouverture de session", isOn: Binding(get: { loginItem }, set: { on in

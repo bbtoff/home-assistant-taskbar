@@ -20,11 +20,13 @@ struct ItemConfig: Codable, Identifiable, Equatable {
     var badge: String?           // "", "percentage", "battery", "direction" ou un attribut
     var cardTitle: String?
     var sparkline: Bool?         // mini-graphique des dernieres heures dans la barre des menus
+    var zone: String?            // "panel" : dans le panneau ; absent, "left" ou "right" : dans la barre
+    var camera: String?          // camera.* ou image.* : apercu dans la carte de l'element
     var favorites: [JSONValue]?
 
     enum CodingKeys: String, CodingKey {
         case entityId = "entity_id", label, icon, attribute, unit, decimals, service, data, group, hidden
-        case showFrom = "show_from", showTo = "show_to", thresholds, badge, cardTitle = "card_title", favorites, sparkline
+        case showFrom = "show_from", showTo = "show_to", thresholds, badge, cardTitle = "card_title", favorites, sparkline, zone, camera
     }
 
     init(entityId: String, label: String? = nil, icon: String? = nil) {
@@ -57,6 +59,8 @@ struct ItemConfig: Codable, Identifiable, Equatable {
         cardTitle = Self.str(c, .cardTitle)
         favorites = try? c.decodeIfPresent([JSONValue].self, forKey: .favorites)
         sparkline = try? c.decodeIfPresent(Bool.self, forKey: .sparkline)
+        zone = Self.str(c, .zone)
+        camera = Self.str(c, .camera)
     }
 
     private static func str(_ c: KeyedDecodingContainer<CodingKeys>, _ k: CodingKeys) -> String? {
@@ -83,6 +87,8 @@ struct ItemConfig: Codable, Identifiable, Equatable {
         try c.encodeIfPresent(cardTitle.nonEmpty, forKey: .cardTitle)
         if let f = favorites, !f.isEmpty { try c.encode(f, forKey: .favorites) }
         if sparkline == true { try c.encode(true, forKey: .sparkline) }
+        try c.encodeIfPresent(zone.nonEmpty, forKey: .zone)
+        try c.encodeIfPresent(camera.nonEmpty, forKey: .camera)
     }
 
     static func == (a: ItemConfig, b: ItemConfig) -> Bool {
@@ -91,10 +97,12 @@ struct ItemConfig: Codable, Identifiable, Equatable {
             && a.service == b.service && a.data == b.data && a.group == b.group && a.hidden == b.hidden
             && a.showFrom == b.showFrom && a.showTo == b.showTo && a.thresholds == b.thresholds
             && a.badge == b.badge && a.cardTitle == b.cardTitle && a.favorites == b.favorites
-            && a.sparkline == b.sparkline
+            && a.sparkline == b.sparkline && a.zone == b.zone && a.camera == b.camera
     }
 
     var domain: String { entityId.domain }
+    /// Range dans le panneau plutot que dans la barre des menus.
+    var inPanel: Bool { zone == "panel" }
     var members: [String] {
         var out = [entityId]
         for e in group ?? [] where !e.isEmpty && !out.contains(e) { out.append(e) }
@@ -109,8 +117,9 @@ struct NotifyRule: Codable, Identifiable, Equatable {
     var entityId: String
     var to: String
     var message: String
+    var camera: String?          // ouvre la fenetre camera quand la regle se declenche
 
-    enum CodingKeys: String, CodingKey { case entityId = "entity_id", to, message }
+    enum CodingKeys: String, CodingKey { case entityId = "entity_id", to, message, camera }
 
     init(entityId: String = "", to: String = "", message: String = "") {
         self.entityId = entityId
@@ -123,6 +132,7 @@ struct NotifyRule: Codable, Identifiable, Equatable {
         entityId = (try? c.decode(String.self, forKey: .entityId)) ?? ""
         to = (try? c.decode(String.self, forKey: .to)) ?? ""
         message = (try? c.decode(String.self, forKey: .message)) ?? ""
+        camera = (try? c.decodeIfPresent(String.self, forKey: .camera)).flatMap { $0 }.flatMap { $0.isEmpty ? nil : $0 }
     }
 }
 
@@ -146,6 +156,11 @@ struct AppConfig: Codable, Equatable {
     var skipVersion = ""             // version que l'utilisateur a choisi d'ignorer
     var notifications: [NotifyRule] = []
     var widgets: [WidgetConfig] = []
+    var panelTitle = ""              // titre du panneau (vide = « Maison »)
+    var panelByArea = true           // elements du panneau regroupes par piece
+    var panelOpacity: Double = 1     // 0,5 a 1
+    var panelWidth: Double?          // taille du panneau (points) ; absente = taille par defaut
+    var panelHeight: Double?
     var items: [ItemConfig] = []
 
     enum CodingKeys: String, CodingKey {
@@ -155,6 +170,8 @@ struct AppConfig: Codable, Equatable {
         case notifyOffline = "notify_offline", haNotifications = "ha_notifications"
         case quietFrom = "quiet_from", quietTo = "quiet_to", batteryLow = "battery_low"
         case checkUpdates = "check_updates", skipVersion = "skip_version", notifications, items, widgets
+        case panelTitle = "panel_title", panelByArea = "panel_by_area", panelOpacity = "panel_opacity"
+        case panelWidth = "panel_width", panelHeight = "panel_height"
     }
 
     init() {}
@@ -184,6 +201,11 @@ struct AppConfig: Codable, Equatable {
         skipVersion = get(.skipVersion, d.skipVersion)
         notifications = get(.notifications, d.notifications)
         widgets = get(.widgets, d.widgets)
+        panelTitle = get(.panelTitle, d.panelTitle)
+        panelByArea = get(.panelByArea, d.panelByArea)
+        panelOpacity = min(1, max(0.5, get(.panelOpacity, d.panelOpacity)))
+        panelWidth = (try? c.decodeIfPresent(Double.self, forKey: .panelWidth)) ?? nil
+        panelHeight = (try? c.decodeIfPresent(Double.self, forKey: .panelHeight)) ?? nil
         items = get(.items, d.items)
     }
 }

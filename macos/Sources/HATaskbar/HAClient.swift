@@ -133,6 +133,42 @@ final class HAClient {
         return f.compactMap { $0.object }
     }
 
+    /// Phrase envoyee a Assist (comme a la voix) -> (reponse, erreur ?, conversation_id).
+    func converse(_ text: String, conversationId: String?) async throws -> (speech: String, error: Bool, id: String?) {
+        var body: [String: JSONValue] = ["text": .string(text)]
+        if let id = conversationId { body["conversation_id"] = .string(id) }
+        let r = try await json("POST", "/api/conversation/process", body: .object(body), timeout: 30)
+        let resp = r["response"]
+        let speech = resp?["speech"]?["plain"]?["speech"]?.string ?? ""
+        return (speech, resp?["response_type"]?.string == "error", r["conversation_id"]?.string)
+    }
+
+    /// Image actuelle d'une camera (camera.*) ou d'une entite image.* (octets JPEG / PNG).
+    func cameraImage(_ entityId: String) async throws -> Data {
+        let kind = entityId.hasPrefix("image.") ? "image_proxy" : "camera_proxy"
+        let data = try await request("GET", "/api/\(kind)/\(entityId)", timeout: 10)
+        return data
+    }
+
+    /// Photo d'une personne, pochette d'un lecteur... (attribut entity_picture), 8 Mo au plus.
+    /// Un chemin relatif se lit sur Home Assistant avec le jeton ; une adresse externe sans le jeton.
+    func picture(_ path: String) async throws -> Data {
+        let data: Data
+        if path.hasPrefix("/") || path.hasPrefix(base + "/") {
+            data = try await request("GET", path.hasPrefix("/") ? path : String(path.dropFirst(base.count)), timeout: 10)
+        } else if path.hasPrefix("http://") || path.hasPrefix("https://"), let url = URL(string: path) {
+            var req = URLRequest(url: url, timeoutInterval: 10)
+            req.setValue("HA-Taskbar", forHTTPHeaderField: "User-Agent")
+            let (d, resp) = try await session.data(for: req)
+            guard ((resp as? HTTPURLResponse)?.statusCode ?? 0) / 100 == 2 else { throw HAError.invalid }
+            data = d
+        } else {
+            throw HAError.invalid
+        }
+        guard data.count <= 8 * 1024 * 1024 else { throw HAError.invalid }
+        return data
+    }
+
     /// Rend un modele Jinja cote Home Assistant.
     func template(_ tpl: String) async throws -> String {
         let data = try await request("POST", "/api/template", body: ["template": .string(tpl)], timeout: 20)

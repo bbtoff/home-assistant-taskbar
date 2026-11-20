@@ -33,6 +33,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     lazy var updater = Updater(model: model)
     lazy var history = HistoryStore(model: model)
     lazy var widgets = WidgetController(model: model, history: history)
+    lazy var panel = PanelController(model: model)
     private var bar: StatusBarController?
     private var settingsWindow: NSWindow?
     private let notificationDelegate = NotificationDelegate()
@@ -48,6 +49,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         bar.history = history
         history.onChange = { [weak self] in self?.bar?.refresh() }
         widgets.openSettings = { [weak self] id in self?.showSettings(widget: id) }
+        panel.openSettings = { [weak self] id in
+            self?.panel.close()
+            if let id = id { self?.showSettings(item: id) } else { self?.showSettings() }
+        }
+        bar.onPanel = { [weak self] anchor in self?.panel.toggle(anchor: anchor) }
         updater.onAvailable = { [weak self] r in self?.updater.ask(r) }
         bar.openSettings = { [weak self] id in self?.showSettings(item: id) }
         bar.openPicker = { [weak self] in self?.showSettings(picker: true) }
@@ -56,6 +62,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         model.onConfigChanged = { [weak self] in
             self?.bar?.refresh()
             self?.widgets.sync()
+            self?.panel.sync()
         }
         bar.refresh()
         model.start()
@@ -95,6 +102,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 } else {
                     showSettings(item: tab == .items ? model.config.items.first?.id : nil, tab: tab)
                 }
+            }
+            if Demo.arg("--demo-panel") != nil {
+                bar?.openPanel()
             }
             if Demo.arg("--demo-picker") != nil {
                 showSettings(picker: true)
