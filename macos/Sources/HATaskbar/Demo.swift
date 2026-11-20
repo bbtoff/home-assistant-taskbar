@@ -55,7 +55,9 @@ enum Demo {
         let scene = ItemConfig(entityId: "scene.cinema", label: "Ciné")
         let clim = ItemConfig(entityId: "climate.clim_salon", label: "Clim", icon: "snow_anim")
         let cuisson = ItemConfig(entityId: "timer.cuisson", label: "Cuisson")
-        c.items = [light, plug, heat, power, ext, scene, clim, cuisson]
+        var sonnette = ItemConfig(entityId: "binary_sensor.sonnette", label: "Sonnette", icon: "bell")
+        sonnette.camera = "camera.entree"
+        c.items = [light, plug, heat, power, ext, scene, clim, cuisson, sonnette]
         // Elements du panneau (icone Maison)
         for (eid, label) in [("light.cuisine", "Cuisine"), ("switch.cafetiere", "Cafetière"), ("fan.plafond", "Ventilateur"),
                              ("cover.volet_salon", "Volet"), ("media_player.salon", "Enceinte"),
@@ -146,6 +148,8 @@ enum Demo {
                 "friendly_name": "Volet du salon", "current_position": 75, "device_class": "shutter"], lastChanged: ago(300)),
             EntityState(entityId: "binary_sensor.porte_entree", state: "off", attributes: [
                 "friendly_name": "Porte d'entrée", "device_class": "door"], lastChanged: ago(45)),
+            EntityState(entityId: "binary_sensor.sonnette", state: "off", attributes: [
+                "friendly_name": "Sonnette", "device_class": "sound"], lastChanged: ago(30)),
             EntityState(entityId: "person.alex", state: "home", attributes: [
                 "friendly_name": "Alex", "entity_picture": "/demo/alex.png"], lastChanged: ago(95)),
             EntityState(entityId: "media_player.salon", state: "playing", attributes: [

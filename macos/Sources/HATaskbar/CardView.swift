@@ -26,6 +26,14 @@ struct CardView: View {
         let st = model.states[item.entityId]
         VStack(alignment: .leading, spacing: 14) {
             CardHeader(model: model, item: item, st: st)
+            // Apercu camera : la camera de l'element (camera.* / image.*), sinon sa cle « camera »
+            if let cam = cardCamera(item) {
+                CameraImageView(model: model, entityId: cam, interval: 1)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 168)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .onAppear { Demo.log("camera \(cam) dans la carte") }
+            }
             if item.entityId == batteriesId {
                 BatteryList(model: model)
             } else if let st = st {
@@ -51,6 +59,12 @@ struct CardView: View {
         }
         .padding(16)
     }
+}
+
+/// Camera montree dans la carte d'un element.
+func cardCamera(_ item: ItemConfig) -> String? {
+    if item.domain == "camera" || item.domain == "image" { return item.entityId }
+    return item.camera.nonEmpty
 }
 
 let timerDomains: Set<String> = ["light", "switch", "fan", "media_player", "climate", "input_boolean", "humidifier"]

@@ -363,6 +363,14 @@ struct ItemEditor: View {
                     TextField("à", text: optional($item.showTo), prompt: Text("07:00"))
                 }
                 TextField("Titre de la carte", text: optional($item.cardTitle), prompt: Text(itemName(item, st)))
+                Picker("Caméra dans la carte", selection: Binding(get: { item.camera ?? "" },
+                                                                 set: { item.camera = $0.isEmpty ? nil : $0 })) {
+                    Text("(aucune)").tag("")
+                    ForEach(model.sortedEntities.filter { ["camera", "image"].contains($0.domain) }, id: \.entityId) { c in
+                        Text(c.name).tag(c.entityId)
+                    }
+                    if let c = item.camera, model.states[c] == nil { Text(c).tag(c) }
+                }
             } header: {
                 Text("Plus d'options")
             } footer: {

@@ -62,6 +62,7 @@ jobs:
             shoot "panneau-assist-$mode" $BAR --demo-no-widgets --demo-panel --demo-search "allume_la_lumiere_du_salon" --demo-ask
             shoot "carte-personne-$mode" $BAR --demo-no-widgets --demo-card-entity person.alex
             shoot "carte-lecteur-$mode" $BAR --demo-no-widgets --demo-card-entity media_player.salon
+            shoot "carte-camera-$mode" --demo-items 0,3,8 --demo-no-widgets --demo-card 2
             shoot "panneau-large-$mode" $BAR --demo-no-widgets --demo-panel --demo-panel-wide
             shoot "reglages-widgets-$mode" --demo-settings widgets
           done
