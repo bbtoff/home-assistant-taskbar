@@ -79,7 +79,7 @@ Le **compte à rebours** d'un minuteur défile sur la barre ; un clic le met en 
 
 ### 💬 Assist : parle à ta maison
 
-Tape une phrase (« allume le salon », « quelle heure est-il ») : Home Assistant répond directement. Sous Windows dans la **palette de commandes** (`Ctrl+Alt+Espace`, depuis n'importe quelle application), sur Mac dans la recherche du **panneau**.
+Tape une phrase (« allume le salon », « quelle heure est-il ») : Home Assistant répond directement. Sous Windows dans la **palette de commandes** (`Ctrl+Alt+Espace`, depuis n'importe quelle application), sur Mac dans la recherche du **panneau**. Pendant la saisie, HA Taskbar propose les entités qui correspondent à la fin de la phrase, avec une pastille qui dit si Assist les connaît (entité **exposée**) ; **Tab** complète avec leur nom exact.
 
 <p align="center">
   <img src="docs/screenshots/palette-assist.png" width="49%" alt="Assist dans la palette de commandes de Windows">

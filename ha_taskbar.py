@@ -726,6 +726,8 @@ class App:
         self.areas = {}          # entity_id -> piece (Home Assistant)
         self._areas_at = 0.0
         self._areas_busy = False
+        self.assist_exposure = None   # {entity_id: exposee a Assist ?} ; None = inconnu (compte non administrateur...)
+        self._exposure_at = 0.0
         self.palette = None      # palette de commandes ouverte
         self.drag = None         # Ctrl + glisser : element en cours de deplacement
         self._marker = None
@@ -1048,6 +1050,22 @@ class App:
                 self.q.put(("areas", ha.areas()))
             except Exception:
                 self.q.put(("areas", None))
+        threading.Thread(target=run, daemon=True).start()
+
+    def load_assist_exposure(self):
+        """Entites exposees a Assist (suggestions de la palette), relues au plus toutes les 10 minutes."""
+        if time.time() - self._exposure_at < 600 or self.ha is None:
+            return
+        self._exposure_at = time.time()
+        cfg = self.cfg
+        url, token, verify = cfg.get("ha_url"), self.ha.token, cfg.get("verify_ssl", True)
+
+        def run():
+            try:
+                from ha_ws import assist_exposure
+                self.q.put(("exposure", assist_exposure(url, token, verify)))
+            except Exception:
+                self.q.put(("exposure", None))
         threading.Thread(target=run, daemon=True).start()
 
     # ---------------- modification de la liste des elements depuis la barre
@@ -1840,6 +1858,11 @@ class App:
                     self._areas_busy = False
                     if payload is not None:
                         self.areas = payload
+                elif kind == "exposure":
+                    if payload is not None:
+                        self.assist_exposure = payload
+                    if self.palette is not None and self.palette.alive:
+                        self.palette.search(keep_sel=True)
                 else:
                     self.on_update_msg(kind, payload)
         except queue.Empty:

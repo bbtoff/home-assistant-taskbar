@@ -178,6 +178,48 @@ class WebSocket:
             pass
 
 
+def command(url, token, verify_ssl, type_, timeout=15, **fields):
+    """Commande ponctuelle de l'API WebSocket (connexion, authentification, une requete, son resultat).
+    Leve une exception si Home Assistant la refuse (compte non administrateur, par exemple)."""
+    ws = WebSocket(url, verify_ssl, timeout=timeout)
+    try:
+        msg = json.loads(ws.recv(timeout) or "null")
+        if not msg or msg.get("type") != "auth_required":
+            raise WSClosed(_("réponse inattendue de Home Assistant"))
+        ws.send_json({"type": "auth", "access_token": token})
+        msg = json.loads(ws.recv(timeout) or "null")
+        if not msg or msg.get("type") != "auth_ok":
+            raise AuthFailed(_("jeton refusé"))
+        ws.send_json(dict(fields, id=1, type=type_))
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            text = ws.recv(max(0.1, deadline - time.monotonic()))
+            if text is None:
+                continue
+            try:
+                data = json.loads(text)
+            except ValueError:
+                continue
+            for m in (data if isinstance(data, list) else [data]):
+                if isinstance(m, dict) and m.get("id") == 1 and m.get("type") == "result":
+                    if not m.get("success"):
+                        raise WSClosed((m.get("error") or {}).get("message") or _("commande refusée"))
+                    return m.get("result")
+        raise WSClosed(_("Home Assistant ne répond plus"))
+    finally:
+        ws.close()
+
+
+def assist_exposure(url, token, verify_ssl):
+    """{entity_id: exposee a Assist ?}. Demande un compte administrateur."""
+    r = command(url, token, verify_ssl, "homeassistant/expose_entity/list") or {}
+    out = {}
+    for eid, v in (r.get("exposed_entities") or {}).items():
+        if isinstance(v, dict) and "conversation" in v:
+            out[eid] = bool(v["conversation"])
+    return out
+
+
 class Realtime:
     """Fil d'execution : connexion permanente a Home Assistant, reconnexion automatique."""
 

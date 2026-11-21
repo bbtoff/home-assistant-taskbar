@@ -82,7 +82,7 @@ A timer's **countdown** runs on the bar; a click pauses it. When someone **rings
 
 ### 💬 Assist: talk to your home
 
-Type a sentence ("turn on the living room", "what time is it"): Home Assistant answers right away. On Windows in the **command palette** (`Ctrl+Alt+Space`, from any app), on Mac in the **panel**'s search field.
+Type a sentence ("turn on the living room", "what time is it"): Home Assistant answers right away. On Windows in the **command palette** (`Ctrl+Alt+Space`, from any app), on Mac in the **panel**'s search field. While you type, HA Taskbar suggests the entities that match the end of the sentence, with a badge telling whether Assist knows them (**exposed** entity); **Tab** completes with their exact name.
 
 <p align="center">
   <img src="docs/screenshots/en/palette-assist.png" width="49%" alt="Assist in the Windows command palette">
