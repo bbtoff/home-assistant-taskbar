@@ -889,6 +889,13 @@ EN = {
     "Entité inconnue dans Home Assistant. Tape une partie de son nom pour la retrouver.":
         "Unknown entity in Home Assistant. Type part of its name to find it.",
     "Taille du panneau par défaut": "Default panel size",
+    "commande refusée": "command refused",
+    "Assist ne connaît que les entités exposées (Home Assistant → Paramètres → Assistants vocaux → Exposer).":
+        "Assist only knows exposed entities (Home Assistant → Settings → Voice assistants → Expose).",
+    "✓ Assist": "✓ Assist",
+    "non exposée": "not exposed",
+    "Entrée : demander à Assist  ·  Tab : compléter avec l'entité  ·  ↑ ↓ : choisir  ·  Échap : fermer":
+        "Enter: ask Assist  ·  Tab: complete with the entity  ·  ↑ ↓: choose  ·  Esc: close",
     "Tape quelques lettres du nom, de la pièce ou de l'entité.":
         "Type a few letters of the name, the room or the entity.",
 }

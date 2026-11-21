@@ -21,7 +21,9 @@ user32.GetWindowLongW.argtypes = [wintypes.HWND, ctypes.c_int]
 user32.SetWindowLongW.argtypes = [wintypes.HWND, ctypes.c_int, ctypes.c_long]
 
 ROWS = 8
+SUGGEST = 6              # suggestions d'entites au plus, pendant une phrase pour Assist
 ASSIST = "@assist"       # ligne speciale : envoyer la phrase tapee a Assist
+OK_GREEN = "#3fb950"
 # Domaines sans interet dans la palette
 SKIP_DOMAINS = {"persistent_notification", "zone", "conversation", "tts", "stt", "event", "image", "tag",
                 "update", "assist_satellite", "wake_word", "todo", "calendar", "ai_task"}
@@ -89,6 +91,7 @@ class Palette:
         self.alive = True
         self.conv_id = None                       # Assist : la conversation continue tant que la palette est ouverte
         self.assist_q = queue.Queue()
+        self.suggest = {}                         # entite suggeree -> nombre de mots de fin de phrase qu'elle remplace
         light = card_light(app.cfg, getattr(app, "light", False))
         base, _r = card_palette(app.cfg, app.colors, light)
         c = self.c = derive_palette(base)
@@ -132,16 +135,26 @@ class Palette:
             ar.pack(side="left", padx=(s(8), 0))
             val = tk.Label(r, text="", bg=c["bg"], fg=c["dim"], font=(fam, 10), anchor="e")
             val.pack(side="right")
-            ws = (r, ic, nm, ar, val)
+            pill = tk.Label(r, text="", bg=c["bg"], fg=c["dim"], font=(fam, 8), anchor="e")
+            pill.pack(side="right", padx=(0, s(10)))
+            # valeur et pastille d'abord : un nom trop long est coupe au lieu de les recouvrir
+            nm.pack_forget()
+            ar.pack_forget()
+            nm.pack(side="left", padx=(s(8), 0))
+            ar.pack(side="left", padx=(s(8), 0))
+            ws = (r, ic, nm, ar, val, pill)
             for w in ws:
                 w.bind("<Button-1>", lambda e, i=i: self.click(i))
                 w.bind("<MouseWheel>", lambda e, i=i: self.wheel(i, e))
                 w.bind("<Motion>", lambda e, i=i: self.hover(i))
             self.rows.append(ws)
         self.empty = tk.Label(body, text="", bg=c["bg"], fg=c["dim"], font=(fam, 9))
-        tk.Label(body, text=_("Entrée : action  ·  ← → : régler  ·  Tab : carte  ·  Ctrl+Entrée : Assist  ·  "
-                              "Échap : fermer"),
-                 bg=c["bg"], fg=c["dim"], font=(fam, 8)).pack(anchor="w", pady=(s(8), 0), side="bottom")
+        self.help = tk.Label(body, text="", bg=c["bg"], fg=c["dim"], font=(fam, 8))
+        self.help.pack(anchor="w", pady=(s(8), 0), side="bottom")
+        # rappel quand on ne sait pas quelles entites Assist connait
+        self.note = tk.Label(body, text=_("Assist ne connaît que les entités exposées (Home Assistant → Paramètres → "
+                                          "Assistants vocaux → Exposer)."), bg=c["bg"], fg=c["dim"],
+                             font=(fam, 8), anchor="w", justify="left", wraplength=s(590))
 
         e = self.entry
         e.bind("<Down>", lambda ev: self.move(1))
@@ -151,13 +164,14 @@ class Palette:
         e.bind("<Return>", lambda ev: self.act())
         e.bind("<Control-Return>", lambda ev: self.ask())
         e.bind("<KP_Enter>", lambda ev: self.act())
-        e.bind("<Tab>", lambda ev: self.card())
+        e.bind("<Tab>", lambda ev: self.tab())
         e.bind("<Left>", lambda ev: self.adjust(-1))
         e.bind("<Right>", lambda ev: self.adjust(1))
         e.bind("<Escape>", lambda ev: self.close())
         win.bind("<MouseWheel>", lambda ev: self.wheel(self.sel, ev))
         self.v.trace_add("write", lambda *a: self.search())
         self.search()
+        app.load_assist_exposure()
 
         win.update_idletasks()
         self.hwnd = user32.GetAncestor(win.winfo_id(), 2)
@@ -176,7 +190,8 @@ class Palette:
         self._loop()
 
     # ---------------- recherche
-    def search(self):
+    def search(self, keep_sel=False):
+        old_sel = self.sel
         words = fold(self.v.get()).split()
         states = self.app.last_states
         areas = getattr(self.app, "areas", {}) or {}
@@ -207,25 +222,90 @@ class Palette:
         self.results = [(eid, name, area) for _s, _f, eid, name, area in out[:ROWS]]
         # une phrase (deux mots ou plus) : proposer de la demander a Assist, en tete si aucune entite ne correspond
         text = self.v.get().strip()
+        self.suggest = {}
         if len(text.split()) >= 2:
             row = (ASSIST, _("Demander à Assist : « %s »") % text, "")
             if self.results:
                 self.results = self.results[:ROWS - 1] + [row]
             else:
                 self.results = [row]
+            # entites qui collent a la fin de la phrase : ce qu'Assist peut connaitre, Tab complete
+            sug = self.suggestions()
+            known = {r[0] for r in self.results}
+            for eid in sug:
+                if len(self.results) >= ROWS:
+                    break
+                if eid not in known:
+                    st = states.get(eid) or {}
+                    self.results.append((eid, st.get("attributes", {}).get("friendly_name") or eid,
+                                         areas.get(eid, "")))
+            self.suggest = {e: n for e, n in sug.items() if e in {r[0] for r in self.results}}
         self.total = len(out)
-        self.sel = 0
+        self.sel = min(old_sel, len(self.results) - 1) if keep_sel and self.results else 0
         self.render()
+
+    def suggestions(self):
+        """Entites qui correspondent a la fin de la phrase : d'abord aux 3 derniers mots, puis aux 2, puis au
+        dernier (6 au plus). Chacune retient combien de mots elle remplace."""
+        raw = self.v.get()
+        words = raw.split()
+        if not words or raw.endswith(" "):
+            return {}
+        from autocomplete import search as ac_search
+        states = self.app.last_states
+        areas = getattr(self.app, "areas", {}) or {}
+        ents = [e for e in states if e.split(".", 1)[0] not in SKIP_DOMAINS]
+
+        def name(e):
+            return (states.get(e) or {}).get("attributes", {}).get("friendly_name") or ""
+        out = {}
+        for n in range(min(3, len(words)), 0, -1):
+            frag = " ".join(words[-n:])
+            if len(frag) < 2:
+                continue
+            found = ac_search(ents, name, areas, frag, limit=SUGGEST)
+            if any(fold(name(e)) == fold(frag) for e in found):
+                return {}                       # deja complete avec le nom exact
+            for e in found:
+                if e not in out and len(out) < SUGGEST:
+                    out[e] = n
+        return out
+
+    def complete(self, eid):
+        """Remplace les derniers mots de la phrase par le nom exact de l'entite (celui qu'Assist reconnait)."""
+        n = self.suggest.get(eid, 1)
+        words = self.v.get().split()
+        words = words[:max(0, len(words) - n)]
+        st = self.app.last_states.get(eid) or {}
+        words.append(st.get("attributes", {}).get("friendly_name") or eid)
+        self.v.set(" ".join(words) + " ")
+        self.entry.icursor("end")
+        self.entry.selection_clear()
+        # la phrase complete : l'action par defaut redevient « Demander a Assist »
+        self.sel = next((i for i, r in enumerate(self.results) if r[0] == ASSIST), 0)
+        self.render()
+        return "break"
+
+    def tab(self):
+        """Tab : complete la phrase avec l'entite choisie (ou la premiere suggeree), sinon ouvre la carte."""
+        if self.suggest:
+            eid, _cfg = self.current()
+            if eid not in self.suggest:
+                eid = next(r[0] for r in self.results if r[0] in self.suggest)
+            return self.complete(eid)
+        return self.card()
 
     def render(self):
         if not self.alive:
             return
         c = self.c
         states = self.app.last_states
-        for i, (r, ic, nm, ar, val) in enumerate(self.rows):
+        exposure = getattr(self.app, "assist_exposure", None)
+        for i, (r, ic, nm, ar, val, pill) in enumerate(self.rows):
             if i < len(self.results):
                 eid, name, area = self.results[i]
                 bg = c["surface"] if i == self.sel else c["bg"]
+                pill.configure(text="", bg=bg)
                 if eid == ASSIST:
                     for w in (r, ic, nm, ar, val):
                         w.configure(bg=bg)
@@ -244,6 +324,12 @@ class Palette:
                 ic.configure(text=resolve_icon(cfg, st) or "", fg=c["accent"] if on else c["fg"])
                 nm.configure(text=name[:48])
                 ar.configure(text=area)
+                if eid in self.suggest:
+                    nm.configure(text=name[:40])
+                    ar.configure(text=" · ".join(x for x in (area, eid) if x)[:48])
+                    if exposure is not None and eid in exposure:
+                        pill.configure(text=_("✓ Assist") if exposure[eid] else _("non exposée"),
+                                       fg=OK_GREEN if exposure[eid] else c["dim"])
                 pend = self.pending.get(eid)
                 val.configure(text=pend if pend is not None else state_text(eid, st),
                               fg=c["accent"] if (on or pend is not None) else c["dim"])
@@ -251,6 +337,21 @@ class Palette:
                     r.pack(fill="x")
             elif r.winfo_ismapped():
                 r.pack_forget()
+        if self.suggest:
+            help_text = _("Entrée : demander à Assist  ·  Tab : compléter avec l'entité  ·  ↑ ↓ : choisir  ·  "
+                          "Échap : fermer")
+        else:
+            help_text = _("Entrée : action  ·  ← → : régler  ·  Tab : carte  ·  Ctrl+Entrée : Assist  ·  "
+                          "Échap : fermer")
+        if self.help.cget("text") != help_text:
+            self.help.configure(text=help_text)
+        want_note = bool(self.suggest) and exposure is None
+        if want_note != bool(self.note.winfo_ismapped()):
+            if want_note:
+                self.note.pack(anchor="w", pady=(self.s(6), 0), side="bottom", before=self.help)
+            else:
+                self.note.pack_forget()
+            self.win.after_idle(self._resize)
         if not self.results:
             self.empty.configure(text=_("Aucune entité ne correspond.") if self.app.last_states
                                  else _("Home Assistant n'a pas encore répondu."))
@@ -281,6 +382,8 @@ class Palette:
         eid, cfg = self.current()
         if eid == ASSIST:
             return self.ask()
+        if eid in self.suggest:
+            return self.complete(eid)
         if eid is None:
             return "break"
         if eid.split(".", 1)[0] in ("climate", "water_heater", "number", "input_number", "select",
