@@ -996,21 +996,11 @@ class Card:
         threading.Thread(target=self._fetch_camera, args=(self.app.ha, self.cam_eid), daemon=True).start()
 
     def _fetch_camera(self, ha, eid):
-        import imaging
+        import camera_live
         w = self.iw
-        while self.alive:
-            try:
-                png, _w, _h = imaging.to_png(ha.camera_image(eid), w, int(w * 0.75))
-                self.q.put(("cam", png))
-                delay = CAMERA_REFRESH_S
-            except Exception as e:
-                code = getattr(e, "code", None)
-                msg = _("Caméra indisponible dans Home Assistant") if code in (404, 500, 503)                     else str(getattr(e, "reason", e))
-                self.q.put(("cam_err", msg))
-                delay = 15.0 if code else 5.0
-            end = time.monotonic() + delay
-            while self.alive and time.monotonic() < end:
-                time.sleep(0.1)
+        camera_live.run(ha, eid, lambda: (w, int(w * 0.75)), lambda: self.alive,
+                        lambda png: self.q.put(("cam", png)), lambda msg: self.q.put(("cam_err", msg)),
+                        snapshot_s=CAMERA_REFRESH_S)
 
     def _show_camera(self, png):
         try:
@@ -1926,8 +1916,7 @@ class Card:
                     self._show_camera(data)
                 elif kind == "cam_err":
                     if self.cam_img is None:
-                        self.cam_box.configure(text=data[:90] if data.startswith(_("Caméra")) else
-                                               _("Image indisponible : %s") % data[:80])
+                        self.cam_box.configure(text=data[:90])
                 elif kind == "forecast":
                     self._build_forecast(data[1], data[0] or "daily")
                 elif data[1] == self.hist_hours:
