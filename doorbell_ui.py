@@ -119,20 +119,10 @@ class CameraPopup:
         self.win.geometry("%dx%d+%d+%d" % (w, h, x, y))
 
     def _fetch(self, ha):
-        import imaging
-        while self.alive:
-            try:
-                png, _w, _h = imaging.to_png(ha.camera_image(self.camera), self.iw, int(self.iw * 0.75))
-                self.q.put(("img", png))
-                delay = REFRESH_S
-            except Exception as e:
-                code = getattr(e, "code", None)
-                self.q.put(("err", _("Caméra indisponible dans Home Assistant") if code in (404, 500, 503)
-                            else str(getattr(e, "reason", e))))
-                delay = 5.0
-            end = time.monotonic() + delay
-            while self.alive and time.monotonic() < end:
-                time.sleep(0.1)
+        import camera_live
+        camera_live.run(ha, self.camera, lambda: (self.iw, int(self.iw * 0.75)), lambda: self.alive,
+                        lambda png: self.q.put(("img", png)), lambda msg: self.q.put(("err", msg)),
+                        snapshot_s=REFRESH_S)
 
     def _loop(self):
         if not self.alive:
@@ -161,7 +151,7 @@ class CameraPopup:
                 self.close()
                 return
             self.left.configure(text=_("se ferme dans %d s") % int(left + 0.99))
-        self.app.root.after(200, self._loop)
+        self.app.root.after(50, self._loop)
 
     def open_card(self):
         self.close()

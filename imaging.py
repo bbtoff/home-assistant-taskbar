@@ -41,7 +41,7 @@ def _gdiplus():
     return gp
 
 
-def _png(width, height, pix, alpha=False):
+def _png(width, height, pix, alpha=False, level=6):
     """Pixels RGB ou RGBA (bytes) -> fichier PNG."""
     stride = width * (4 if alpha else 3)
     raw = b"".join(b"\x00" + pix[y * stride:(y + 1) * stride] for y in range(height))
@@ -50,7 +50,7 @@ def _png(width, height, pix, alpha=False):
         return struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d) & 0xFFFFFFFF)
     return (b"\x89PNG\r\n\x1a\n"
             + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 6 if alpha else 2, 0, 0, 0))
-            + chunk(b"IDAT", zlib.compress(raw, 6)) + chunk(b"IEND", b""))
+            + chunk(b"IDAT", zlib.compress(raw, level)) + chunk(b"IEND", b""))
 
 
 def _mask(w, h, shape, radius):
@@ -76,10 +76,11 @@ def _mask(w, h, shape, radius):
     return out
 
 
-def to_png(data, max_w, max_h, shape=None, radius=8):
+def to_png(data, max_w, max_h, shape=None, radius=8, level=6):
     """Image (bytes, tout format lu par Windows) -> (PNG en base64, largeur, hauteur), reduite pour tenir
     dans max_w x max_h en gardant ses proportions. shape="circle" : recadree en carre puis en disque
-    (photo d'une personne) ; "rounded" : coins arrondis (pochette). Leve OSError si l'image est illisible."""
+    (photo d'une personne) ; "rounded" : coins arrondis (pochette). Leve OSError si l'image est illisible.
+    level : compression PNG (1 = rapide, pour une image en direct)."""
     shlwapi = ctypes.windll.shlwapi
     shlwapi.SHCreateMemStream.restype = c_void_p
     shlwapi.SHCreateMemStream.argtypes = [ctypes.c_char_p, ctypes.c_uint]
@@ -140,7 +141,7 @@ def to_png(data, max_w, max_h, shape=None, radius=8):
             rgba[o + 1:o + tw * 4:4] = row[1::4]
             rgba[o + 2:o + tw * 4:4] = row[0::4]
             rgba[o + 3:o + tw * 4:4] = mask[y * tw:(y + 1) * tw]
-        return base64.b64encode(_png(tw, th, bytes(rgba), alpha=True)), tw, th
+        return base64.b64encode(_png(tw, th, bytes(rgba), alpha=True, level=level)), tw, th
     # BGRA (lignes de `Stride` octets) -> RGB
     rgb = bytearray(tw * th * 3)
     for y in range(th):
@@ -149,4 +150,4 @@ def to_png(data, max_w, max_h, shape=None, radius=8):
         rgb[o:o + tw * 3:3] = row[2::4]
         rgb[o + 1:o + tw * 3:3] = row[1::4]
         rgb[o + 2:o + tw * 3:3] = row[0::4]
-    return base64.b64encode(_png(tw, th, bytes(rgb))), tw, th
+    return base64.b64encode(_png(tw, th, bytes(rgb), level=level)), tw, th
